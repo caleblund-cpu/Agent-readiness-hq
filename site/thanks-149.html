@@ -3,88 +3,40 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Thank you: $149 AI Readiness DIY | Agent Readiness HQ</title>
-<link rel="stylesheet" href="styles.v5.css">
+<title>Payment received: $149 AI Readiness DIY | Agent Readiness HQ</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="styles.v6.css">
 <style>
-.intake-wrap { max-width: 40rem; margin: 0 auto; padding: 3rem 1.25rem 4rem; }
-.intake-wrap h1 { font-size: 2rem; letter-spacing: -0.02em; margin-bottom: 0.5rem; }
-.intake-wrap .lede { color: var(--muted); margin-bottom: 2rem; }
-.intake-form { display: flex; flex-direction: column; gap: 0.9rem; }
-.intake-form label { font-weight: 700; font-size: 0.9rem; }
-.intake-form input, .intake-form select, .intake-form textarea {
-  padding: 0.8rem 1.1rem; border: 1px solid var(--border); border-radius: 14px;
-  font-size: 1rem; font-family: inherit; background: #fff; color: var(--ink); width: 100%;
-}
-.intake-form input:focus, .intake-form select:focus, .intake-form textarea:focus {
-  outline: none; border-color: var(--rose); box-shadow: 0 0 0 3px rgba(255,77,109,.2);
-}
-.intake-form .btn { align-self: flex-start; margin-top: 0.5rem; }
-.field-note { font-size: 0.85rem; color: var(--muted); margin-top: -0.5rem; }
-.agreement-box {
-  border: 1px solid var(--border); border-radius: 14px; padding: 1.25rem;
-  max-height: 22rem; overflow-y: auto; background: #fff; margin-bottom: 1.25rem;
-  font-size: 0.88rem;
-}
-.agreement-box h3 { font-size: 1rem; margin: 1rem 0 0.4rem; }
-.agreement-box h3:first-child { margin-top: 0; }
-.agreement-box ul { padding-left: 1.2rem; margin: 0.4rem 0; }
-.agreement-box li { margin-bottom: 0.25rem; }
-.agree-row { display: flex; gap: 0.6rem; align-items: flex-start; margin: 1rem 0; }
-.agree-row input { margin-top: 0.3rem; }
-.form-note { min-height: 1.4em; color: var(--rose-dark); font-weight: 600; }
+.confirm-wrap { max-width: 40rem; margin: 0 auto; padding: 3rem 1.25rem 4rem; }
+.confirm-wrap h1 { font-size: 2rem; letter-spacing: -0.02em; margin-bottom: 0.5rem; }
+.confirm-wrap .lede { color: var(--muted); margin-bottom: 2rem; }
+.confirm-steps { margin: 0 0 2rem; padding-left: 1.25rem; }
+.confirm-steps li { margin-bottom: 0.9rem; }
 </style>
 </head>
 <body>
-<header class="site-header"><div class="header-inner">
-<a href="/" class="logo">Agent Readiness <span>HQ</span></a>
-</div></header>
-<main class="intake-wrap">
-<h1>Payment received.</h1><p class="lede">Answer the questions below with your verified business facts (we never guess). We'll use your answers to build your full audit report and your custom AI Information Page. Everything arrives within 3 business days.</p><form id="intake-form" class="intake-form"><div><label for="f-url">Website URL</label><input type="text" id="f-url" name="url" data-field="Website URL" placeholder="https://yourbusiness.com"></div><div><label for="f-biz">Business name</label><input type="text" id="f-biz" name="biz" data-field="Business name" placeholder="Acme Plumbing Co."></div><div><label for="f-biztype">What type of business is this?</label><select id="f-biztype" name="biztype" data-field="Business type"><option>Home services (HVAC, plumbing, electrical, etc.)</option><option>Vacation rental / lodging</option><option>Coach / consultant / professional service</option><option>Local retail / restaurant</option><option>Other</option></select></div><div><label for="f-services">What does your business do? (services/products)</label><textarea id="f-services" name="services" data-field="What does your business do? (services/products)" rows="3" placeholder="Residential plumbing repair, water heaters, drain cleaning..."></textarea></div><div><label for="f-areas">Service areas (cities, zips, or regions you serve)</label><textarea id="f-areas" name="areas" data-field="Service areas (cities, zips, or regions you serve)" rows="3" placeholder="Denver, Lakewood, Aurora (or statewide, or nationwide)"></textarea></div><div><label for="f-pricing">Pricing you want public (or write &quot;call for quote&quot;)</label><textarea id="f-pricing" name="pricing" data-field="Pricing you want public (or write &quot;call for quote&quot;)" rows="3" placeholder="Drain cleaning from $129, service call $89..."></textarea></div><div><label for="f-hours">Hours</label><input type="text" id="f-hours" name="hours" data-field="Hours" placeholder="Mon-Fri 8am-6pm"></div><div><label for="f-contact">Address and phone</label><input type="text" id="f-contact" name="contact" data-field="Address and phone" placeholder="123 Main St, Denver CO; (303) 555-0123"></div><div><label for="f-faqs">Common questions your customers ask</label><textarea id="f-faqs" name="faqs" data-field="Common questions your customers ask" rows="3" placeholder="Do you offer emergency service? Are you licensed?..."></textarea></div><div><label for="f-dontsay">Anything you do NOT want AI systems saying about you</label><textarea id="f-dontsay" name="dontsay" data-field="Anything you do NOT want AI systems saying about you" rows="3" placeholder="e.g., don&#x27;t quote prices, don&#x27;t promise same-day service..."></textarea></div><div><label for="f-platform">What platform is your site on?</label><select id="f-platform" name="platform" data-field="Platform"><option>Don&#x27;t know</option><option>Kajabi</option><option>Squarespace</option><option>Wix</option><option>WordPress</option><option>Custom / other</option></select></div><div><label for="f-registrar">Where is your domain registered?</label><input type="text" id="f-registrar" name="registrar" data-field="Where is your domain registered?" placeholder="GoDaddy, Porkbun, Cloudflare, don&#x27;t know..."></div><div><label for="f-email">Email (where we send your report)</label><input type="email" id="f-email" name="email" data-field="Email" placeholder="you@yourbusiness.com"></div><button type="submit" class="btn">Send my details</button><p class="form-note" id="intake-note" aria-live="polite"></p></form><script>var SUBJECT = "New $149 report intake";
-var AUTORESPONSE = "We've got your details! Your audit report and AI Information Page will arrive within 3 business days. -- Caleb, Agent Readiness HQ";
-var SUCCESS_MSG = "Got it, your report and AI Information Page are on the way (within 3 business days).";</script></main>
-<footer class="site-footer"><div class="footer-inner">
-<p class="fine-print">Questions? Use the contact form at agentreadinesshq.com. &middot; <a href="/terms.html">Terms of Service</a> &middot; <a href="/privacy.html">Privacy Policy</a></p>
-</div></footer>
-<script>
-(function () {
-  "use strict";
-  var FORMSUBMIT_URL = "https://formsubmit.co/ajax/caleblund@gmail.com";
-  var form = document.getElementById("intake-form");
-  var note = document.getElementById("intake-note");
-  form.addEventListener("submit", function (e) {
-    e.preventDefault();
-    var params = new URLSearchParams();
-    var lines = [];
-    Array.prototype.forEach.call(form.querySelectorAll("[data-field]"), function (el) {
-      var label = el.getAttribute("data-field");
-      var val = (el.value || "").trim();
-      if (val) lines.push(label + ": " + val);
-      if (el.name === "email" && val) params.append("email", val);
-    });
-    var agreeBox = document.getElementById("agree-check");
-    if (agreeBox && !agreeBox.checked) {
-      note.textContent = "Please check the agreement box to continue.";
-      return;
-    }
-    if (agreeBox) {
-      var nm = document.getElementById("sig-name").value.trim();
-      lines.push("AGREED by typed signature: " + nm + " on " + new Date().toISOString().slice(0, 10));
-    }
-    note.textContent = "Sending\u2026";
-    params.append("_subject", SUBJECT);
-    params.append("message", lines.join("\n"));
-    params.append("_template", "table");
-    params.append("_autoresponse", AUTORESPONSE);
-    fetch(FORMSUBMIT_URL, { method: "POST", body: params })
-      .then(function (r) { return r.json().catch(function () { return {}; }); })
-      .then(function (b) {
-        if (!b || b.success !== "true") throw new Error("failed");
-        note.textContent = SUCCESS_MSG;
-        form.reset();
-      })
-      .catch(function () { note.textContent = "Something went wrong, please try again."; });
-  });
-})();
-</script>
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="wordmark" href="/">Agent Readiness <span class="hq">HQ</span></a>
+    <a href="/#cta" class="btn btn-small"><span class="btn-full">Get your free scan</span><span class="btn-short">Free scan</span></a>
+  </div>
+</header>
+<main class="confirm-wrap">
+  <h1>Payment received.</h1>
+  <p class="lede">Thank you. Your $149 AI Readiness DIY order is confirmed.</p>
+  <h2>What happens next</h2>
+  <ol class="confirm-steps">
+    <li><strong>Complete your short intake form.</strong> You were taken to it right after checkout, and the same link is in your confirmation email in case you closed it. It takes about 5 minutes: most of it is already filled in from your payment and your free scan, and the key step is confirming your business facts. We build your report and your AI Information Page from verified facts only. We never guess.</li>
+    <li><strong>We get to work.</strong> Once your intake is complete, we run the full audit and prepare your report, your prioritized fixes, and your custom AI Information Page materials.</li>
+    <li><strong>Delivery in 3 to 5 business days</strong> after completed intake, by email. If we need information from you, the clock pauses until we receive it.</li>
+  </ol>
+  <p>Already submitted your intake form? Then you are all set. There is nothing else you need to do.</p>
+  <p>Questions? Email us at <a href="mailto:hello@agentreadinesshq.com">hello@agentreadinesshq.com</a>.</p>
+</main>
+<footer class="site-footer">
+  <div class="container">
+    <p><strong>Agent Readiness HQ</strong> — helping businesses make their websites easier for AI systems to access, understand, and accurately interpret. A Colorado-based, family-run business. <a href="https://agentreadinesshq.com/">agentreadinesshq.com</a> · <a href="/blog.html">Blog</a> · <a href="/terms.html">Terms of Service</a> · <a href="/privacy.html">Privacy Policy</a></p>
+  </div>
+</footer>
 </body>
 </html>

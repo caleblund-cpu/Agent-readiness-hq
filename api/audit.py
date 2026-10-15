@@ -644,7 +644,6 @@ class handler(BaseHTTPRequestHandler):
             "app.v3.js": "application/javascript; charset=utf-8",
             "app.v4.js": "application/javascript; charset=utf-8",
             "thanks-149.html": "text/html; charset=utf-8",
-            "thanks-695.html": "text/html; charset=utf-8",
             "blog.html": "text/html; charset=utf-8",
             "blog-llms-txt.html": "text/html; charset=utf-8",
             "blog-ai-agents-find-business.html": "text/html; charset=utf-8",
