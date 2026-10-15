@@ -651,6 +651,9 @@ class handler(BaseHTTPRequestHandler):
             "blog-blocking-ai-crawlers.html": "text/html; charset=utf-8",
             "blog-google-gemini-agent.html": "text/html; charset=utf-8",
             "blog-ai-in-your-business.html": "text/html; charset=utf-8",
+            "robots.txt": "text/plain; charset=utf-8",
+            "sitemap.xml": "application/xml; charset=utf-8",
+            "llms.txt": "text/plain; charset=utf-8",
         }
         if name not in allowed:
             self._send(404, {"error": "not found"})
