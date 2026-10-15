@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent Readiness HQ: Is your business ready for the agent economy?</title>
+<meta name="description" content="AI agents are becoming the customers. Agent Readiness HQ scores how well your website can be read and transacted with by AI agents, scored 0 to 100 across 7 checks.">
+<link rel="canonical" href="https://agentreadinesshq.com/">
+<meta property="og:title" content="Agent Readiness HQ: Is your business ready for the agent economy?">
+<meta property="og:description" content="One score. Seven checks. See how well AI agents can read and buy from your website, free.">
+<meta property="og:url" content="https://agentreadinesshq.com/">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="styles.v6.css">
+<style>
+  .hero-scan { margin: 1.75rem auto 0; max-width: 560px; }
+  .hero-scan-label { font-size: 1.05rem; margin-bottom: 0.75rem; }
+  .hero-audit-form { display: flex; gap: 0.6rem; }
+  .hero-audit-form input {
+    flex: 1; padding: 1rem 1.25rem; font-size: 1rem;
+    border: 2px solid var(--border); border-radius: 999px; font-family: inherit;
+  }
+  .hero-audit-form input:focus { outline: none; border-color: var(--rose); }
+  .hero-audit-form .btn { white-space: nowrap; }
+  @media (max-width: 560px) {
+    .hero-audit-form { flex-direction: column; }
+    .hero-audit-form .btn { width: 100%; }
+  }
+  .result-correction { margin-top: 1.5rem; font-size: 0.95rem; color: var(--muted); text-align: center; }
+  .result-correction a { color: var(--rose); }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="wordmark" href="/">Agent Readiness <span class="hq">HQ</span></a>
+    <a href="#cta" class="btn btn-small"><span class="btn-full">Get your free scan</span><span class="btn-short">Free scan</span></a>
+  </div>
+</header>
+
+<main>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="container">
+      <p class="kicker">The <em>attention economy</em> is ending. The <em>agent economy</em> is here.</p>
+      <h1>Your next customer <span class="grad-text">is an AI.</span></h1>
+      <p class="lede">AI agents now shop, compare, and buy on behalf of real customers, and they can't be persuaded by your marketing.</p>
+      <p class="lede">AI systems work best with information they can clearly access and interpret. Clear, machine-readable services, pricing, locations and business details can make your site easier for automated systems to understand.</p>
+      <div class="hero-scan">
+        <form id="hero-audit-form" class="audit-form hero-audit-form" aria-label="Run free audit">
+          <label class="visually-hidden" for="hero-site-url">Website URL</label>
+          <input type="text" id="hero-site-url" name="site-url" placeholder="https://yourbusiness.com" required autocomplete="url" inputmode="url" autocapitalize="none" autocorrect="off" spellcheck="false">
+          <button type="submit" class="btn">Check my site</button>
+        </form>
+      </div>
+      <div class="hero-cta-row">
+        <a href="#cta" class="btn">Get your free scan</a>
+        <a href="#how" class="btn btn-ghost">How it works</a>
+      </div>
+      <div class="hero-stats">
+        <div><strong>7</strong><span>machine-readability checks</span></div>
+        <div><strong>&lt;60s</strong><span>per scan</span></div>
+        <div><strong>$0</strong><span>for your first scan</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Why it matters -->
+  <section class="section">
+    <div class="container">
+      <h2>Why it matters</h2>
+      <div class="cards">
+        <article class="card">
+          <span class="card-icon">◉</span>
+          <h3>Invisible prices = lost sales</h3>
+          <p>If pricing or service information is difficult for automated systems to interpret, they may have less useful information when comparing your business with alternatives.</p>
+        </article>
+        <article class="card">
+          <span class="card-icon">⬢</span>
+          <h3>The readable competitor has the advantage</h3>
+          <p>AI systems evaluate structured information differently than human visitors. Clear, accessible business information can help automated systems interpret what you offer.</p>
+        </article>
+        <article class="card">
+          <span class="card-icon">⟡</span>
+          <h3>This is SEO all over again</h3>
+          <p>Fifteen years ago, businesses that ignored search lost the eyeball economy. Now the same thing is happening with agents, and the window to get ahead is open right now.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- How the score works -->
+  <section class="section section-alt" id="how">
+    <div class="container">
+      <h2>How the score works</h2>
+      <p class="section-intro">One score, 0–100, built from seven machine-readability checks:</p>
+      <ol class="checks">
+        <li><strong>robots.txt posture toward AI crawlers</strong>: whether your site permits the crawlers agents rely on.</li>
+        <li><strong>llms.txt</strong> (experimental): a proposed convention intended to provide AI-oriented information about a website. Adoption and support vary.</li>
+        <li><strong>Sitemap</strong>: whether agents can discover every page worth knowing about.</li>
+        <li><strong>Schema.org structured data</strong>: machine-readable facts about your business, products, and services.</li>
+        <li><strong>Machine-readable pricing</strong>: can an agent extract a price without guessing?</li>
+        <li><strong>Bot-walls &amp; CAPTCHAs</strong>: friction that stops agents (and sometimes customers) cold.</li>
+        <li><strong>Page speed</strong>: slow pages time out agents the same way they bounce humans.</li>
+      </ol>
+      <p class="section-intro" style="font-size: 0.95rem;">The free scan is a lightweight preliminary screen. The $149 DIY package includes a deeper assessment using our full Agent Readiness methodology.</p>
+    </div>
+  </section>
+
+  <!-- Pricing -->
+  <section class="section" id="pricing">
+    <div class="container">
+      <h2>Your next customer may never visit your website</h2>
+      <p class="section-intro">Get your free scan and see how clearly automated systems can access and interpret key information on your website.</p>
+      <div class="cards pricing-cards">
+        <article class="card price-card">
+          <p class="pill"></p>
+          <h3>Free scan</h3>
+          <p class="price">$0</p>
+          <ul class="price-list">
+            <li>7-check scan, instant</li>
+            <li>Your 0–100 score on this page</li>
+            <li>Top fixes list</li>
+          </ul>
+          <a href="#cta" class="btn">Run my free scan</a>
+        </article>
+        <article class="card price-card">
+          <p class="pill">Coming soon</p>
+          <h3>AI Readiness DIY</h3>
+          <p class="price">$149</p>
+          <p class="tagline">We show you what to fix and give you the materials to do it.</p>
+          <ul class="price-list">
+            <li>Everything in Free, plus:</li>
+            <li>Full audit with prioritized fixes in plain English</li>
+            <li>Copy-paste code snippets</li>
+            <li><strong>Custom AI Information Page</strong>, built from your verified business facts, ready to publish on your own site</li>
+            <li>Step-by-step publish instructions</li>
+            <li>Developer handoff for the technical bits</li>
+          </ul>
+          <span class="btn btn-disabled">Coming soon</span>
+        </article>
+        <article class="card price-card featured">
+          <p class="pill">Most popular</p>
+          <h3>AI Readiness Implementation</h3>
+          <p class="price">$449</p>
+          <p class="tagline">We do the approved implementation for you.</p>
+          <ul class="price-list">
+            <li>Everything in DIY, plus:</li>
+            <li>We publish your AI Information Page for you</li>
+            <li>We implement the safe, high-priority fixes</li>
+            <li>Requires a temporary admin login (you create it, we do the rest)</li>
+            <li>Verified with a re-run of the audit</li>
+            <li>Before-and-after report, done in 10 business days</li>
+          </ul>
+          <span class="btn btn-disabled">Coming soon</span>
+        </article>
+      </div>
+      <p class="section-intro" style="margin-top: 1.5rem;">Optional add-on: <strong>AI Page Monitoring</strong>, $9.99/month or $99.99/year. We check your site every month and keep your AI Information Page current. Cancel anytime online; no phone call required.</p>
+    </div>
+  </section>
+
+  <!-- CTA / free audit -->
+  <section class="section cta" id="cta">
+    <div class="container">
+      <h2>Get your free scan</h2>
+      <p class="section-intro">Enter your website URL. We run the free 7-check scan right now. Takes under a minute.</p>
+      <form id="audit-form" class="audit-form" aria-label="Run free scan">
+        <label class="visually-hidden" for="site-url">Website URL</label>
+        <input type="text" id="site-url" name="site-url" placeholder="https://yourbusiness.com" required autocomplete="url" inputmode="url" autocapitalize="none" autocorrect="off" spellcheck="false">
+        <button type="submit" class="btn" id="audit-btn">Run my free scan</button>
+      </form>
+      <p id="audit-status" class="audit-status" aria-live="polite"></p>
+      <div id="audit-results" class="audit-results" hidden></div>
+      <div id="email-capture" class="email-capture">
+        <h3>Interested in additional support?</h3>
+        <p class="section-intro">Sample reports and package details are coming soon. Leave your email and we'll let you know.</p>
+        <form id="email-form" class="email-form" aria-label="Get notified">
+          <label class="visually-hidden" for="email">Email address</label>
+          <input type="email" id="email" name="email" placeholder="you@yourbusiness.com" required autocomplete="email">
+          <button type="submit" class="btn">Notify me</button>
+        </form>
+        <p id="email-note" class="form-note" role="status"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="section section-alt">
+    <div class="container faq">
+      <h2>Frequently asked questions</h2>
+
+      <details>
+        <summary>What is an AI agent?</summary>
+        <p>An AI agent is software that acts on someone's behalf: researching options, comparing prices, filling carts, even completing purchases. Think of it as a tireless personal assistant that does the shopping for the human. When your customer sends an agent instead of visiting your site themselves, the agent's experience <em>is</em> your customer's experience.</p>
+      </details>
+
+      <details>
+        <summary>Will this hurt my SEO?</summary>
+        <p>Many good machine-readability practices — such as clear site structure, valid structured data, accessible content and useful sitemaps — also overlap with established technical web and SEO practices. However, Agent Readiness HQ does not promise improved search rankings or traffic.</p>
+      </details>
+
+      <details>
+        <summary>What if I block AI crawlers on purpose?</summary>
+        <p>That can be a legitimate choice. AI crawlers and automated systems serve different purposes, and blocking one does not necessarily mean blocking all AI-related access. Our scan identifies relevant crawler-access settings so you can make an informed decision about which automated systems you choose to allow.</p>
+      </details>
+
+      <details>
+        <summary>How long does an audit take?</summary>
+        <p>The automated scan runs in under a minute. You'll get your 0–100 score plus the fix list for each of the seven checks, right on this page.</p>
+      </details>
+
+      <details>
+        <summary>What do I get for free vs paid?</summary>
+        <p>The free scan covers all seven checks with a plain-language fix list, right on this page. The $149 DIY package (coming soon) adds detailed findings per check, copy-paste code snippets, and a custom AI Information Page built from your verified business facts, ready to publish on your own site. The $449 implementation (coming soon) means we do it for you: you create a temporary admin login, we publish your AI Information Page, implement the safe high-priority fixes, verify with a re-run of the scan, and send a before-and-after report. Paid in full upfront, done within 10 business days.</p>
+      </details>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-cta">
+      <p>Questions? Email us at <a href="mailto:hello@agentreadinesshq.com">hello@agentreadinesshq.com</a>.</p>
+    </div>
+    <p><strong>Agent Readiness HQ</strong> — helping businesses make their websites easier for AI systems to access, understand, and accurately interpret. A Colorado-based, family-run business. <a href="https://agentreadinesshq.com/">agentreadinesshq.com</a> · <a href="/blog.html">Blog</a> · <a href="/terms.html">Terms of Service</a> · <a href="/privacy.html">Privacy Policy</a></p>
+    <p class="fine-print">Disclosures: bot-wall / CAPTCHA detection is automated and keyword-based; findings may include false positives or negatives and should be independently verified before acting on them. The readiness score is an assessment of technical machine-readability only. Scores, reports, and toolkit materials are provided for informational purposes and do not guarantee increased traffic, customer acquisition, revenue, or any business outcome. Services are offered as-is without warranties of any kind.</p>
+  </div>
+</footer>
+
+<script src="app.v4.js"></script>
+<script>
+(function () {
+  "use strict";
+  var heroForm = document.getElementById("hero-audit-form");
+  if (!heroForm) return;
+  heroForm.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var url = document.getElementById("hero-site-url").value.trim();
+    var mainInput = document.getElementById("site-url");
+    var mainForm = document.getElementById("audit-form");
+    if (mainInput && mainForm) {
+      mainInput.value = url;
+      document.getElementById("cta").scrollIntoView({ behavior: "smooth", block: "start" });
+      setTimeout(function () { mainForm.requestSubmit(); }, 600);
+    }
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,3 @@
+# Python dependencies for the /api/audit serverless function.
+# Vercel installs these automatically on deploy.
+requests>=2.31
