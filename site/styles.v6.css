@@ -284,7 +284,6 @@ body {
 }
 .price-card .btn, .price-card .btn-disabled { margin-top: auto; }
 .price-card.featured {
-  border-width: 3px;
   box-shadow: 0 12px 36px rgba(255, 77, 109, 0.18);
 }
 .price-card.featured:hover { transform: translateY(-6px) rotate(-0.4deg); }
