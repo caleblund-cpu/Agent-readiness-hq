@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Website Implementation Authorization - Agent Readiness HQ</title>
+<meta name="description" content="Authorize Agent Readiness HQ to implement your AI Readiness improvements.">
+<link rel="canonical" href="https://agentreadinesshq.com/authorization.html">
+<link rel="stylesheet" href="styles.v6.css">
+<style>
+  .auth { max-width: 720px; margin: 0 auto; padding: 3rem 1.5rem 4rem; }
+  .auth h1 { font-size: 2rem; margin-bottom: 0.5rem; }
+  .auth .lede { color: var(--muted); margin-bottom: 2rem; }
+  .auth-card { background: var(--bg-warm); border: 1px solid var(--border); border-radius: var(--radius); padding: 2rem; margin-bottom: 1.5rem; }
+  .auth-card h2 { font-size: 1.15rem; margin-top: 0; }
+  .auth-card ul { padding-left: 1.25rem; margin-bottom: 0; }
+  .field { margin-bottom: 1.25rem; }
+  .field label { display: block; font-weight: 700; margin-bottom: 0.4rem; }
+  .field input[type="text"], .field input[type="email"] {
+    width: 100%; padding: 0.9rem 1.1rem; font-size: 1rem;
+    border: 2px solid var(--border); border-radius: 14px; font-family: inherit;
+  }
+  .field input:focus { outline: none; border-color: var(--rose); }
+  .affirm { display: flex; gap: 0.75rem; align-items: flex-start; background: #fff; border: 2px solid var(--border); border-radius: 14px; padding: 1.1rem 1.25rem; margin: 1.5rem 0; cursor: pointer; }
+  .affirm input { margin-top: 0.3rem; width: 1.25rem; height: 1.25rem; accent-color: var(--rose); flex-shrink: 0; }
+  .auth-note { font-size: 0.9rem; color: var(--muted); }
+  #auth-confirm { display: none; text-align: center; padding: 3rem 1rem; }
+  #auth-confirm .big-check { font-size: 3rem; }
+  .placeholder-flag { background: var(--rose-tint); border: 1px solid var(--rose-soft); border-radius: 12px; padding: 1rem 1.25rem; margin: 1.5rem 0; font-size: 0.95rem; }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="wordmark" href="/">Agent Readiness <span class="hq">HQ</span></a>
+    <a href="/#cta" class="btn btn-small"><span class="btn-full">Get your free score</span><span class="btn-short">Free score</span></a>
+  </div>
+</header>
+
+<main class="auth">
+  <div id="auth-form-wrap">
+    <h1>Website Implementation Authorization</h1>
+    <p class="lede">Thank you for purchasing AI Readiness Implementation ($449). Before we touch your website, we need your explicit authorization below. Payment alone does not authorize website changes.</p>
+
+    <div class="auth-card">
+      <h2>What you are authorizing</h2>
+      <ul>
+        <li>Publishing your custom AI Information Page on your website (built from business facts you verify).</li>
+        <li>Implementing up to <strong>five approved GREEN-category fixes</strong>: low-risk content improvements such as copy, pricing visibility, FAQs, headings, metadata, and validated structured data.</li>
+        <li>Re-running the audit and delivering a before-and-after report with reversibility information.</li>
+      </ul>
+    </div>
+
+    <div class="auth-card">
+      <h2>What this does NOT authorize</h2>
+      <ul>
+        <li>Website redesign, custom software development, or unrelated website work.</li>
+        <li>DNS changes, hosting or server configuration, security/WAF changes.</li>
+        <li>Payment systems, checkout, or banking changes.</li>
+        <li>Anything you have not specifically approved in writing.</li>
+      </ul>
+    </div>
+
+    <form id="auth-form" aria-label="Implementation authorization">
+      <div class="field">
+        <label for="auth-name">Your full name</label>
+        <input type="text" id="auth-name" name="name" required autocomplete="name" placeholder="Jane Smith">
+      </div>
+      <div class="field">
+        <label for="auth-business">Business name</label>
+        <input type="text" id="auth-business" name="business" required autocomplete="organization" placeholder="Smith Heating &amp; Cooling">
+      </div>
+      <div class="field">
+        <label for="auth-domain">Website domain</label>
+        <input type="text" id="auth-domain" name="domain" required inputmode="url" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="smithheating.com">
+      </div>
+      <div class="field">
+        <label for="auth-order">Order ID</label>
+        <input type="text" id="auth-order" name="order_id" required placeholder="From your purchase confirmation email">
+      </div>
+      <div class="field">
+        <label for="auth-email">Email address</label>
+        <input type="email" id="auth-email" name="email" required autocomplete="email" placeholder="you@yourbusiness.com">
+      </div>
+
+      <label class="affirm" for="auth-check">
+        <input type="checkbox" id="auth-check" required>
+        <span>I affirm all of the following:
+          <strong>(1)</strong> I own this website or am authorized to approve changes to it.
+          <strong>(2)</strong> I authorize Agent Readiness HQ to make the specific website changes described above (publishing the AI Information Page and up to five approved GREEN-category fixes).
+          <strong>(3)</strong> I understand this does <em>not</em> authorize website redesign, hosting migration, DNS changes, security/WAF changes, or payment-system changes unless separately agreed in writing.
+          <strong>(4)</strong> I understand some recommendations may not be technically possible because of my website platform, and Agent Readiness HQ will disclose platform limitations rather than work around them unsafely.
+          <strong>(5)</strong> I have reviewed the business information I provided and confirm it is accurate to the best of my knowledge.
+        </span>
+      </label>
+
+      <button type="submit" class="btn">Submit authorization</button>
+      <p class="auth-note" style="margin-top:1rem;">By submitting, you agree to the <a href="/terms.html">Terms of Service</a>. Delivery within 10 business days after all of the following are complete: (1) completed intake, (2) signed authorization, (3) written approval of the specific change list, and (4) confirmed working website access. The clock does not start until all four are received. If we are waiting on information, access, approval, or a decision from you, the clock pauses until we receive it. Never send passwords; we will explain how to grant temporary access after you submit.</p>
+    </form>
+  </div>
+
+  <div id="auth-confirm" aria-live="polite">
+    <div class="big-check">✓</div>
+    <h2>Authorization received</h2>
+    <p>Thank you. We have recorded your authorization<span id="confirm-domain"></span>. Watch your email for next steps, including how to grant temporary access.</p>
+    <p class="auth-note">Reference: <span id="confirm-ref"></span></p>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <p><strong>Agent Readiness HQ</strong> · <a href="/">agentreadinesshq.com</a> · <a href="/blog.html">Blog</a> · <a href="/terms.html">Terms of Service</a> · <a href="/privacy.html">Privacy Policy</a></p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  var form = document.getElementById("auth-form");
+  var params = new URLSearchParams(window.location.search);
+  var prefill = params.get("order_id");
+  if (prefill) { document.getElementById("auth-order").value = prefill; }
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var domain = document.getElementById("auth-domain").value.trim();
+    var now = new Date();
+    var ref = "AUTH-" + now.getFullYear() +
+      String(now.getMonth() + 1).padStart(2, "0") +
+      String(now.getDate()).padStart(2, "0") + "-" +
+      Math.random().toString(36).slice(2, 7).toUpperCase();
+    document.getElementById("confirm-domain").textContent = domain ? " for " + domain : "";
+    document.getElementById("confirm-ref").textContent = ref + " · " + now.toLocaleString();
+    document.getElementById("auth-form-wrap").style.display = "none";
+    var c = document.getElementById("auth-confirm");
+    c.style.display = "block";
+    c.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+})();
+</script>
+
+</body>
+</html>
