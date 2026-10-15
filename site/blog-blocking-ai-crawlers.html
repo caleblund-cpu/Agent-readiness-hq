@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Is your site blocking AI crawlers? A 5-minute check | Agent Readiness HQ Blog</title>
+<meta name="description" content="Your robots.txt file may be blocking AI crawlers like GPTBot without you knowing. Here is how to check in five minutes and what to do about it.">
+<link rel="canonical" href="https://agentreadinesshq.com/blog-blocking-ai-crawlers.html">
+<meta property="og:title" content="Is your site blocking AI crawlers? A 5-minute check">
+<meta property="og:description" content="Your robots.txt file may be blocking AI crawlers like GPTBot without you knowing. Here is how to check in five minutes and what to do about it.">
+<meta property="og:url" content="https://agentreadinesshq.com/blog-blocking-ai-crawlers.html">
+<meta property="og:type" content="article">
+<link rel="stylesheet" href="styles.v6.css">
+<style>
+.blog-wrap { max-width: 42rem; margin: 0 auto; padding: 3rem 1.25rem 4rem; }
+.blog-wrap h1 { font-size: 2rem; letter-spacing: -0.02em; line-height: 1.2; margin-bottom: 0.5rem; }
+.blog-date { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.75rem; }
+.blog-wrap p { margin-bottom: 1.1rem; line-height: 1.7; }
+.blog-wrap h2 { font-size: 1.35rem; margin: 2rem 0 0.75rem; letter-spacing: -0.01em; }
+.blog-wrap ul { margin: 0 0 1.1rem 1.25rem; line-height: 1.7; }
+.blog-wrap li { margin-bottom: 0.4rem; }
+.blog-wrap code { background: var(--rose-soft); padding: 0.1rem 0.4rem; border-radius: 6px; font-size: 0.92em; }
+.blog-cta { background: var(--ink); color: #fff; border-radius: 20px; padding: 2rem; margin-top: 2.5rem; text-align: center; }
+.blog-cta h3 { color: #fff; margin: 0 0 0.6rem; font-size: 1.4rem; }
+.blog-cta p { color: rgba(255,255,255,.75); }
+.post-list { list-style: none; padding: 0; }
+.post-list li { margin-bottom: 1.75rem; }
+.post-list a.post-title { font-size: 1.25rem; font-weight: 800; color: var(--ink); text-decoration: none; }
+.post-list a.post-title:hover { color: var(--rose-dark); }
+.post-excerpt { color: var(--muted); margin-top: 0.3rem; }
+</style>
+</head>
+<body>
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="wordmark" href="/">Agent Readiness <span class="hq">HQ</span></a>
+    <a href="/#cta" class="btn btn-small"><span class="btn-full">Get your free score</span><span class="btn-short">Free score</span></a>
+  </div>
+</header>
+<main class="blog-wrap">
+<h1>Is your site blocking AI crawlers? A 5-minute check</h1>
+<p class="blog-date">October 10, 2026</p>
+<p>Open a new browser tab and type <code>yoursite.com/robots.txt</code> (replace yoursite.com with your domain). What you see is a small text file that tells automated crawlers which parts of your site they may visit. Most site owners have never looked at theirs. Some would be surprised by what it says.</p>
+<h2>What to look for</h2>
+<p>Scan the file for the names of AI crawlers: <code>GPTBot</code>, <code>ClaudeBot</code>, <code>CCBot</code>, <code>Bytespider</code>, <code>Applebot-Extended</code>. If you see any of them next to <code>Disallow: /</code>, your site is telling that AI system to stay out entirely. Sometimes a broader rule like <code>User-agent: *</code> with <code>Disallow: /</code> blocks everything, AI included.</p>
+<h2>Should you allow them?</h2>
+<p>For most local and service businesses, yes. Blocking AI crawlers does not just hide you from chatbots. It hides you from the assistants your future customers ask for recommendations. There are legitimate reasons to block (publishers protecting paywalled content, for example), but "my security plugin did it by default" is not one of them.</p>
+<h2>How to fix it</h2>
+<p>On WordPress or a custom site, edit robots.txt to explicitly allow the AI crawlers you want, or at least remove the rules blocking them. On hosted platforms like Squarespace or Wix, the platform controls robots.txt, and most already allow AI crawlers by default, so check before worrying.</p>
+<p>Our free audit checks your robots.txt posture automatically, along with six other agent-readiness checks. It takes less than the five minutes you just spent reading this.</p>
+<div class="blog-cta">
+<h3>Is your site ready for AI agents?</h3>
+<p>Run the free 7-check audit. Takes under a minute.</p>
+<p><a href="/#cta" class="btn">Get my free score</a></p>
+</div>
+</main>
+<footer class="site-footer">
+  <div class="container">
+    <p><strong>Agent Readiness HQ</strong>, the SEO audit for the agent economy. <a href="/">agentreadinesshq.com</a> &middot; <a href="/blog.html">Blog</a></p>
+  </div>
+</footer>
+</body>
+</html>
