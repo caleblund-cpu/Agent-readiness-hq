@@ -21,7 +21,7 @@
      (no server proxy - FormSubmit throttles shared server IPs, which broke
      the /api/subscribe proxy). The _autoresponse text below is the exact
      wording shown to Caleb on 2026-10-10. */
-  var FORMSUBMIT_URL = "https://formsubmit.co/ajax/hello@agentreadinesshq.com";
+  var FORMSUBMIT_URL = "https://formsubmit.co/ajax/c171c3e0d3fb9d3525cb0945982c5d2b";
   var AUTORESPONSE_TEXT = "Thanks for your interest in Agent Readiness HQ! "
     + "We'll be in touch within one business day with a sample fix-it report "
     + "and details on our $149 report and $449 done-for-you cleanup. "
