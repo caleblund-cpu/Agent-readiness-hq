@@ -28,6 +28,10 @@
   }
   .result-correction { margin-top: 1.5rem; font-size: 0.95rem; color: var(--muted); text-align: center; }
   .result-correction a { color: var(--rose); }
+  .explainer { text-align: center; }
+  .explainer-sub { max-width: 34rem; margin: 0.75rem auto 1.75rem; color: var(--muted); }
+  .video-frame { max-width: 340px; margin: 0 auto; }
+  .video-frame video { width: 100%; height: auto; display: block; border-radius: 18px; box-shadow: 0 18px 50px rgba(29,29,31,.18); background: #fff; }
 </style>
 </head>
 <body>
@@ -77,6 +81,19 @@
           <h3>This is SEO all over again</h3>
           <p>Fifteen years ago, businesses that ignored search lost the eyeball economy. Now the same thing is happening with agents, and the window to get ahead is open right now.</p>
         </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- Explainer video -->
+  <section class="section explainer">
+    <div class="container">
+      <h2>See it explained in about a minute</h2>
+      <p class="explainer-sub">Rachael Lund, our founder, walks through how AI agents find businesses, and what your free scan checks.</p>
+      <div class="video-frame">
+        <video controls preload="none" poster="/video/explainer-poster.jpg" width="720" height="1280" playsinline>
+          <source src="/video/explainer.mp4" type="video/mp4">
+        </video>
       </div>
     </div>
   </section>
