@@ -588,7 +588,7 @@ class handler(BaseHTTPRequestHandler):
             return
         try:
             resp = requests.post(
-                "https://formsubmit.co/ajax/caleblund@gmail.com",
+                "https://formsubmit.co/ajax/hello@agentreadinesshq.com",
                 headers={"Content-Type": "application/json",
                          "Accept": "application/json",
                          # FormSubmit requires a browser-like referer; the

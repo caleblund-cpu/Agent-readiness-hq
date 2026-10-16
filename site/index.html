@@ -28,10 +28,22 @@
   }
   .result-correction { margin-top: 1.5rem; font-size: 0.95rem; color: var(--muted); text-align: center; }
   .result-correction a { color: var(--rose); }
-  .explainer { text-align: center; }
-  .explainer-sub { max-width: 34rem; margin: 0.75rem auto 1.75rem; color: var(--muted); }
+  .explainer { text-align: center; }  .explainer-sub { max-width: 34rem; margin: 0.75rem auto 1.75rem; color: var(--muted); }
   .video-frame { max-width: 340px; margin: 0 auto; }
   .video-frame video { width: 100%; height: auto; display: block; border-radius: 18px; box-shadow: 0 18px 50px rgba(29,29,31,.18); background: #fff; }
+  #audit-form { background: transparent; box-shadow: none; padding: 0; border-radius: 0; flex-direction: column; }
+  #audit-form:focus-within { box-shadow: none; }
+  .scan-lead { display: flex; gap: 0.75rem; width: 100%; margin-bottom: 0.75rem; }
+  .audit-form .scan-lead input[type="text"], .audit-form .scan-lead input[type="email"] { flex: 1; min-width: 0; padding: 0.9rem 1.3rem; border: none; border-radius: 999px; font-size: 1.05rem; font-family: inherit; background: #fff; color: var(--ink); }
+  .scan-lead input::placeholder { color: #a7a7b3; }
+  .scan-lead input:focus { outline: none; box-shadow: 0 0 0 4px rgba(255,77,109,.45); }
+  .scan-url-row { display: flex; gap: 0.75rem; width: 100%; background: #fff; padding: 0.55rem; border-radius: 999px; box-shadow: 0 18px 50px rgba(0,0,0,.35); }
+  .scan-url-row:focus-within { box-shadow: 0 18px 50px rgba(0,0,0,.35), 0 0 0 4px rgba(255,77,109,.45); }
+  @media (max-width: 720px) {
+    .scan-lead { flex-direction: column; }
+    .scan-url-row { flex-direction: column; border-radius: 24px; }
+    .scan-url-row .btn { width: 100%; }
+  }
 </style>
 </head>
 <body>
@@ -174,11 +186,19 @@
   <!-- CTA / free audit -->
   <section class="section cta" id="cta">
     <div class="container">
-      <p class="section-intro">Enter your website URL. We run the free 7-check scan right now. Takes under a minute.</p>
+      <p class="section-intro">Enter your website, first name, and email. We run the free 7-check scan right now and email you a copy of your results. Takes under a minute.</p>
       <form id="audit-form" class="audit-form" aria-label="Run free scan">
-        <label class="visually-hidden" for="site-url">Website URL</label>
-        <input type="text" id="site-url" name="site-url" placeholder="https://yourbusiness.com" required autocomplete="url" inputmode="url" autocapitalize="none" autocorrect="off" spellcheck="false">
-        <button type="submit" class="btn" id="audit-btn">Run my free scan</button>
+        <div class="scan-lead">
+          <label class="visually-hidden" for="scan-first-name">First name</label>
+          <input type="text" id="scan-first-name" name="first-name" placeholder="First name" required autocomplete="given-name">
+          <label class="visually-hidden" for="scan-email">Email address</label>
+          <input type="email" id="scan-email" name="email" placeholder="you@yourbusiness.com" required autocomplete="email">
+        </div>
+        <div class="scan-url-row">
+          <label class="visually-hidden" for="site-url">Website URL</label>
+          <input type="text" id="site-url" name="site-url" placeholder="https://yourbusiness.com" required autocomplete="url" inputmode="url" autocapitalize="none" autocorrect="off" spellcheck="false">
+          <button type="submit" class="btn" id="audit-btn">Run my free scan</button>
+        </div>
       </form>
       <p id="audit-status" class="audit-status" aria-live="polite"></p>
       <div id="audit-results" class="audit-results" hidden></div>
@@ -219,7 +239,10 @@
     if (mainInput && mainForm) {
       mainInput.value = url;
       document.getElementById("cta").scrollIntoView({ behavior: "smooth", block: "start" });
-      setTimeout(function () { mainForm.requestSubmit(); }, 600);
+      setTimeout(function () {
+        var nameField = document.getElementById("scan-first-name");
+        if (nameField) nameField.focus({ preventScroll: true });
+      }, 700);
     }
   });
 })();

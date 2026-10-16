@@ -21,7 +21,7 @@
      (no server proxy - FormSubmit throttles shared server IPs, which broke
      the /api/subscribe proxy). The _autoresponse text below is the exact
      wording shown to Caleb on 2026-10-10. */
-  var FORMSUBMIT_URL = "https://formsubmit.co/ajax/caleblund@gmail.com";
+  var FORMSUBMIT_URL = "https://formsubmit.co/ajax/hello@agentreadinesshq.com";
   var AUTORESPONSE_TEXT = "Thanks for your interest in Agent Readiness HQ! "
     + "We'll be in touch within one business day with a sample fix-it report "
     + "and details on our $149 report and $449 done-for-you cleanup. "
@@ -100,6 +100,15 @@
     e.preventDefault();
     var url = urlInput.value.trim();
     if (!url) return;
+    var nameField = document.getElementById("scan-first-name");
+    var emailField = document.getElementById("scan-email");
+    var firstName = nameField ? nameField.value.trim() : "";
+    var leadEmail = emailField ? emailField.value.trim() : "";
+    if (!firstName || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(leadEmail)) {
+      setStatus("Please add your first name and a valid email, and we'll email you a copy of your results.");
+      (!firstName ? nameField : emailField).focus();
+      return;
+    }
     auditBtn.disabled = true;
     auditBtn.textContent = "Auditing\u2026";
     resultsEl.hidden = true;
@@ -121,6 +130,7 @@
         }
         setStatus("");
         renderResults(out.body);
+        captureScanLead(firstName, leadEmail, out.body);
         resultsEl.scrollIntoView({ behavior: "smooth", block: "start" });
       })
       .catch(function (err) {
@@ -131,6 +141,37 @@
         auditBtn.textContent = "Run my free scan";
       });
   });
+
+  /* Scan lead capture: after a successful free scan, send the visitor's
+     first name, email, scanned site, and score to the business inbox via
+     FormSubmit, with an autoresponse that emails them a copy of their
+     result summary. Fire-and-forget: a capture failure never blocks or
+     alters the on-page results. */
+  function captureScanLead(firstName, email, report) {
+    var score = report.score != null ? String(report.score) : "?";
+    var grade = report.grade || "?";
+    var site = report.url || "";
+    var params = new URLSearchParams();
+    params.append("name", firstName);
+    params.append("email", email);
+    params.append("website", site);
+    params.append("score", score);
+    params.append("grade", grade);
+    params.append("_subject", "New free scan: " + site);
+    params.append("message", firstName + " (" + email + ") ran a free scan on "
+      + site + ": score " + score + "/100, grade " + grade + ".");
+    params.append("_template", "table");
+    params.append("_autoresponse", "Hi " + firstName + ", thanks for running "
+      + "your free AI Readiness Scan with Agent Readiness HQ! " + site
+      + " scored " + score + "/100 (grade " + grade + "). Your full results "
+      + "are on the page where you ran the scan. If you'd like the detailed "
+      + "report or a hand with the fixes, just reply to this email. Thanks, "
+      + "Rachael Lund, Founder, Agent Readiness HQ");
+    fetch(FORMSUBMIT_URL, { method: "POST", body: params })
+      .catch(function (err) {
+        console.error("[Agent Readiness HQ] scan lead capture failed:", err);
+      });
+  }
 
   if (emailForm) emailForm.addEventListener("submit", function (e) {
     e.preventDefault();
