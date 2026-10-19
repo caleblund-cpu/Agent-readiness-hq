@@ -195,6 +195,7 @@ body {
   gap: 1.4rem;
   margin-top: 2.2rem;
 }
+.why-cards { grid-template-columns: repeat(2, 1fr); }
 .card {
   border: none;
   border-radius: var(--radius);
@@ -220,6 +221,7 @@ body {
 }
 .card:nth-child(2) .card-icon { background: #fff4e0; }
 .card:nth-child(3) .card-icon { background: #e2f7f0; }
+.card:nth-child(4) .card-icon { background: #e5e9ff; }
 .card h3 {
   margin: 0 0 0.6rem;
   font-size: 1.18rem;
