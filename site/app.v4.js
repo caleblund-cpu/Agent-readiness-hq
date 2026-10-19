@@ -23,7 +23,7 @@
      wording shown to Caleb on 2026-10-10. */
   var FORMSUBMIT_URL = "https://formsubmit.co/ajax/c171c3e0d3fb9d3525cb0945982c5d2b";
   var AUTORESPONSE_TEXT = "Thanks for your interest in Agent Readiness HQ! "
-    + "We'll be in touch within one business day with a sample fix-it report "
+    + "We'll be in touch within one business day with a fix-it report "
     + "and details on our $149 report and $449 done-for-you cleanup. "
     + "Rachael, Agent Readiness HQ";
 
@@ -38,12 +38,8 @@
   var emailForm = document.getElementById("email-form");
   var emailNote = document.getElementById("email-note");
 
-  /* Latest successful scan in this page session: { firstName, email,
-     report }. The results-copy form below emails these results. */
-  var lastScan = null;
-
-  /* Email capture form is disabled until backend email is operational.
-     Guard all listeners so missing forms don't throw. */
+  /* Email capture guard: all listeners below are attached only when
+     their forms exist, so missing forms don't throw. */
 
   var STATUS_ICON = { pass: "\u2713", partial: "~", fail: "\u2717" };
 
@@ -109,7 +105,7 @@
     var firstName = nameField ? nameField.value.trim() : "";
     var leadEmail = emailField ? emailField.value.trim() : "";
     if (!firstName || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(leadEmail)) {
-      setStatus("Please add your first name and a valid email, and we'll email you a copy of your results.");
+      setStatus("Please add your first name and a valid email, and we'll email your results to you.");
       (!firstName ? nameField : emailField).focus();
       return;
     }
@@ -134,7 +130,6 @@
         }
         setStatus("");
         renderResults(out.body);
-        lastScan = { firstName: firstName, email: leadEmail, report: out.body };
         captureScanLead(firstName, leadEmail, out.body);
         resultsEl.scrollIntoView({ behavior: "smooth", block: "start" });
       })
@@ -178,11 +173,12 @@
       });
   }
 
-  /* Results-copy form (homepage, under the scan results): emails the
-     visitor a copy of the free scan they just ran in this session.
-     Deliberately separate from the scan lead capture above: it fires
-     only when the visitor asks, and only if a scan exists. It never
-     sends the sample Audit. */
+  /* Information packet form (homepage, under the scan results): posts
+     the visitor's email to the business inbox via FormSubmit, labeled
+     as an information packet request. The packet is then emailed from
+     the inbox; FormSubmit's _autoresponse is deliberately NOT used
+     (delivery through it is unreliable). The on-page confirmation also
+     links straight to the hosted packet at /packet. */
   if (emailForm) emailForm.addEventListener("submit", function (e) {
     e.preventDefault();
     var email = document.getElementById("email").value.trim();
@@ -191,57 +187,32 @@
       emailNote.textContent = "Please enter a valid email address.";
       return;
     }
-    if (!lastScan) {
-      emailNote.textContent = "Run the free scan above first, then we can email you a copy of your results.";
-      auditForm.scrollIntoView({ behavior: "smooth", block: "start" });
-      urlInput.focus();
-      return;
-    }
-    sendResultsCopy(email);
+    sendPacketRequest(email);
   });
 
-  function sendResultsCopy(email) {
-    var report = lastScan.report;
-    var firstName = lastScan.firstName || "";
-    var score = report.score != null ? String(report.score) : "?";
-    var grade = report.grade || "?";
-    var site = report.url || "";
-    var lines = (report.checks || []).map(function (c) {
-      return (STATUS_ICON[c.status] || "?") + " " + c.name + " - "
-        + c.score + "/" + c.weight + ": " + c.detail;
-    });
-    var summary = site + " scored " + score + "/100 (grade " + grade + ")."
-      + (lines.length ? "\n\n" + lines.join("\n") : "");
+  function sendPacketRequest(email) {
     emailNote.textContent = "Sending\u2026";
     var params = new URLSearchParams();
     params.append("email", email);
-    params.append("name", firstName);
-    params.append("website", site);
-    params.append("score", score);
-    params.append("grade", grade);
-    params.append("results", summary);
-    params.append("_subject", "Copy of scan results: " + site);
-    params.append("message", (firstName || "A visitor") + " (" + email + ") "
-      + "asked for an emailed copy of their free scan results.\n\n" + summary);
+    params.append("request", "Information packet request");
+    params.append("_subject", "Information packet request");
+    params.append("message", "Please send the Agent Readiness HQ "
+      + "information packet to " + email + ". Packet page: "
+      + SITE_URL + "packet");
     params.append("_template", "table");
-    params.append("_autoresponse", "Hi " + (firstName || "there") + ", here "
-      + "is a copy of your free AI Readiness Scan results from Agent "
-      + "Readiness HQ.\n\n" + summary + "\n\nYour results are also on "
-      + "the page where you ran the scan. Questions about what any of "
-      + "this means? Just reply to this email.\n\nThanks,\nRachael "
-      + "Lund, Founder, Agent Readiness HQ");
     fetch(FORMSUBMIT_URL, { method: "POST", body: params })
       .then(function (resp) {
         return resp.json().catch(function () { return {}; });
       })
       .then(function (body) {
         if (!body || body.success !== "true") throw new Error("send failed");
-        emailNote.textContent = "Sent. Your results are on their way to " + email + ".";
+        emailNote.innerHTML = "Your packet is on its way. "
+          + '<a href="/packet" style="color:#ffd9e2;text-decoration:underline">Can&rsquo;t wait? View the packet now</a>';
         emailForm.reset();
       })
       .catch(function (err) {
-        console.error("[Agent Readiness HQ] results copy failed:", err);
-        emailNote.textContent = "Something went wrong sending your results. Please try again.";
+        console.error("[Agent Readiness HQ] packet request failed:", err);
+        emailNote.textContent = "Something went wrong sending your request. Please try again.";
       });
   }
 
@@ -315,7 +286,7 @@
         }
         noteEl.textContent = source === "newsletter"
           ? "You're on the list. Talk soon."
-          : "Thanks. We'll send a sample report and more info within one business day.";
+          : "Thanks. We'll send more info within one business day.";
         formEl.reset();
       })
       .catch(function (err) {
