@@ -4,6 +4,14 @@ POST /api/audit  with JSON body {"url": "https://example.com"}
 -> 200 with the same JSON report the CLI (audit/audit.py) produces:
    {tool, url, fetched_at, score, checks[], fixes[], errors[]}
 
+Optional lead fields in the same body — {"first_name": ..., "email": ...} —
+make the function email the visitor a copy of their results from
+hello@agentreadinesshq.com (see send_results_email below). That replaces
+the old FormSubmit _autoresponse, which never delivered. The send only
+happens when the RESULTS_SMTP_PASSWORD env var is configured; without it
+no email goes out (responses to lead-carrying requests report
+"email_sent": false, and all other responses are unchanged).
+
 Checks and weights are IDENTICAL to audit/scoring.md (7 checks, total 100).
 
 Serverless adaptations vs the CLI:
@@ -31,10 +39,12 @@ import ipaddress
 import json
 import os
 import re
+import smtplib
 import socket
 import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
+from email.message import EmailMessage
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, urljoin
 
@@ -552,6 +562,107 @@ def rate_ok(ip):
     return True
 
 
+# ------------------------------------------------------- results email ---
+# The scan page promises visitors "we email your results to you." From
+# 2026-10-16 to 2026-10-19 that promise rode on FormSubmit's _autoresponse,
+# which never delivered a single copy (FormSubmit's own API answers that
+# the Autoresponse Plugin must be turned ON for the account; it is off).
+# The reliable path is ours: after a successful audit, this function sends
+# the result summary itself, from the business inbox, over Google
+# Workspace SMTP. Credential = a Google app password for
+# hello@agentreadinesshq.com, stored ONLY as the Vercel env var
+# RESULTS_SMTP_PASSWORD. Unset -> no send, audit unaffected.
+RESULTS_FROM = "hello@agentreadinesshq.com"
+RESULTS_SMTP_HOST = "smtp.gmail.com"
+RESULTS_SMTP_PORT = 587
+_STATUS_MARK = {"pass": "\u2713", "partial": "~", "fail": "\u2717"}
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def _fmt_num(x):
+    """Match the on-page JS number rendering (65.0 shows as 65)."""
+    try:
+        s = str(float(x))
+    except (TypeError, ValueError):
+        return "?"
+    return s[:-2] if s.endswith(".0") else s
+
+
+def compose_results_email(first_name, email, report):
+    """Build the visitor's copy of their free scan results.
+
+    Plain text, same format the visitor saw on screen: score, grade, then
+    each of the seven checks with its status mark, points, and detail.
+    Signed Rachael Lund, Founder (2026-10-16 ruling). The free results are
+    never called a "report" or an "Audit" — those words belong to the
+    paid products.
+    """
+    site = report.get("url") or ""
+    score = _fmt_num(report.get("score"))
+    grade = report.get("grade") or "?"
+    lines = [
+        f"Hi {first_name}, thanks for running your free AI Readiness Scan "
+        "with Agent Readiness HQ!",
+        "",
+        f"{site} scored {score}/100 (grade {grade}). "
+        "Here is how the seven checks came out:",
+        "",
+    ]
+    for c in report.get("checks") or []:
+        mark = _STATUS_MARK.get(c.get("status"), "?")
+        lines.append(
+            f"{mark} {c.get('name', '')} \u2014 "
+            f"{_fmt_num(c.get('score'))}/{_fmt_num(c.get('weight'))}"
+        )
+        detail = (c.get("detail") or "").strip()
+        if detail:
+            lines.append(f"   {detail}")
+    lines += [
+        "",
+        "Your full results are on the page where you ran the scan. "
+        "If you'd like a hand with the fixes, just reply to this email.",
+        "",
+        "Thanks,",
+        "Rachael Lund, Founder, Agent Readiness HQ",
+    ]
+    msg = EmailMessage()
+    msg["From"] = f"Agent Readiness HQ <{RESULTS_FROM}>"
+    msg["To"] = email
+    msg["Subject"] = f"Your free scan results for {site}: {score}/100 (grade {grade})"
+    msg.set_content("\n".join(lines))
+    return msg
+
+
+def send_results_email(first_name, email, report):
+    """Send the results copy via Google Workspace SMTP. Never raises:
+    returns True only when the server accepted the message."""
+    password = os.environ.get("RESULTS_SMTP_PASSWORD")
+    if not password:
+        return False
+    try:
+        msg = compose_results_email(first_name, email, report)
+        with smtplib.SMTP(RESULTS_SMTP_HOST, RESULTS_SMTP_PORT, timeout=8) as smtp:
+            smtp.starttls()
+            smtp.login(RESULTS_FROM, password)
+            smtp.send_message(msg)
+        return True
+    except Exception:
+        return False
+
+
+def _clean_lead(data):
+    """Validate the optional lead fields on an audit request. Returns
+    (first_name, email) or (None, None) when absent/invalid."""
+    if not isinstance(data, dict):
+        return None, None
+    name = str(data.get("first_name") or "")
+    name = "".join(ch for ch in name if ch.isprintable()).strip()[:60]
+    email = str(data.get("email") or "").strip().lower()[:254]
+    if not name or not _EMAIL_RE.match(email):
+        return None, None
+    return name, email
+
+
 # ------------------------------------------------------------------ handler ---
 class handler(BaseHTTPRequestHandler):
     server_version = "AgentReadinessAudit/1.0"
@@ -708,8 +819,15 @@ class handler(BaseHTTPRequestHandler):
         report = run_audit(url)
         if report.get("error") and not report.get("checks"):
             self._send(400, report)
-        else:
-            self._send(200, report)
+            return
+        # Optional lead capture: when the scan form's first name + email
+        # ride along, email the visitor their results copy from hello@.
+        # Best effort only — a mail failure never fails the scan.
+        first_name, lead_email = _clean_lead(data)
+        if first_name and lead_email:
+            report["email_sent"] = send_results_email(
+                first_name, lead_email, report)
+        self._send(200, report)
 
     def log_message(self, *args):  # keep Vercel logs quiet
         pass

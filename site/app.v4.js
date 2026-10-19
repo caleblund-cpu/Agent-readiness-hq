@@ -117,7 +117,10 @@
     fetch(API_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url: url })
+      /* first_name + email ride along so the audit function can email
+         the visitor their results copy from hello@ (server-side send;
+         the FormSubmit _autoresponse never delivered). */
+      body: JSON.stringify({ url: url, first_name: firstName, email: leadEmail })
     })
       .then(function (resp) {
         return resp.json().then(function (body) {
@@ -144,9 +147,12 @@
 
   /* Scan lead capture: after a successful free scan, send the visitor's
      first name, email, scanned site, and score to the business inbox via
-     FormSubmit, with an autoresponse that emails them a copy of their
-     result summary. Fire-and-forget: a capture failure never blocks or
-     alters the on-page results. */
+     FormSubmit (owner notification only). The visitor's own copy of the
+     results is emailed by the audit function itself (see the /api/audit
+     call above): FormSubmit's _autoresponse never delivered, so it was
+     removed here on 2026-10-19 — leaving it in would risk a duplicate
+     copy if that plugin is ever switched on. Fire-and-forget: a capture
+     failure never blocks or alters the on-page results. */
   function captureScanLead(firstName, email, report) {
     var score = report.score != null ? String(report.score) : "?";
     var grade = report.grade || "?";
@@ -161,12 +167,6 @@
     params.append("message", firstName + " (" + email + ") ran a free scan on "
       + site + ": score " + score + "/100, grade " + grade + ".");
     params.append("_template", "table");
-    params.append("_autoresponse", "Hi " + firstName + ", thanks for running "
-      + "your free AI Readiness Scan with Agent Readiness HQ! " + site
-      + " scored " + score + "/100 (grade " + grade + "). Your full results "
-      + "are on the page where you ran the scan. If you'd like the detailed "
-      + "report or a hand with the fixes, just reply to this email. Thanks, "
-      + "Rachael Lund, Founder, Agent Readiness HQ");
     fetch(FORMSUBMIT_URL, { method: "POST", body: params })
       .catch(function (err) {
         console.error("[Agent Readiness HQ] scan lead capture failed:", err);
