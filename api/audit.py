@@ -636,17 +636,25 @@ def compose_results_email(first_name, email, report):
 def send_results_email(first_name, email, report):
     """Send the results copy via Google Workspace SMTP. Never raises:
     returns True only when the server accepted the message."""
-    password = os.environ.get("RESULTS_SMTP_PASSWORD")
+    # Google shows app passwords in spaced groups ("abcd efgh ...");
+    # SMTP login needs the bare 16 characters, so strip all whitespace
+    # from the stored value instead of asking for the credential again.
+    password = "".join((os.environ.get("RESULTS_SMTP_PASSWORD") or "").split())
     if not password:
+        print("results email: RESULTS_SMTP_PASSWORD not visible to this function")
         return False
     try:
         msg = compose_results_email(first_name, email, report)
-        with smtplib.SMTP(RESULTS_SMTP_HOST, RESULTS_SMTP_PORT, timeout=8) as smtp:
+        with smtplib.SMTP(RESULTS_SMTP_HOST, RESULTS_SMTP_PORT, timeout=20) as smtp:
             smtp.starttls()
             smtp.login(RESULTS_FROM, password)
             smtp.send_message(msg)
         return True
-    except Exception:
+    except Exception as exc:
+        # Never swallow the cause again: the exception name and message
+        # land in the Vercel function logs, where the next verification
+        # run can read exactly why the send failed.
+        print(f"results email send failed: {type(exc).__name__}: {exc}")
         return False
 
 
