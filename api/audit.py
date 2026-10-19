@@ -630,6 +630,8 @@ class handler(BaseHTTPRequestHandler):
         path = self.path.split("?", 1)[0]
         if path == "/":
             path = "/index.html"
+        if path == "/packet":
+            path = "/packet.html"
         name = path.lstrip("/")
         allowed = {
             "index.html": "text/html; charset=utf-8",
@@ -644,6 +646,7 @@ class handler(BaseHTTPRequestHandler):
             "app.v3.js": "application/javascript; charset=utf-8",
             "app.v4.js": "application/javascript; charset=utf-8",
             "thanks-149.html": "text/html; charset=utf-8",
+            "packet.html": "text/html; charset=utf-8",
             "blog.html": "text/html; charset=utf-8",
             "support.html": "text/html; charset=utf-8",
             "blog-agent-economy.html": "text/html; charset=utf-8",
