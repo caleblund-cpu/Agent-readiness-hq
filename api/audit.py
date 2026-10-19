@@ -646,6 +646,7 @@ class handler(BaseHTTPRequestHandler):
             "thanks-149.html": "text/html; charset=utf-8",
             "blog.html": "text/html; charset=utf-8",
             "support.html": "text/html; charset=utf-8",
+            "blog-agent-economy.html": "text/html; charset=utf-8",
             "blog-yelp-agent-access.html": "text/html; charset=utf-8",
             "blog-musk-agent-first-amazon.html": "text/html; charset=utf-8",
             "blog-benioff-digital-labor.html": "text/html; charset=utf-8",
