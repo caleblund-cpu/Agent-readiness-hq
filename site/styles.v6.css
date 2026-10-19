@@ -249,14 +249,14 @@ body {
 .price-card .pill:empty { visibility: hidden; }
 .price-card h3 { font-size: 1.6rem; line-height: 1.25; min-height: 2.5em; margin: 0 0 0.8rem; }
 .price-card .price {
-  font-size: 2.85rem;
+  font-size: 2.6rem;
   font-weight: 800;
   letter-spacing: -0.03em;
   margin: 0.4rem 0 0.6rem;
   color: var(--ink);
 }
 .price-card .tagline {
-  font-size: 1.25rem;
+  font-size: 0.95rem;
   font-weight: 600;
   color: var(--rose);
   margin: 0 0 1.2rem;
@@ -269,11 +269,10 @@ body {
   flex: 1;
 }
 .price-list li {
-  padding: 0.5rem 0 0.5rem 1.8rem;
+  padding: 0.45rem 0 0.45rem 1.8rem;
   position: relative;
   color: var(--muted);
-  font-size: 1.22rem;
-  line-height: 1.55;
+  font-size: 0.97rem;
   border-top: 1px solid var(--border);
 }
 .price-list li::before {
