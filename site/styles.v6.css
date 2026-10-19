@@ -631,3 +631,14 @@ body {
   .hero-stats { gap: 1.6rem; }
   .audit-results { padding: 1.5rem; border-radius: 20px; }
 }
+
+/* ---------- Explainer to pricing gap (Caleb 2026-10-19) ----------
+   Halves the whitespace between the explainer video section and the
+   pricing section below it. Scoped to this pair only; the shared
+   .section padding above is unchanged. */
+.explainer { padding-bottom: 2.1rem; }
+#pricing { padding-top: 2.1rem; }
+@media (max-width: 720px) {
+  .explainer { padding-bottom: 1.5rem; }
+  #pricing { padding-top: 1.5rem; }
+}
