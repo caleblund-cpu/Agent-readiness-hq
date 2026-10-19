@@ -623,8 +623,11 @@ def compose_results_email(first_name, email, report):
             lines.append(f"   {detail}")
     lines += [
         "",
-        "Your full results are on the page where you ran the scan. "
-        "If you'd like a hand with the fixes, just reply to this email.",
+        "Your full results are on the page where you ran the scan.",
+        "",
+        "If you'd like help with the fixes, you have two options. The DIY Audit ($149) gives you the full picture and the materials to fix things yourself. With Done For You ($449), we make the approved improvements for you. You can see both here: https://agentreadinesshq.com/#pricing",
+        "",
+        "Or just reply to this email with any questions.",
         "",
         "Thanks,",
         "Rachael Lund, Founder, Agent Readiness HQ",
