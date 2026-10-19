@@ -187,6 +187,10 @@ body {
   font-size: 1.08rem;
   text-align: center;
 }
+.section-intro.fine-print-note {
+  font-size: 0.85rem;
+  margin-bottom: 0.6rem;
+}
 
 /* ---------- Cards ---------- */
 .cards {
