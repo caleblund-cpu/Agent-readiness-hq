@@ -131,7 +131,7 @@ body {
 .kicker em { font-style: italic; }
 
 .hero h1 {
-  font-size: clamp(2.15rem, 5.1vw, 3.5rem);
+  font-size: clamp(1.9rem, 4.3vw, 2.95rem);
   line-height: 1.08;
   letter-spacing: -0.03em;
   margin: 0 0 1.3rem;
