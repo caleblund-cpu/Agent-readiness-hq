@@ -56,11 +56,12 @@ body {
 }
 .wordmark {
   font-weight: 800;
-  font-size: 0.95rem;
+  font-size: 1.08rem;
   letter-spacing: -0.02em;
   color: var(--ink);
   text-decoration: none;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 .wordmark .hq { color: var(--rose); }
 
@@ -621,7 +622,7 @@ body {
   .site-header .btn-small { padding: 0.55rem 1rem; font-size: 0.82rem; white-space: nowrap; }
   .site-header .btn-full { display: none; }
   .site-header .btn-short { display: inline; }
-  .wordmark { font-size: 0.88rem; }
+  .wordmark { font-size: 1rem; }
   .cards { grid-template-columns: 1fr; }
   .audit-form { flex-direction: column; border-radius: 24px; }
   .audit-form .btn { width: 100%; }
