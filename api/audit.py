@@ -575,6 +575,10 @@ def rate_ok(ip):
 RESULTS_FROM = "hello@agentreadinesshq.com"
 RESULTS_SMTP_HOST = "smtp.gmail.com"
 RESULTS_SMTP_PORT = 587
+RESULTS_SMTP_SSL_PORT = 465
+# Explicit EHLO identity: serverless containers often have a broken
+# default FQDN, and a malformed EHLO can get the connection dropped.
+RESULTS_SMTP_LOCAL_HOSTNAME = "agentreadinesshq.com"
 _STATUS_MARK = {"pass": "\u2713", "partial": "~", "fail": "\u2717"}
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
@@ -633,9 +637,63 @@ def compose_results_email(first_name, email, report):
     return msg
 
 
+def _deliver_results(msg, password, transport):
+    """One delivery attempt over a single transport. Logs each stage so
+    the function logs name exactly where a failure occurs, and raises the
+    original exception so the caller can decide on retry / fallback.
+
+    transport is "587-starttls" or "465-ssl".
+    """
+    stage = "connect"
+    print(f"results email: {transport} stage=connect")
+    try:
+        if transport == "465-ssl":
+            smtp_cm = smtplib.SMTP_SSL(
+                RESULTS_SMTP_HOST, RESULTS_SMTP_SSL_PORT, timeout=20,
+                local_hostname=RESULTS_SMTP_LOCAL_HOSTNAME)
+        else:
+            smtp_cm = smtplib.SMTP(
+                RESULTS_SMTP_HOST, RESULTS_SMTP_PORT, timeout=20,
+                local_hostname=RESULTS_SMTP_LOCAL_HOSTNAME)
+        with smtp_cm as smtp:
+            stage = "ehlo"
+            print(f"results email: {transport} stage=ehlo")
+            smtp.ehlo()
+            if transport == "587-starttls":
+                stage = "starttls"
+                print(f"results email: {transport} stage=starttls")
+                smtp.starttls()
+                stage = "ehlo"
+                print(f"results email: {transport} stage=ehlo-after-starttls")
+                smtp.ehlo()
+            stage = "login"
+            print(f"results email: {transport} stage=login")
+            smtp.login(RESULTS_FROM, password)
+            stage = "send"
+            print(f"results email: {transport} stage=send")
+            smtp.send_message(msg)
+    except Exception as exc:
+        # Never swallow the cause: stage, transport, exception name and
+        # message land in the Vercel function logs, where the next
+        # verification run can read exactly why the send failed.
+        print(
+            f"results email send failed: transport={transport} "
+            f"stage={stage}: {type(exc).__name__}: {exc}")
+        raise
+    print(f"results email sent via {transport}")
+    return True
+
+
 def send_results_email(first_name, email, report):
     """Send the results copy via Google Workspace SMTP. Never raises:
-    returns True only when the server accepted the message."""
+    returns True only when the server accepted the message.
+
+    Path: port 587 with STARTTLS first. A dropped connection
+    (SMTPServerDisconnected, or an OSError during connect) earns one
+    full retry on a fresh connection, which may land on a different
+    Google front-end. If the 587 path still fails, fall back to port
+    465 (implicit TLS) with the same login and message.
+    """
     # Google shows app passwords in spaced groups ("abcd efgh ...");
     # SMTP login needs the bare 16 characters, so strip all whitespace
     # from the stored value instead of asking for the credential again.
@@ -643,18 +701,33 @@ def send_results_email(first_name, email, report):
     if not password:
         print("results email: RESULTS_SMTP_PASSWORD not visible to this function")
         return False
+
+    # 587 / STARTTLS, with one retry on a dropped connection.
+    for attempt in (1, 2):
+        try:
+            msg = compose_results_email(first_name, email, report)
+            return _deliver_results(msg, password, "587-starttls")
+        except (smtplib.SMTPServerDisconnected, OSError) as exc:
+            if attempt == 1:
+                print(
+                    "results email: retrying 587-starttls on a fresh "
+                    f"connection after {type(exc).__name__}")
+                continue
+            print("results email: 587-starttls retries exhausted, "
+                  "falling back to 465-ssl")
+        except Exception:
+            # The stage log inside _deliver_results already named the
+            # failure; a non-connection error is not retried, but the
+            # fallback transport still gets its chance below.
+            print("results email: 587-starttls failed, "
+                  "falling back to 465-ssl")
+            break
+
+    # Fallback transport: port 465, implicit TLS.
     try:
         msg = compose_results_email(first_name, email, report)
-        with smtplib.SMTP(RESULTS_SMTP_HOST, RESULTS_SMTP_PORT, timeout=20) as smtp:
-            smtp.starttls()
-            smtp.login(RESULTS_FROM, password)
-            smtp.send_message(msg)
-        return True
-    except Exception as exc:
-        # Never swallow the cause again: the exception name and message
-        # land in the Vercel function logs, where the next verification
-        # run can read exactly why the send failed.
-        print(f"results email send failed: {type(exc).__name__}: {exc}")
+        return _deliver_results(msg, password, "465-ssl")
+    except Exception:
         return False
 
 
