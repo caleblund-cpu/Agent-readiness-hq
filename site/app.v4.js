@@ -174,9 +174,9 @@
       });
   }
 
-  /* Remember the scan on this device so the $149 pre-pay step
-     (/start-149.html) and the intake door (/intake-149.html) can
-     pre-fill from it. Same-device memory only: it never leaves the
+  /* Remember the scan on this device so the post-payment
+     initial-details page (/intake-149.html) can pre-fill from
+     it. Same-device memory only: it never leaves the
      browser except inside the personalized intake link the visitor
      opens themselves. Fire-and-forget, like the lead capture. */
   function storeScanForIntake(firstName, email, report) {

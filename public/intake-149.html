@@ -4,22 +4,21 @@
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Your DIY Audit intake | Agent Readiness HQ</title>
+<title>Your DIY Audit: a few initial details | Agent Readiness HQ</title>
 <meta name="robots" content="noindex">
 <link rel="stylesheet" href="styles.v6.css">
 <style>
-.door-wrap { max-width: 40rem; margin: 0 auto; padding: 3rem 1.25rem 4rem; }
-.door-wrap h1 { font-size: 2rem; letter-spacing: -0.02em; margin-bottom: 0.5rem; }
-.door-wrap .lede { color: var(--muted); margin-bottom: 2rem; }
-.door-form label { display: block; font-weight: 600; margin: 1rem 0 0.35rem; }
-.door-form input { width: 100%; padding: 0.65rem 0.75rem; border: 1px solid #d2d2d7; border-radius: 8px; font: inherit; }
-.door-form .btn { margin-top: 1.5rem; }
-.scan-box { background: #fdf2f5; border: 1px solid #f6c3cf; border-radius: 10px; padding: 1rem 1.25rem; margin-top: 1.5rem; }
-.scan-box pre { white-space: pre-wrap; font: inherit; font-size: 0.92rem; margin: 0.75rem 0 0; }
-.progress-note { color: var(--muted); }
+.details-wrap { max-width: 40rem; margin: 0 auto; padding: 3rem 1.25rem 4rem; }
+.details-wrap h1 { font-size: 2rem; letter-spacing: -0.02em; margin-bottom: 0.5rem; }
+.details-wrap .lede { color: var(--muted); margin-bottom: 2rem; }
+.details-form label { display: block; font-weight: 600; margin: 1rem 0 0.35rem; }
+.details-form input { width: 100%; padding: 0.65rem 0.75rem; border: 1px solid #d2d2d7; border-radius: 8px; font: inherit; }
+.details-form .btn { margin-top: 1.5rem; }
+.gather-box { background: #fdf2f5; border: 1px solid #f6c3cf; border-radius: 10px; padding: 1rem 1.25rem; margin-top: 1.5rem; }
+.progress-note { color: var(--muted); margin: 0; }
 </style>
-<meta property="og:title" content="Your DIY Audit intake | Agent Readiness HQ">
-<meta property="og:description" content="Agent Readiness HQ: see how well AI agents can read your website. Free AI Readiness Scan.">
+<meta property="og:title" content="Your DIY Audit: a few initial details | Agent Readiness HQ">
+<meta property="og:description" content="Agent Readiness HQ: gather a few initial details after payment so your DIY Audit intake form opens already filled in.">
 <meta property="og:type" content="website">
 <meta property="og:image" content="https://agentreadinesshq.com/og-share.jpg">
 <meta property="og:image:width" content="1200">
@@ -29,18 +28,18 @@
 <meta name="twitter:image" content="https://agentreadinesshq.com/og-share.jpg">
 </head>
 <body>
-<!-- COPY APPROVED by Caleb 2026-10-20 (intake journey rebuild, drafted 2026-10-19). -->
+<!-- Flow rework per Caleb directive 2026-10-20: payment comes first; this page then gathers the customer's initial details (the website review runs here, behind neutral progress language) and opens the intake form prefilled. Copy drafted 2026-10-20, pending Caleb review. -->
 <header class="site-header">
   <div class="container header-inner">
     <a class="wordmark" href="/"><svg width="30" height="30" viewBox="0 0 48 48" fill="none" style="vertical-align:-8px;margin-right:9px" aria-hidden="true"><rect x="5" y="5" width="38" height="38" rx="10" stroke="#1d1d1f" stroke-width="5"/><path d="M15.5 25 L22 31.5 L33.5 17.5" stroke="#ff4d6d" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Agent Readiness <span class="hq">HQ</span></a>
-    <a href="/#cta" class="btn btn-small"><span class="btn-full">Get your free scan</span><span class="btn-short">Free scan</span></a>
+    <a href="mailto:hello@agentreadinesshq.com" class="btn btn-small">Questions? Email us</a>
   </div>
 </header>
-<main class="door-wrap">
-  <h1>Your DIY Audit intake</h1>
-  <p class="lede">Two quick steps. First, confirm your details and we run a fresh scan of your website. Then your intake form opens with your details and your scan results already filled in. The form itself takes about 5 minutes, and your 5 business day delivery clock starts when it is submitted.</p>
+<main class="details-wrap">
+  <h1>A few initial details</h1>
+  <p class="lede">Thank you, your payment is complete. One short step before your intake form: we gather a few initial details about you, your business, and your website, so the form opens already filled in. Confirm your details below and press Continue. Gathering the details usually takes under a minute, and your 5 business day delivery clock starts when your intake form is submitted.</p>
 
-  <form id="door-form" class="door-form" aria-label="Confirm your details">
+  <form id="details-form" class="details-form" aria-label="Your initial details">
     <label for="d-name">Your full name</label>
     <input type="text" id="d-name" autocomplete="name" required>
     <label for="d-business">Business name</label>
@@ -49,19 +48,17 @@
     <input type="text" id="d-url" placeholder="https://yourbusiness.com" autocomplete="url" inputmode="url" autocapitalize="none" autocorrect="off" spellcheck="false" required>
     <label for="d-email">Email address</label>
     <input type="email" id="d-email" autocomplete="email" required>
-    <button type="submit" class="btn" id="scan-btn">Run my scan</button>
+    <button type="submit" class="btn" id="continue-btn">Continue</button>
   </form>
 
-  <div id="scan-box" class="scan-box" hidden>
-    <p id="scan-status" class="progress-note" aria-live="polite"></p>
-    <pre id="scan-facts" hidden></pre>
-    <p><a href="#" class="btn" id="continue-btn" hidden>Continue to my intake form</a></p>
+  <div id="gather-box" class="gather-box" hidden>
+    <p id="gather-status" class="progress-note" aria-live="polite"></p>
   </div>
 </main>
 <footer class="site-footer">
   <div class="container">
     <p><strong>Agent Readiness HQ</strong> — helping businesses make their websites easier for AI systems to access, understand, and accurately interpret. A Colorado-based, family-run business. <a href="https://agentreadinesshq.com/">agentreadinesshq.com</a> · <a href="/blog.html">Blog</a> · <a href="/terms.html">Terms of Service</a> · <a href="/privacy.html">Privacy Policy</a></p>
-    <p class="footer-social" style="margin-top:10px"><a href="https://x.com/getagentready" target="_blank" rel="noopener" aria-label="Agent Readiness HQ on X" style="display:inline-flex;align-items:center;gap:7px;color:#6e6e73;text-decoration:none"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.9 2.1h3.4l-7.4 8.5 8.7 11.3h-6.8l-5.3-6.8-6.1 6.8H2l7.9-9.1L1.6 2.1H8.6l4.8 6.2 5.5-6.2zm-1.2 17.7h1.9L7.6 4H5.6l12.1 15.8z"/></svg><span>@getagentready</span></a></p>
+    <p class="footer-social" style="margin-top:10px"><a href="https://x.com/getagentready" target="_blank" rel="noopener" aria-label="Agent Readiness HQ on X" style="display:inline-flex;align-items:center;gap:7px;color:#6e6e73;text-decoration:none"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.9 2.1h3.4l-7.4 8.5 8.7 11.3h-6.8l-5.3-6.8-6.1 6.8H2l7.9-9.1L1.6 2.1H8.6l12.1 15.8z"/></svg><span>@getagentready</span></a></p>
 <style>.footer-social a:hover{color:#e63a5c}</style>
   </div>
 </footer>
@@ -70,23 +67,21 @@
   "use strict";
   var FORM_URL = "https://form.jotform.com/262887633731063";
   var q = new URLSearchParams(window.location.search);
-  var form = document.getElementById("door-form");
-  var scanBtn = document.getElementById("scan-btn");
-  var box = document.getElementById("scan-box");
-  var statusEl = document.getElementById("scan-status");
-  var factsEl = document.getElementById("scan-facts");
+  var form = document.getElementById("details-form");
   var continueBtn = document.getElementById("continue-btn");
+  var box = document.getElementById("gather-box");
+  var statusEl = document.getElementById("gather-status");
 
   function val(id) { return document.getElementById(id).value.trim(); }
   function setVal(id, v) { if (v) document.getElementById(id).value = v; }
-  function storedScan() {
+  function storedDetails() {
     try { return JSON.parse(window.localStorage.getItem("arhq_scan") || "null"); }
     catch (e) { return null; }
   }
 
   /* Pre-fill: link parameters (day-0 email / thank-you page) win, then
-     the scan stored on this device. Everything stays editable. */
-  var prior = storedScan();
+     the details stored on this device. Everything stays editable. */
+  var prior = storedDetails();
   setVal("d-name", q.get("name") || (prior && prior.first_name) || "");
   setVal("d-business", q.get("business") || "");
   setVal("d-url", q.get("website") || (prior && prior.url) || "");
@@ -95,27 +90,18 @@
 
   var factsText = "";
 
-  function factsFromReport(report) {
+  function factsFromData(url, dateStr, score, grade, checks) {
     var lines = [];
-    var date = (report.fetched_at || "").slice(0, 10);
-    lines.push("Free scan of " + (report.url || "") + (date ? " on " + date : "")
-      + ": score " + report.score + "/100 (grade " + (report.grade || "?") + ").");
-    (report.checks || []).forEach(function (c) {
+    lines.push("Initial details for " + (url || "")
+      + (dateStr ? ", gathered " + dateStr : "")
+      + ": score " + score + "/100 (grade " + (grade || "?") + ").");
+    (checks || []).forEach(function (c) {
       lines.push(c.name + ": " + c.status + " (" + c.score + "/" + c.weight + ")");
     });
     return lines.join("\n");
   }
 
-  function factsFromStored(s) {
-    var lines = ["Free scan of " + (s.url || "")
-      + ": score " + s.score + "/100 (grade " + (s.grade || "?") + ")."];
-    (s.checks || []).forEach(function (c) {
-      lines.push(c.name + ": " + c.status + " (" + c.score + "/" + c.weight + ")");
-    });
-    return lines.join("\n");
-  }
-
-  function showContinue() {
+  function goToForm() {
     var p = new URLSearchParams();
     p.set("typeA", val("d-name"));
     p.set("typeA5", val("d-business"));
@@ -123,8 +109,7 @@
     p.set("email", val("d-email"));
     if (factsText) p.set("scan_facts", factsText);
     if (paymentRef) p.set("payment_ref", paymentRef);
-    continueBtn.href = FORM_URL + "?" + p.toString();
-    continueBtn.hidden = false;
+    window.location.href = FORM_URL + "?" + p.toString();
   }
 
   form.addEventListener("submit", function (e) {
@@ -133,38 +118,36 @@
         url = val("d-url"), email = val("d-email");
     if (!name || !business || !url || !email) return;
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
-      statusEl.textContent = "Please enter a valid email address.";
       box.hidden = false;
+      statusEl.textContent = "Please enter a valid email address.";
       return;
     }
     var firstName = name.split(" ")[0];
 
-    /* A scan already stored for this exact website (from the free scan
-       or the pre-pay step) is used as-is: no need to run it again. */
-    var s = storedScan();
+    /* Details already gathered for this exact website on this device
+       (for example from the homepage review a few minutes ago) are
+       used as-is: no need to gather them again. */
+    var s = storedDetails();
     if (s && s.url && url.replace(/\/+$/, "") === String(s.url).replace(/\/+$/, "")
         && s.score != null) {
-      factsText = factsFromStored(s);
+      factsText = factsFromData(s.url, (s.fetched_at || "").slice(0, 10),
+        s.score, s.grade, s.checks);
       box.hidden = false;
-      statusEl.textContent = "Using your scan from a few minutes ago: score "
-        + s.score + "/100 (grade " + (s.grade || "?") + "). These are the facts your form will ask you to confirm.";
-      factsEl.textContent = factsText;
-      factsEl.hidden = false;
-      showContinue();
+      statusEl.textContent = "Using the details gathered a few minutes ago. Taking you to your intake form...";
+      goToForm();
       return;
     }
 
-    scanBtn.disabled = true;
-    scanBtn.textContent = "Scanning...";
+    continueBtn.disabled = true;
     box.hidden = false;
-    factsEl.hidden = true;
-    continueBtn.hidden = true;
     var started = Date.now();
     var timer = setInterval(function () {
       var secs = Math.round((Date.now() - started) / 1000);
-      statusEl.textContent = "Scanning " + url + " now. This usually takes under a minute. (" + secs + "s)";
+      statusEl.textContent = "Gathering your initial details for " + url
+        + " now. This usually takes under a minute. (" + secs + "s)";
     }, 500);
-    statusEl.textContent = "Scanning " + url + " now. This usually takes under a minute.";
+    statusEl.textContent = "Gathering your initial details for " + url
+      + " now. This usually takes under a minute.";
 
     var controller = ("AbortController" in window) ? new AbortController() : null;
     var timeout = setTimeout(function () { if (controller) controller.abort(); }, 60000);
@@ -177,13 +160,10 @@
     })
       .then(function (resp) { return resp.json().then(function (b) { return { ok: resp.ok, body: b }; }); })
       .then(function (out) {
-        if (!out.ok || !out.body || out.body.error) throw new Error("scan failed");
-        factsText = factsFromReport(out.body);
-        statusEl.textContent = "Scan complete: score " + out.body.score + "/100 (grade "
-          + (out.body.grade || "?") + "). These are the facts your form will ask you to confirm. "
-          + "We also emailed you a copy of the results.";
-        factsEl.textContent = factsText;
-        factsEl.hidden = false;
+        if (!out.ok || !out.body || out.body.error) throw new Error("gather failed");
+        factsText = factsFromData(out.body.url || url,
+          (out.body.fetched_at || "").slice(0, 10),
+          out.body.score, out.body.grade, out.body.checks);
         try {
           window.localStorage.setItem("arhq_scan", JSON.stringify({
             first_name: name, email: email, url: out.body.url || url,
@@ -196,20 +176,17 @@
         } catch (err) {}
       })
       .catch(function () {
-        /* The scan never blocks the intake: continue with no facts and
-           the order follows the existing fallback (facts confirmed by
-           email before anything is built). */
+        /* Gathering the details never blocks the intake: continue to
+           the form with no facts attached, and the order follows the
+           existing fallback (facts confirmed by email before anything
+           is built). */
         factsText = "";
-        statusEl.textContent = "The scan did not finish just now. No problem: continue to the form, "
-          + "and we will confirm your business facts with you by email before we build anything.";
-        factsEl.hidden = true;
       })
       .finally(function () {
         clearInterval(timer);
         clearTimeout(timeout);
-        scanBtn.disabled = false;
-        scanBtn.textContent = "Run my scan";
-        showContinue();
+        statusEl.textContent = "Taking you to your intake form...";
+        goToForm();
       });
   });
 })();

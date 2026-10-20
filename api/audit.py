@@ -1099,7 +1099,6 @@ class handler(BaseHTTPRequestHandler):
             "app.v3.js": "application/javascript; charset=utf-8",
             "app.v4.js": "application/javascript; charset=utf-8",
             "thanks-149.html": "text/html; charset=utf-8",
-            "start-149.html": "text/html; charset=utf-8",
             "intake-149.html": "text/html; charset=utf-8",
             "packet.html": "text/html; charset=utf-8",
             "blog.html": "text/html; charset=utf-8",
