@@ -111,6 +111,44 @@ FIX_TEXT = {
     "page_speed": "Speed up the homepage: cache aggressively, shrink payload, and fix slow TTFB — agents time out faster than humans.",
 }
 
+# Plain-English layer shown with every check result, on the scan page
+# and in the results email (Caleb directive 2026-10-20): a short
+# "what this means" line per check, plus a high-level "Fixable:" line
+# shown only when the check is not at full marks. The fixable lines
+# deliberately say a fix exists without describing it — the how is
+# what the paid products provide (same rule as the hidden top-fixes
+# list on the scan page).
+CHECK_COPY = {
+    "robots_ai_posture": {
+        "meaning": "This file tells AI crawlers whether they may look at your site at all.",
+        "fixable": "Fixable: usually a small settings change.",
+    },
+    "llms_txt": {
+        "meaning": "A short introduction file written for AI agents. Without it, agents piece your business together from scattered pages.",
+        "fixable": "Fixable: a standard addition to your site.",
+    },
+    "sitemap": {
+        "meaning": "The map of your site, so an agent can find every page that matters instead of just a corner of it.",
+        "fixable": "Fixable: a standard addition to your site.",
+    },
+    "schema_jsonld": {
+        "meaning": "Machine-readable labels for your services, prices, and business facts, in the form an agent can quote accurately.",
+        "fixable": "Fixable: structured facts can be added without redesigning your site.",
+    },
+    "pricing_html": {
+        "meaning": "Prices stated in the page itself, where an agent can read them. An agent will not guess at prices; it moves on.",
+        "fixable": "Fixable: your prices can be presented in a form agents can quote.",
+    },
+    "bot_wall": {
+        "meaning": "Whether anything stops an agent at the door before it learns a single thing about your business.",
+        "fixable": "Fixable: in most cases the blocking element can be adjusted.",
+    },
+    "page_speed": {
+        "meaning": "How fast your pages answer. An agent comparing many businesses may skip slow ones.",
+        "fixable": "Fixable: speed usually improves with a few standard adjustments.",
+    },
+}
+
 
 # ------------------------------------------------------------------ fetch ---
 def make_session():
@@ -518,7 +556,10 @@ def run_audit(raw_url):
         total_score = round(sum(c[2] for c in checks), 1)
         results = [
             {"id": cid, "name": name, "weight": WEIGHTS[cid],
-             "status": st, "score": round(sc, 1), "detail": detail}
+             "status": st, "score": round(sc, 1), "detail": detail,
+             "meaning": CHECK_COPY[cid]["meaning"],
+             "fixable": (CHECK_COPY[cid]["fixable"]
+                         if sc < WEIGHTS[cid] else None)}
             for cid, name, sc, st, detail in checks
         ]
         lost = [(WEIGHTS[cid] - sc, WEIGHTS[cid], FIX_TEXT[cid], cid)
@@ -594,18 +635,158 @@ def _fmt_num(x):
     return s[:-2] if s.endswith(".0") else s
 
 
+def _esc_html(s):
+    """Minimal HTML escaping for values interpolated into the email."""
+    return (str(s if s is not None else "")
+            .replace("&", "&amp;").replace("<", "&lt;")
+            .replace(">", "&gt;").replace('"', "&quot;"))
+
+
+# Score-pill colors by check status, mirroring the scan-email mock-up
+# approved 2026-10-20 (green = full marks, amber = partial, rose = zero
+# or low).
+_PILL_STYLE = {
+    "pass": ("#e3f4ea", "#146c43", "#1f9d63"),
+    "partial": ("#fdf1d7", "#8a5a00", "#e8a13d"),
+    "fail": ("#ffe0e7", "#c21847", "#ff4d6d"),
+}
+_GRADE_CHIP_STYLE = {
+    "A": ("#e3f4ea", "#146c43"),
+    "B": ("#e3f4ea", "#146c43"),
+    "C": ("#fdf1d7", "#8a5a00"),
+    "F": ("#ffe0e7", "#c21847"),
+}
+
+
+def _results_email_html(first_name, site, score, grade, checks):
+    """HTML version of the results email, mirroring the on-page results:
+    score/grade header, then per check the technical name + score pill,
+    the finding line, the plain-English meaning line, and the fixable
+    line when the check is not at full marks. Table layout + inline
+    styles for email-client compatibility; visual language follows the
+    2026-10-20 scan-email mock-up Caleb reviewed.
+    """
+    chip_bg, chip_fg = _GRADE_CHIP_STYLE.get(grade, ("#fdf1d7", "#8a5a00"))
+    try:
+        pct = max(0.0, min(100.0, float(score)))
+    except (TypeError, ValueError):
+        pct = 0.0
+    pct_txt = ("%.1f" % pct).rstrip("0").rstrip(".")
+    blocks = []
+    for c in checks:
+        bg, fg, dot = _PILL_STYLE.get(c.get("status"),
+                                      ("#fdf1d7", "#8a5a00", "#e8a13d"))
+        pill = (
+            '<span style="display:inline-block; background-color:%s; '
+            'color:%s; font-size:13.5px; font-weight:700; padding:5px 13px; '
+            'border-radius:99px;"><span style="color:%s;">&#9679;</span>'
+            "&nbsp; %s / %s</span>"
+            % (bg, fg, dot, _esc_html(_fmt_num(c.get("score"))),
+               _esc_html(_fmt_num(c.get("weight")))))
+        block = [
+            '<div style="border-top:1px solid #f0e6e8; margin-top:22px; '
+            'padding-top:22px;">',
+            '<table role="presentation" width="100%" cellpadding="0" '
+            'cellspacing="0"><tr>',
+            '<td style="vertical-align:top;"><span style="font-size:16.5px; '
+            'font-weight:700; color:#1d1d1f;">%s</span></td>'
+            % _esc_html(c.get("name", "")),
+            '<td align="right" style="vertical-align:top; '
+            'white-space:nowrap;">%s</td>' % pill,
+            "</tr></table>",
+        ]
+        detail = (c.get("detail") or "").strip()
+        if detail:
+            block.append(
+                '<p style="font-size:14px; line-height:1.55; color:#6e6e73; '
+                'margin-top:7px; padding-left:20px;">%s</p>'
+                % _esc_html(detail))
+        meaning = (c.get("meaning") or "").strip()
+        if meaning:
+            block.append(
+                '<p style="font-size:15px; line-height:1.6; color:#333336; '
+                'margin-top:8px; padding-left:20px;">%s</p>'
+                % _esc_html(meaning))
+        fixable = (c.get("fixable") or "").strip()
+        if fixable:
+            head, _, rest = fixable.partition(":")
+            block.append(
+                '<p style="font-size:15px; line-height:1.6; color:#454548; '
+                'margin-top:10px; margin-left:20px; padding:10px 14px; '
+                'background-color:#fff7f8; border-left:3px solid #ff4d6d; '
+                'border-radius:0 8px 8px 0;"><strong style="color:#c21847;">'
+                "%s:</strong>%s</p>"
+                % (_esc_html(head), _esc_html(rest)))
+        block.append("</div>")
+        blocks.append("".join(block))
+    return """<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Your free scan results</title></head>
+<body style="margin:0; padding:0; background-color:#f7f2f0; font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; color:#1d1d1f;">
+<table role="presentation" width="100%%" cellpadding="0" cellspacing="0" style="background-color:#f7f2f0;">
+<tr><td align="center" style="padding:28px 12px 36px 12px;">
+<table role="presentation" width="640" cellpadding="0" cellspacing="0" style="width:640px; max-width:640px; background-color:#ffffff; border:1px solid #f0dfe3; border-radius:16px;">
+<tr><td style="padding:36px 44px 40px 44px;">
+<span style="font-size:20px; font-weight:800; letter-spacing:-0.02em; color:#1d1d1f;">Agent Readiness <span style="color:#ff4d6d;">HQ</span></span>
+<div style="border-bottom:2px solid #ff4d6d; margin:20px 0 26px 0; font-size:0; line-height:0;">&nbsp;</div>
+<h1 style="font-size:27px; line-height:1.25; font-weight:800; letter-spacing:-0.01em; color:#1d1d1f; margin:0;">Your free scan results</h1>
+<p style="font-size:16px; line-height:1.6; color:#333336; margin-top:16px;">Hi %(first)s, thanks for running your free AI Readiness Scan with Agent Readiness HQ!</p>
+<table role="presentation" width="100%%" cellpadding="0" cellspacing="0" style="margin-top:22px; background-color:#fff7f8; border:1px solid #ffd9e1; border-radius:12px;">
+<tr>
+<td style="padding:22px 26px; vertical-align:middle;">
+<div style="font-size:12px; font-weight:700; letter-spacing:0.09em; color:#c21847;">YOUR AI READINESS SCORE</div>
+<div style="margin-top:6px;"><span style="font-size:46px; font-weight:800; letter-spacing:-0.02em; color:#1d1d1f;">%(score)s</span><span style="font-size:19px; font-weight:600; color:#6e6e73;"> / 100</span></div>
+<table role="presentation" width="100%%" cellpadding="0" cellspacing="0" style="margin-top:12px;"><tr><td style="background-color:#f6dde2; border-radius:99px; height:9px;"><div style="width:%(pct)s%%; height:9px; border-radius:99px; background-color:#ff4d6d; font-size:0; line-height:0;">&nbsp;</div></td></tr></table>
+</td>
+<td width="118" align="center" style="padding:22px 10px; vertical-align:middle;">
+<div style="font-size:12px; font-weight:700; letter-spacing:0.09em; color:#8a5a00;">GRADE</div>
+<div style="display:inline-block; margin-top:8px; background-color:%(chip_bg)s; color:%(chip_fg)s; font-size:34px; font-weight:800; line-height:1; padding:12px 22px; border-radius:12px;">%(grade)s</div>
+</td>
+</tr>
+</table>
+<p style="font-size:15.5px; line-height:1.6; color:#333336; margin-top:20px;">%(site)s scored %(score)s/100 (grade %(grade)s). Here is how the seven checks came out:</p>
+%(checks)s
+<table role="presentation" width="100%%" cellpadding="0" cellspacing="0" style="margin-top:30px; background-color:#fff7f8; border:1px solid #ffd9e1; border-radius:12px;">
+<tr><td style="padding:24px 26px;">
+<p style="font-size:15.5px; line-height:1.6; color:#333336; margin:0;">Your full results are on the page where you ran the scan.</p>
+<p style="font-size:15.5px; line-height:1.6; color:#333336; margin-top:12px;">If you'd like help with the fixes, you have two options. The DIY Audit ($149) gives you the full picture and the materials to fix things yourself. With Done For You ($449), we make the approved improvements for you. You can see both here: <a href="https://agentreadinesshq.com/#pricing" style="color:#c21847;">https://agentreadinesshq.com/#pricing</a></p>
+<p style="font-size:15.5px; line-height:1.6; color:#333336; margin-top:12px;">Or just reply to this email with any questions.</p>
+</td></tr>
+</table>
+<p style="font-size:16px; line-height:1.6; color:#333336; margin-top:26px;">Thanks,<br><strong>Rachael Lund</strong><br><span style="color:#5c5c60;">Founder, Agent Readiness HQ</span></p>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body></html>""" % {
+        "first": _esc_html(first_name),
+        "site": _esc_html(site),
+        "score": _esc_html(score),
+        "grade": _esc_html(grade),
+        "pct": pct_txt,
+        "chip_bg": chip_bg,
+        "chip_fg": chip_fg,
+        "checks": "".join(blocks),
+    }
+
+
 def compose_results_email(first_name, email, report):
     """Build the visitor's copy of their free scan results.
 
-    Plain text, same format the visitor saw on screen: score, grade, then
-    each of the seven checks with its status mark, points, and detail.
-    Signed Rachael Lund, Founder (2026-10-16 ruling). The free results are
-    never called a "report" or an "Audit" — those words belong to the
-    paid products.
+    Multipart (plain text + HTML) since 2026-10-20. Both parts carry
+    the same three-layer structure the visitor sees on the results
+    page: score and grade, then each of the seven checks with its
+    status mark, points, finding line, plain-English meaning line,
+    and (when the check is not at full marks) the high-level fixable
+    line. Signed Rachael Lund, Founder (2026-10-16 ruling). The free
+    results are never called a "report" or an "Audit" — those words
+    belong to the paid products.
     """
     site = report.get("url") or ""
     score = _fmt_num(report.get("score"))
     grade = report.get("grade") or "?"
+    checks = report.get("checks") or []
     lines = [
         f"Hi {first_name}, thanks for running your free AI Readiness Scan "
         "with Agent Readiness HQ!",
@@ -614,7 +795,7 @@ def compose_results_email(first_name, email, report):
         "Here is how the seven checks came out:",
         "",
     ]
-    for c in report.get("checks") or []:
+    for c in checks:
         mark = _STATUS_MARK.get(c.get("status"), "?")
         lines.append(
             f"{mark} {c.get('name', '')} \u2014 "
@@ -623,6 +804,12 @@ def compose_results_email(first_name, email, report):
         detail = (c.get("detail") or "").strip()
         if detail:
             lines.append(f"   {detail}")
+        meaning = (c.get("meaning") or "").strip()
+        if meaning:
+            lines.append(f"   {meaning}")
+        fixable = (c.get("fixable") or "").strip()
+        if fixable:
+            lines.append(f"   {fixable}")
     lines += [
         "",
         "Your full results are on the page where you ran the scan.",
@@ -639,6 +826,9 @@ def compose_results_email(first_name, email, report):
     msg["To"] = email
     msg["Subject"] = f"Your free scan results for {site}: {score}/100 (grade {grade})"
     msg.set_content("\n".join(lines))
+    msg.add_alternative(
+        _results_email_html(first_name, site, score, grade, checks),
+        subtype="html")
     return msg
 
 

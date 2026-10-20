@@ -81,6 +81,16 @@
       html += "<strong>" + esc(c.name) + "</strong> ";
       html += '<span class="check-score">' + esc(c.score) + "/" + esc(c.weight) + "</span>";
       html += '<div class="check-detail">' + esc(c.detail) + "</div>";
+      /* Plain-English layer (2026-10-20): what the check means, and
+         — only when points were lost — that it is fixable, without
+         saying how. Both strings come from the audit API so the page
+         and the emailed copy always show identical wording. */
+      if (c.meaning) {
+        html += '<div class="check-meaning">' + esc(c.meaning) + "</div>";
+      }
+      if (c.fixable) {
+        html += '<div class="check-fixable">' + esc(c.fixable) + "</div>";
+      }
       html += "</li>";
     });
     html += "</ul>";
