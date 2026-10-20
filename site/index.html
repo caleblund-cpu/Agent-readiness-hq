@@ -21,16 +21,10 @@
 <style>
   .hero-scan { margin: 1.75rem auto 0; max-width: 560px; }
   .hero-scan-label { font-size: 1.05rem; margin-bottom: 0.75rem; }
-  .hero-audit-form { display: flex; gap: 0.6rem; }
-  .hero-audit-form input {
-    flex: 1; padding: 1rem 1.25rem; font-size: 1rem;
-    border: 2px solid var(--border); border-radius: 999px; font-family: inherit;
-  }
-  .hero-audit-form input:focus { outline: none; border-color: var(--rose); }
-  .hero-audit-form .btn { white-space: nowrap; padding: 1.12rem 2.5rem; font-size: 1.18rem; }
+  .hero-audit-form { display: flex; justify-content: center; }
+  #hero-audit-form .btn { white-space: nowrap; padding: 1.25rem 2.75rem; font-size: 1.3rem; }
   @media (max-width: 560px) {
-    .hero-audit-form { flex-direction: column; }
-    .hero-audit-form .btn { width: 100%; }
+    #hero-audit-form .btn { width: 100%; }
   }
   .result-correction { margin-top: 1.5rem; font-size: 0.95rem; color: var(--muted); text-align: center; }
   .result-correction a { color: var(--rose); }
@@ -69,9 +63,7 @@
       <h1>Your next customer may be an <span class="grad-text">AI agent.</span></h1>
       <p class="lede">AI agents now shop, compare, and buy on behalf of real customers, and they can't be persuaded by your marketing. AI agents work best with information they can clearly access and interpret, so clear, machine-readable services, pricing, locations, and business details make your site easier for AI agents to understand.</p>
       <div class="hero-scan">
-        <form id="hero-audit-form" class="audit-form hero-audit-form" aria-label="Run free audit">
-          <label class="visually-hidden" for="hero-site-url">Website URL</label>
-          <input type="text" id="hero-site-url" name="site-url" placeholder="https://yourbusiness.com" required autocomplete="url" inputmode="url" autocapitalize="none" autocorrect="off" spellcheck="false">
+        <form id="hero-audit-form" class="hero-audit-form" aria-label="Run free audit">
           <button type="submit" class="btn">Run my free scan</button>
         </form>
       </div>
@@ -247,12 +239,9 @@
   if (!heroForm) return;
   heroForm.addEventListener("submit", function (e) {
     e.preventDefault();
-    var url = document.getElementById("hero-site-url").value.trim();
-    var mainInput = document.getElementById("site-url");
-    var mainForm = document.getElementById("audit-form");
-    if (mainInput && mainForm) {
-      mainInput.value = url;
-      document.getElementById("cta").scrollIntoView({ behavior: "smooth", block: "start" });
+    var cta = document.getElementById("cta");
+    if (cta) {
+      cta.scrollIntoView({ behavior: "smooth", block: "start" });
       setTimeout(function () {
         var nameField = document.getElementById("scan-first-name");
         if (nameField) nameField.focus({ preventScroll: true });
