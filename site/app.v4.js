@@ -134,6 +134,7 @@
         setStatus("");
         renderResults(out.body);
         captureScanLead(firstName, leadEmail, out.body);
+        storeScanForIntake(firstName, leadEmail, out.body);
         resultsEl.scrollIntoView({ behavior: "smooth", block: "start" });
       })
       .catch(function (err) {
@@ -171,6 +172,31 @@
       .catch(function (err) {
         console.error("[Agent Readiness HQ] scan lead capture failed:", err);
       });
+  }
+
+  /* Remember the scan on this device so the $149 pre-pay step
+     (/start-149.html) and the intake door (/intake-149.html) can
+     pre-fill from it. Same-device memory only: it never leaves the
+     browser except inside the personalized intake link the visitor
+     opens themselves. Fire-and-forget, like the lead capture. */
+  function storeScanForIntake(firstName, email, report) {
+    try {
+      var data = {
+        first_name: firstName,
+        email: email,
+        url: report.url || "",
+        score: report.score,
+        grade: report.grade || "",
+        checks: (report.checks || []).map(function (c) {
+          return { name: c.name, status: c.status, score: c.score, weight: c.weight };
+        }),
+        fetched_at: report.fetched_at || ""
+      };
+      window.localStorage.setItem("arhq_scan", JSON.stringify(data));
+    } catch (err) {
+      /* storage unavailable (private mode, quotas): the journey still
+         works, the later pages just ask again. */
+    }
   }
 
   /* Information packet form (homepage, under the scan results): posts

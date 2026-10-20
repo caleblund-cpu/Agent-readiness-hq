@@ -35,6 +35,8 @@ print(json.dumps(run_audit('https://example.com'), indent=2)[:2000])
 EOF
 """
 
+import hashlib
+import hmac
 import ipaddress
 import json
 import os
@@ -46,7 +48,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from email.message import EmailMessage
 from http.server import BaseHTTPRequestHandler
-from urllib.parse import urlparse, urljoin
+from urllib.parse import urlparse, urljoin, urlencode
 
 import requests
 
@@ -640,15 +642,17 @@ def compose_results_email(first_name, email, report):
     return msg
 
 
-def _deliver_results(msg, password, transport):
+def _deliver_results(msg, password, transport, label="results email"):
     """One delivery attempt over a single transport. Logs each stage so
     the function logs name exactly where a failure occurs, and raises the
     original exception so the caller can decide on retry / fallback.
 
-    transport is "587-starttls" or "465-ssl".
+    transport is "587-starttls" or "465-ssl". label prefixes the log
+    lines ("results email" for the scan results copy; other business
+    mail sent from this function passes its own label).
     """
     stage = "connect"
-    print(f"results email: {transport} stage=connect")
+    print(f"{label}: {transport} stage=connect")
     try:
         if transport == "465-ssl":
             smtp_cm = smtplib.SMTP_SSL(
@@ -660,78 +664,293 @@ def _deliver_results(msg, password, transport):
                 local_hostname=RESULTS_SMTP_LOCAL_HOSTNAME)
         with smtp_cm as smtp:
             stage = "ehlo"
-            print(f"results email: {transport} stage=ehlo")
+            print(f"{label}: {transport} stage=ehlo")
             smtp.ehlo()
             if transport == "587-starttls":
                 stage = "starttls"
-                print(f"results email: {transport} stage=starttls")
+                print(f"{label}: {transport} stage=starttls")
                 smtp.starttls()
                 stage = "ehlo"
-                print(f"results email: {transport} stage=ehlo-after-starttls")
+                print(f"{label}: {transport} stage=ehlo-after-starttls")
                 smtp.ehlo()
             stage = "login"
-            print(f"results email: {transport} stage=login")
+            print(f"{label}: {transport} stage=login")
             smtp.login(RESULTS_FROM, password)
             stage = "send"
-            print(f"results email: {transport} stage=send")
+            print(f"{label}: {transport} stage=send")
             smtp.send_message(msg)
     except Exception as exc:
         # Never swallow the cause: stage, transport, exception name and
         # message land in the Vercel function logs, where the next
         # verification run can read exactly why the send failed.
         print(
-            f"results email send failed: transport={transport} "
+            f"{label} send failed: transport={transport} "
             f"stage={stage}: {type(exc).__name__}: {exc}")
         raise
-    print(f"results email sent via {transport}")
+    print(f"{label} sent via {transport}")
     return True
 
 
-def send_results_email(first_name, email, report):
-    """Send the results copy via Google Workspace SMTP. Never raises:
-    returns True only when the server accepted the message.
+def _smtp_password():
+    """The hello@ app password from the environment, whitespace-stripped.
 
-    Path: port 587 with STARTTLS first. A dropped connection
-    (SMTPServerDisconnected, or an OSError during connect) earns one
-    full retry on a fresh connection, which may land on a different
-    Google front-end. If the 587 path still fails, fall back to port
-    465 (implicit TLS) with the same login and message.
+    Google shows app passwords in spaced groups ("abcd efgh ..."); SMTP
+    login needs the bare 16 characters, so strip all whitespace from the
+    stored value instead of asking for the credential again.
     """
-    # Google shows app passwords in spaced groups ("abcd efgh ...");
-    # SMTP login needs the bare 16 characters, so strip all whitespace
-    # from the stored value instead of asking for the credential again.
-    password = "".join((os.environ.get("RESULTS_SMTP_PASSWORD") or "").split())
-    if not password:
-        print("results email: RESULTS_SMTP_PASSWORD not visible to this function")
-        return False
+    return "".join((os.environ.get("RESULTS_SMTP_PASSWORD") or "").split())
 
-    # 587 / STARTTLS, with one retry on a dropped connection.
+
+def _deliver_with_fallback(msg_factory, password, label):
+    """Deliver a message built by msg_factory over the transport ladder:
+    port 587 with STARTTLS first; a dropped connection earns one full
+    retry on a fresh connection; then port 465 (implicit TLS). Never
+    raises: returns True only when the server accepted the message.
+    msg_factory is called per attempt because a failed send can leave a
+    message object in a partially-consumed state.
+    """
     for attempt in (1, 2):
         try:
-            msg = compose_results_email(first_name, email, report)
-            return _deliver_results(msg, password, "587-starttls")
+            return _deliver_results(
+                msg_factory(), password, "587-starttls", label)
         except (smtplib.SMTPServerDisconnected, OSError) as exc:
             if attempt == 1:
                 print(
-                    "results email: retrying 587-starttls on a fresh "
+                    f"{label}: retrying 587-starttls on a fresh "
                     f"connection after {type(exc).__name__}")
                 continue
-            print("results email: 587-starttls retries exhausted, "
+            print(f"{label}: 587-starttls retries exhausted, "
                   "falling back to 465-ssl")
         except Exception:
             # The stage log inside _deliver_results already named the
             # failure; a non-connection error is not retried, but the
             # fallback transport still gets its chance below.
-            print("results email: 587-starttls failed, "
+            print(f"{label}: 587-starttls failed, "
                   "falling back to 465-ssl")
             break
-
-    # Fallback transport: port 465, implicit TLS.
     try:
-        msg = compose_results_email(first_name, email, report)
-        return _deliver_results(msg, password, "465-ssl")
+        return _deliver_results(msg_factory(), password, "465-ssl", label)
     except Exception:
         return False
+
+
+def send_results_email(first_name, email, report):
+    """Send the results copy via Google Workspace SMTP. Never raises:
+    returns True only when the server accepted the message. Delivery
+    path (587/STARTTLS, one retry on a dropped connection, then the
+    465/SSL fallback) lives in _deliver_with_fallback.
+    """
+    password = _smtp_password()
+    if not password:
+        print("results email: RESULTS_SMTP_PASSWORD not visible to this function")
+        return False
+    return _deliver_with_fallback(
+        lambda: compose_results_email(first_name, email, report),
+        password, "results email")
+
+
+def send_business_email(msg_factory, label):
+    """Send any other business email from hello@ over the same SMTP
+    ladder as the results email. Never raises."""
+    password = _smtp_password()
+    if not password:
+        print(f"{label}: RESULTS_SMTP_PASSWORD not visible to this function")
+        return False
+    return _deliver_with_fallback(msg_factory, password, label)
+
+
+# ------------------------------------------------- Stripe webhook / day 0 ---
+# Intake journey rebuild (spec: intake-journey-build-spec-2026-10-19).
+# Stripe fires checkout.session.completed the moment a payment lands.
+# The webhook handler below sends the day-0 purchase confirmation
+# (Template 7, pre-launch-package/09-email-templates.md) automatically,
+# with a personalized link to the scan-first intake door, and records
+# the order two ways: a structured ORDER line in the function logs and
+# an internal notification email to hello@ carrying the tracker fields
+# (20-order-tracker.md). Previously no Stripe notification reached
+# hello@ at all and the confirmation was sent by hand.
+#
+# FAIL-CLOSED: the endpoint does nothing (HTTP 503) until the
+# STRIPE_WEBHOOK_SECRET env var is configured in Vercel, and every
+# event's Stripe-Signature header is verified against it (HMAC-SHA256
+# over "<timestamp>.<raw body>", 5-minute tolerance) before any
+# processing. An unsigned or badly signed POST can therefore never
+# trigger an email or an order record.
+SITE_BASE = "https://agentreadinesshq.com"
+INTAKE_DOOR_PATH = "/intake-149.html"
+STRIPE_149_PAYMENT_LINK = "plink_1UQtKCLHicydTGP1aeNJjxNF"
+_WEBHOOK_TOLERANCE_S = 300
+_PROCESSED_SESSIONS = set()  # per-instance idempotency; Stripe also dedupes
+
+
+def _intake_door_link(name, email, session_id):
+    """Personalized link to the scan-first intake door. Carries exactly
+    what the webhook knows (name, email, payment reference); the door
+    collects the website, runs the scan, and pre-fills the intake form.
+    """
+    params = {"payment_ref": session_id or ""}
+    if name:
+        params["name"] = name
+    if email:
+        params["email"] = email
+    return SITE_BASE + INTAKE_DOOR_PATH + "?" + urlencode(params)
+
+
+def compose_day0_email(first_name, email, session_id, door_link):
+    """Template 7 ($149 purchase confirmation), automated. Adaptations
+    for the new journey, flagged for Caleb's copy review: the intake
+    link points at the scan-first door; step 2 no longer names a domain
+    (the webhook does not know it yet; the door collects it); the
+    template's markdown bold is dropped for plain-text sending.
+    """
+    lines = [
+        f"Hi {first_name},",
+        "",
+        f"Thank you. Your payment of $149 has been received (order {session_id}).",
+        "",
+        "Here is what happens next:",
+        "",
+        f"1. Intake form. Use this link whenever you are ready: {door_link}",
+        "It takes about 5 minutes. The first step runs a fresh scan of your website, and most of the form is then already filled in for you. The key step is confirming your business facts. We build your AI Information Page from verified facts only. We never guess at your services, prices, hours, or service areas.",
+        "",
+        "2. The audit. Once your intake is complete (payment received, intake form submitted, and any follow-up information we asked for to verify your business facts), we run the full audit on your website. This takes up to 5 business days. If we need information from you, the clock pauses until we receive it.",
+        "",
+        "3. Your report. You receive the full audit, your Agent Readiness HQ score, the prioritized fix list with exact copy and code, your custom AI Information Page, publishing instructions, and a developer handoff.",
+        "",
+        "Refunds: If you cancel before we start work, you get a full refund. Once your customized report is delivered, the $149 fee is non-refundable.",
+        "",
+        "SEND TO ADMINISTRATOR: If your web person handles your site, forward them this email and the report when it arrives. The report includes a dedicated developer handoff section with everything technical in one place.",
+        "",
+        "Note: if your site runs on a hosted platform (WordPress, Wix, Squarespace, Kajabi), some fixes have platform limits. We check your platform as part of the audit, and we disclose any ceiling on your score honestly. If Kajabi or similar is your platform, we will tell you what is and is not possible.",
+        "",
+        "Questions in the meantime? Just reply to this email.",
+        "",
+        "-- Rachael",
+        "Agent Readiness HQ",
+        "agentreadinesshq.com",
+    ]
+    msg = EmailMessage()
+    msg["From"] = f"Agent Readiness HQ <{RESULTS_FROM}>"
+    msg["To"] = email
+    msg["Subject"] = "Your $149 AI Readiness Report is on its way"
+    msg.set_content("\n".join(lines))
+    return msg
+
+
+def compose_order_notice(name, email, session_id, amount_paid, day0_sent):
+    """Internal order record to hello@, fields per 20-order-tracker.md.
+    Business name and website are not known at payment time; the intake
+    supplies them (the door runs the scan), so the row completes when
+    the intake notification arrives.
+    """
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    lines = [
+        "A $149 payment was confirmed by Stripe (webhook). Day-0 confirmation email "
+        + ("sent to the customer." if day0_sent else "FAILED to send; send Template 7 by hand."),
+        "",
+        f"order_id: {session_id}",
+        f"order_date: {today}",
+        f"customer_name: {name or ''}",
+        "business_name: (pending intake)",
+        "website: (pending intake)",
+        f"email: {email or ''}",
+        "product: 149",
+        f"amount_paid: {amount_paid}",
+        "payment_status: paid",
+        "status: INTAKE_PENDING",
+        "notes: Order recorded automatically by the Stripe webhook. "
+        "Reminders at day 3, day 7, day 14 after payment if intake is still missing.",
+    ]
+    msg = EmailMessage()
+    msg["From"] = f"Agent Readiness HQ <{RESULTS_FROM}>"
+    msg["To"] = RESULTS_FROM
+    msg["Subject"] = f"New $149 order (webhook): {name or email or session_id}"
+    msg.set_content("\n".join(lines))
+    return msg
+
+
+def _stripe_signature_ok(payload, sig_header, secret):
+    """Verify a Stripe-Signature header: HMAC-SHA256 keyed with the
+    endpoint secret over "<t>.<raw payload>", with timestamp tolerance.
+    """
+    if not sig_header or not secret:
+        return False
+    try:
+        fields = {}
+        signatures = []
+        for part in sig_header.split(","):
+            key, _, value = part.strip().partition("=")
+            if key == "t":
+                fields["t"] = value
+            elif key == "v1":
+                signatures.append(value)
+        timestamp = int(fields.get("t") or 0)
+    except (ValueError, AttributeError):
+        return False
+    if not timestamp or not signatures:
+        return False
+    if abs(time.time() - timestamp) > _WEBHOOK_TOLERANCE_S:
+        return False
+    signed = str(timestamp).encode("utf-8") + b"." + payload
+    expected = hmac.new(secret.encode("utf-8"), signed, hashlib.sha256).hexdigest()
+    return any(hmac.compare_digest(expected, sig) for sig in signatures)
+
+
+def process_checkout_completed(session):
+    """Handle one checkout.session.completed session object: send the
+    day-0 email and record the order. Returns a summary dict. Never
+    raises; send failures are reported in the summary, not hidden.
+    """
+    session_id = str(session.get("id") or "")
+    if session.get("payment_status") not in ("paid", None):
+        print(f"stripe webhook: session {session_id} payment_status="
+              f"{session.get('payment_status')}; not processed")
+        return {"processed": False, "reason": "not paid"}
+    if session.get("payment_link") != STRIPE_149_PAYMENT_LINK:
+        print(f"stripe webhook: session {session_id} is for payment link "
+              f"{session.get('payment_link')}, not the $149 link; recorded only")
+        return {"processed": False, "reason": "not the $149 payment link"}
+    if session_id in _PROCESSED_SESSIONS:
+        print(f"stripe webhook: duplicate delivery for {session_id}; skipped")
+        return {"processed": False, "reason": "duplicate"}
+    _PROCESSED_SESSIONS.add(session_id)
+
+    details = session.get("customer_details") or {}
+    email = str(details.get("email") or session.get("customer_email") or "").strip()
+    name = str(details.get("name") or "").strip()
+    first_name = name.split()[0] if name else "there"
+    try:
+        amount_paid = f"{(session.get('amount_total') or 14900) / 100:.2f}"
+    except (TypeError, ValueError):
+        amount_paid = "149.00"
+    door_link = _intake_door_link(name, email, session_id)
+
+    day0_sent = False
+    if email and _EMAIL_RE.match(email):
+        day0_sent = send_business_email(
+            lambda: compose_day0_email(first_name, email, session_id, door_link),
+            "day-0 email")
+    else:
+        print(f"stripe webhook: no usable customer email on {session_id}; "
+              "day-0 email not sent")
+    notice_sent = send_business_email(
+        lambda: compose_order_notice(name, email, session_id, amount_paid, day0_sent),
+        "order notice")
+
+    record = {
+        "order_id": session_id,
+        "order_date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+        "customer_name": name,
+        "email": email,
+        "product": 149,
+        "amount_paid": amount_paid,
+        "payment_status": "paid",
+        "status": "INTAKE_PENDING",
+        "day0_email_sent": day0_sent,
+        "order_notice_sent": notice_sent,
+    }
+    print("ORDER " + json.dumps(record))
+    return {"processed": True, **record}
 
 
 def _clean_lead(data):
@@ -815,6 +1034,45 @@ class handler(BaseHTTPRequestHandler):
         except Exception:
             self._send(502, {"error": "email service unreachable"})
 
+    def _handle_stripe_webhook(self):
+        """POST /api/stripe-webhook — Stripe checkout.session.completed.
+
+        Fail-closed: until STRIPE_WEBHOOK_SECRET is configured in the
+        environment this returns 503 and processes nothing, so a forged
+        POST can never trigger the day-0 email or an order record. With
+        the secret set, the Stripe-Signature header must verify before
+        anything is read from the event.
+        """
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            length = 0
+        if length <= 0 or length > 262144:
+            self._send(400, {"error": "bad request"})
+            return
+        raw = self.rfile.read(length)
+        secret = os.environ.get("STRIPE_WEBHOOK_SECRET") or ""
+        if not secret:
+            print("stripe webhook: STRIPE_WEBHOOK_SECRET not configured; "
+                  "event rejected unprocessed")
+            self._send(503, {"error": "webhook not configured"})
+            return
+        if not _stripe_signature_ok(raw, self.headers.get("Stripe-Signature"), secret):
+            print("stripe webhook: signature verification failed; event rejected")
+            self._send(400, {"error": "invalid signature"})
+            return
+        try:
+            event = json.loads(raw.decode("utf-8", "replace"))
+        except (json.JSONDecodeError, ValueError):
+            self._send(400, {"error": "invalid JSON"})
+            return
+        if event.get("type") != "checkout.session.completed":
+            self._send(200, {"received": True, "ignored": event.get("type")})
+            return
+        session = (event.get("data") or {}).get("object") or {}
+        summary = process_checkout_completed(session)
+        self._send(200, {"received": True, "processed": summary.get("processed", False)})
+
     def _client_ip(self):
         fwd = self.headers.get("x-forwarded-for", "")
         return fwd.split(",")[0].strip() if fwd else self.client_address[0]
@@ -841,6 +1099,8 @@ class handler(BaseHTTPRequestHandler):
             "app.v3.js": "application/javascript; charset=utf-8",
             "app.v4.js": "application/javascript; charset=utf-8",
             "thanks-149.html": "text/html; charset=utf-8",
+            "start-149.html": "text/html; charset=utf-8",
+            "intake-149.html": "text/html; charset=utf-8",
             "packet.html": "text/html; charset=utf-8",
             "blog.html": "text/html; charset=utf-8",
             "support.html": "text/html; charset=utf-8",
@@ -880,6 +1140,9 @@ class handler(BaseHTTPRequestHandler):
         path = self.path.split("?", 1)[0]
         if path == "/api/subscribe":
             self._handle_subscribe()
+            return
+        if path == "/api/stripe-webhook":
+            self._handle_stripe_webhook()
             return
         if path != "/api/audit":
             self._send(404, {"error": "not found"})
