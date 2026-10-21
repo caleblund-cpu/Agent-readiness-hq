@@ -1395,6 +1395,8 @@ INTAKE_DOOR_PATH = "/intake-149.html"
 INTAKE_DOOR_PATH_449 = "/intake-449.html"
 STRIPE_149_PAYMENT_LINK = "plink_1UQtKCLHicydTGP1aeNJjxNF"
 STRIPE_449_PAYMENT_LINK = "plink_1UQtKaLHicydTGP1LHr3CtWE"
+STRIPE_UPGRADE_PAYMENT_LINK = "plink_1UQtKiLHicydTGP1gOmF4Rjd"
+FORM3_URL = "https://form.jotform.com/262887542235061"
 _WEBHOOK_TOLERANCE_S = 300
 _PROCESSED_SESSIONS = set()  # per-instance idempotency; Stripe also dedupes
 
@@ -1410,6 +1412,25 @@ def _intake_door_link(name, email, session_id, door_path=INTAKE_DOOR_PATH):
     if email:
         params["email"] = email
     return SITE_BASE + door_path + "?" + urlencode(params)
+
+
+def _form3_link(name, session_id):
+    """Prefilled Form 3 (Website Change Authorization) link for the
+    upgrade confirmation email. The webhook knows only what the
+    checkout itself carries (the signer's name and this order's
+    payment reference), so those two fields are prefilled here; the
+    business name and website are collected by the form, and the
+    operator's Template 19 companion re-sends the fully prefilled
+    link built from the original order record (prefill pattern:
+    09-email-templates.md, Template 19). Field names are the
+    builder-confirmed Form 3 unique names (2026-10-21).
+    """
+    params = {}
+    if name:
+        params["typeA8"] = name
+    if session_id:
+        params["payment_ref"] = session_id
+    return FORM3_URL + "?" + urlencode(params)
 
 
 def _day0_p(inner_html):
@@ -1439,6 +1460,26 @@ def _day0_intake_step_html(lead, body, door_link):
         'padding:13px 28px; border-radius:99px; '
         'text-decoration:none;">Complete your intake form</a></p>'
         % _esc_html(door_link),
+        _day0_p(_esc_html(body)),
+    ])
+
+
+def _day0_form3_step_html(lead, body, form3_link):
+    """Authorization step of the upgrade email, HTML part: the lead
+    line, then the prefilled Form 3 link rendered as the email's
+    primary button (anchor text "Open your authorization form", per
+    the Template 19 link-presentation rule; the raw URL, prefill
+    params included, lives only in the href and is never displayed),
+    then the explanatory paragraph."""
+    return "".join([
+        _day0_p("<strong>%s</strong> Use this link whenever you are "
+                "ready:" % _esc_html(lead)),
+        '<p style="margin-top:16px;"><a href="%s" '
+        'style="display:inline-block; background-color:#ff4d6d; '
+        'color:#ffffff; font-size:16px; font-weight:700; '
+        'padding:13px 28px; border-radius:99px; '
+        'text-decoration:none;">Open your authorization form</a></p>'
+        % _esc_html(form3_link),
         _day0_p(_esc_html(body)),
     ])
 
@@ -1712,6 +1753,122 @@ def compose_order_notice_449(name, email, session_id, amount_paid, day0_sent):
     return msg
 
 
+def compose_upgrade_email(first_name, email, session_id, form3_link):
+    """Post-upgrade confirmation ($149 to $449 upgrade), automated.
+    Canonized as Template 20 in 09-email-templates.md. The customer
+    already holds their $149 report and their intake facts carry
+    over, so there is no intake step: the next steps are the signed
+    authorization (Form 3, prefilled with the signer name and this
+    order's payment reference), written approval of the change list
+    from their report, and temporary access. Payment is not
+    authorization, and the 10-business-day clock starts only when
+    completed intake (already on file), signed authorization,
+    written approval of the specific change list, and confirmed
+    working website access are all in hand. Wording reuses the
+    approved Template 12 steps and Template 19 authorization
+    language; multipart like the day-0 emails, with the Form 3 link
+    rendered as a button in the HTML part and kept on its own line
+    in the text part.
+    """
+    subject = "Your upgrade to Done-for-You is confirmed"
+    payment_line = (
+        f"Thank you. Your upgrade payment of $300 has been received "
+        f"(order {session_id}). Your original $149 is credited in "
+        f"full, and your audit and intake facts carry over.")
+    steps = [
+        ("1. Authorization.",
+         "Please sign the Website Change Authorization so we can start work on your site. The form covers exactly the changes proposed from your report, and nothing more. Your payment by itself does not authorize changes, and nothing on your website changes until you sign."),
+        ("2. Change list approval.",
+         "The authorization form names the specific change list from your report, so signing it is your written approval of that list. If you want anything changed on the list, tell us before you sign and we will update it."),
+        ("3. Temporary access.",
+         "After you sign, we send step by step instructions for creating temporary website access for us, with the minimum permissions needed (or a platform invitation), including the access guide for your website platform, which we already have on file from your audit. You create the login yourself; we never ask for your password. Access is removed when the work is done."),
+        ("4. Implementation.",
+         "Within 10 business days after all of the following are complete: (1) completed intake, (2) signed authorization, (3) written approval of the specific change list, and (4) confirmed working website access. Your intake is already on file, so it counts as complete. The clock does not start until all four are received. If we are waiting on information, access, approval, or a decision from you, the clock pauses until we receive it. Implementation covers the approved improvements from your report. What can be implemented depends on your website platform and the access you provide; if a platform cannot support an approved change, we will tell you plainly and document the alternative in your report. You get a before-and-after report documenting every change, with undo instructions."),
+    ]
+    tail = [
+        "Your before-and-after report will come from this same email address. If it does not appear by the delivery date, please check your spam or junk folder, and mark our messages Not Junk so they reach your inbox.",
+        "Refunds: If you cancel before we begin work, you get a full refund. If you cancel after we start analysis but before implementation begins, we refund the portion of the work not performed. Once implementation begins, the fee is non-refundable.",
+        "SEND TO ADMINISTRATOR: If someone else manages your website, forward them this email. The access instructions will need their help, and the authorization form may need the site owner's signature.",
+        "Questions in the meantime? Just reply to this email.",
+    ]
+    lines = [
+        f"Hi {first_name},",
+        "",
+        payment_line,
+        "",
+        "Here is what happens next:",
+        "",
+        f"{steps[0][0]} Use this link whenever you are ready:",
+        form3_link,
+        steps[0][1],
+        "",
+    ]
+    for lead, body in steps[1:]:
+        lines += [f"{lead} {body}", ""]
+    for para in tail:
+        lines += [para, ""]
+    lines += [
+        "-- Rachael",
+        "Agent Readiness HQ",
+        "agentreadinesshq.com",
+    ]
+    blocks_html = "".join(
+        [_day0_form3_step_html(steps[0][0], steps[0][1], form3_link)]
+        + [_day0_step_html(lead, body) for lead, body in steps[1:]]
+        + [_day0_tail_html(tail)])
+    msg = EmailMessage()
+    msg["From"] = f"Agent Readiness HQ <{RESULTS_FROM}>"
+    msg["To"] = email
+    msg["Subject"] = subject
+    msg.set_content("\n".join(lines))
+    msg.add_alternative(
+        _day0_email_html(subject, first_name, payment_line,
+                         blocks_html),
+        subtype="html")
+    return msg
+
+
+def compose_order_notice_upgrade(name, email, session_id, amount_paid,
+                                 day0_sent):
+    """Internal upgrade order record to hello@, fields per
+    20-order-tracker.md. Rule 4 of the tracker: an upgrade is filed
+    as its own row (product 449, amount_paid 300.00) with a note
+    linking back to the original $149 order_id. This webhook is
+    stateless, so the match to the original order is made by the
+    operator from this notice, by customer email (and name); the
+    notice carries everything needed to make that match.
+    """
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    lines = [
+        "A $300 upgrade payment ($149 to $449) was confirmed by Stripe (webhook). Post-upgrade confirmation email "
+        + ("sent to the customer." if day0_sent else "FAILED to send; send Template 20 by hand."),
+        "",
+        f"order_id: {session_id}",
+        f"order_date: {today}",
+        f"customer_name: {name or ''}",
+        "business_name: (from the original $149 order; match by email)",
+        "website: (from the original $149 order; match by email)",
+        f"email: {email or ''}",
+        "product: 449",
+        f"amount_paid: {amount_paid}",
+        "payment_status: paid",
+        "status: NEW",
+        "notes: UPGRADE of the customer's $149 order. File as its own tracker row "
+        "(product 449, amount_paid 300.00) with a note linking back to the original "
+        "order_id, matched by customer email. Intake facts carry over; no new intake. "
+        "Next steps: signed authorization, written approval of the change list, "
+        "confirmed working access. The 10 business day clock starts only when "
+        "completed intake (already on file), signed authorization, written approval "
+        "of the change list, and confirmed working access are all in hand.",
+    ]
+    msg = EmailMessage()
+    msg["From"] = f"Agent Readiness HQ <{RESULTS_FROM}>"
+    msg["To"] = RESULTS_FROM
+    msg["Subject"] = f"New upgrade order (webhook): {name or email or session_id}"
+    msg.set_content("\n".join(lines))
+    return msg
+
+
 def _stripe_signature_ok(payload, sig_header, secret):
     """Verify a Stripe-Signature header: HMAC-SHA256 keyed with the
     endpoint secret over "<t>.<raw payload>", with timestamp tolerance.
@@ -1754,6 +1911,8 @@ def process_checkout_completed(session):
         tier = 149
     elif link == STRIPE_449_PAYMENT_LINK:
         tier = 449
+    elif link == STRIPE_UPGRADE_PAYMENT_LINK:
+        tier = "upgrade"
     else:
         print(f"stripe webhook: session {session_id} is for payment link "
               f"{link}, not a known product link; recorded only")
@@ -1767,23 +1926,30 @@ def process_checkout_completed(session):
     email = str(details.get("email") or session.get("customer_email") or "").strip()
     name = str(details.get("name") or "").strip()
     first_name = name.split()[0] if name else "there"
-    default_cents = 14900 if tier == 149 else 44900
+    default_cents = {149: 14900, 449: 44900, "upgrade": 30000}[tier]
     try:
         amount_paid = f"{(session.get('amount_total') or default_cents) / 100:.2f}"
     except (TypeError, ValueError):
-        amount_paid = "149.00" if tier == 149 else "449.00"
+        amount_paid = {149: "149.00", 449: "449.00",
+                       "upgrade": "300.00"}[tier]
     if tier == 149:
         door_link = _intake_door_link(name, email, session_id)
         day0_factory = lambda: compose_day0_email(  # noqa: E731
             first_name, email, session_id, door_link)
         notice_factory = lambda: compose_order_notice(  # noqa: E731
             name, email, session_id, amount_paid, day0_sent)
-    else:
+    elif tier == 449:
         door_link = _intake_door_link(
             name, email, session_id, INTAKE_DOOR_PATH_449)
         day0_factory = lambda: compose_day0_email_449(  # noqa: E731
             first_name, email, session_id, door_link)
         notice_factory = lambda: compose_order_notice_449(  # noqa: E731
+            name, email, session_id, amount_paid, day0_sent)
+    else:  # upgrade: no intake door; the next step is the authorization
+        form3_link = _form3_link(name, session_id)
+        day0_factory = lambda: compose_upgrade_email(  # noqa: E731
+            first_name, email, session_id, form3_link)
+        notice_factory = lambda: compose_order_notice_upgrade(  # noqa: E731
             name, email, session_id, amount_paid, day0_sent)
 
     day0_sent = False
@@ -1799,10 +1965,11 @@ def process_checkout_completed(session):
         "order_date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
         "customer_name": name,
         "email": email,
-        "product": tier,
+        "product": 449 if tier == "upgrade" else tier,
+        "tier": tier,
         "amount_paid": amount_paid,
         "payment_status": "paid",
-        "status": "INTAKE_PENDING",
+        "status": "NEW" if tier == "upgrade" else "INTAKE_PENDING",
         "day0_email_sent": day0_sent,
         "order_notice_sent": notice_sent,
     }
@@ -1959,6 +2126,7 @@ class handler(BaseHTTPRequestHandler):
             "intake-149.html": "text/html; charset=utf-8",
             "thanks-449.html": "text/html; charset=utf-8",
             "intake-449.html": "text/html; charset=utf-8",
+            "thanks-upgrade.html": "text/html; charset=utf-8",
             "packet.html": "text/html; charset=utf-8",
             "blog.html": "text/html; charset=utf-8",
             "support.html": "text/html; charset=utf-8",
