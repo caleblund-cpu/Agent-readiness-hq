@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Your Done For You: a few initial details | Agent Readiness HQ</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="styles.v6.css">
+<style>
+.details-wrap { max-width: 40rem; margin: 0 auto; padding: 3rem 1.25rem 4rem; }
+.details-wrap h1 { font-size: 2rem; letter-spacing: -0.02em; margin-bottom: 0.5rem; }
+.details-wrap .lede { color: var(--muted); margin-bottom: 2rem; }
+.details-form label { display: block; font-weight: 600; margin: 1rem 0 0.35rem; }
+.details-form input { width: 100%; padding: 0.65rem 0.75rem; border: 1px solid #d2d2d7; border-radius: 8px; font: inherit; }
+.details-form .btn { margin-top: 1.5rem; }
+.gather-box { background: #fdf2f5; border: 1px solid #f6c3cf; border-radius: 10px; padding: 1rem 1.25rem; margin-top: 1.5rem; }
+.progress-note { color: var(--muted); margin: 0; }
+</style>
+<meta property="og:title" content="Your Done For You: a few initial details | Agent Readiness HQ">
+<meta property="og:description" content="Agent Readiness HQ: gather a few initial details after payment so your Done For You intake form opens already filled in.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://agentreadinesshq.com/og-share.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@getagentready">
+<meta name="twitter:image" content="https://agentreadinesshq.com/og-share.jpg">
+</head>
+<body>
+<!-- Flow rework per Caleb directive 2026-10-20, mirrored for the Done For You journey 2026-10-21: payment comes first; this page then gathers the customer's initial details (the website review runs here, behind neutral progress language) and opens the intake form prefilled. Copy drafted 2026-10-21, pending Caleb/Rachael review. -->
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="wordmark" href="/"><svg width="30" height="30" viewBox="0 0 48 48" fill="none" style="vertical-align:-8px;margin-right:9px" aria-hidden="true"><rect x="5" y="5" width="38" height="38" rx="10" stroke="#1d1d1f" stroke-width="5"/><path d="M15.5 25 L22 31.5 L33.5 17.5" stroke="#ff4d6d" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Agent Readiness <span class="hq">HQ</span></a>
+    <a href="mailto:hello@agentreadinesshq.com" class="btn btn-small">Email us</a>
+  </div>
+</header>
+<main class="details-wrap">
+  <h1>A few initial details</h1>
+  <p class="lede">Thank you, your payment is complete. One short step before your intake form: we gather a few initial details about you, your business, and your website, so the form opens already filled in. Confirm your details below and press Continue. Gathering the details usually takes under a minute. Your intake is the first step: your 10 business day delivery clock starts once your intake, signed authorization, approved change list, and confirmed website access are all complete.</p>
+
+  <form id="details-form" class="details-form" aria-label="Your initial details">
+    <label for="d-name">Your full name</label>
+    <input type="text" id="d-name" autocomplete="name" required>
+    <label for="d-business">Business name</label>
+    <input type="text" id="d-business" autocomplete="organization" required>
+    <label for="d-url">Business website</label>
+    <input type="text" id="d-url" placeholder="https://yourbusiness.com" autocomplete="url" inputmode="url" autocapitalize="none" autocorrect="off" spellcheck="false" required>
+    <label for="d-email">Email address</label>
+    <input type="email" id="d-email" autocomplete="email" required>
+    <button type="submit" class="btn" id="continue-btn">Continue</button>
+  </form>
+
+  <div id="gather-box" class="gather-box" hidden>
+    <p id="gather-status" class="progress-note" aria-live="polite"></p>
+  </div>
+</main>
+<footer class="site-footer">
+  <div class="container">
+    <p><strong>Agent Readiness HQ</strong> — helping businesses make their websites easier for AI systems to access, understand, and accurately interpret. A Colorado-based, family-run business. <a href="https://agentreadinesshq.com/">agentreadinesshq.com</a> · <a href="/blog.html">Blog</a> · <a href="/terms.html">Terms of Service</a> · <a href="/privacy.html">Privacy Policy</a></p>
+    <p class="footer-social" style="margin-top:10px"><a href="https://x.com/getagentready" target="_blank" rel="noopener" aria-label="Agent Readiness HQ on X" style="display:inline-flex;align-items:center;gap:7px;color:#6e6e73;text-decoration:none"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.9 2.1h3.4l-7.4 8.5 8.7 11.3h-6.8l-5.3-6.8-6.1 6.8H2l7.9-9.1L1.6 2.1H8.6l12.1 15.8z"/></svg><span>@getagentready</span></a></p>
+<style>.footer-social a:hover{color:#e63a5c}</style>
+  </div>
+</footer>
+<script>
+(function () {
+  "use strict";
+  var FORM_URL = "https://form.jotform.com/262887789221069";
+  var q = new URLSearchParams(window.location.search);
+  var form = document.getElementById("details-form");
+  var continueBtn = document.getElementById("continue-btn");
+  var box = document.getElementById("gather-box");
+  var statusEl = document.getElementById("gather-status");
+
+  function val(id) { return document.getElementById(id).value.trim(); }
+  function setVal(id, v) { if (v) document.getElementById(id).value = v; }
+  function storedDetails() {
+    try { return JSON.parse(window.localStorage.getItem("arhq_scan") || "null"); }
+    catch (e) { return null; }
+  }
+
+  /* Pre-fill: link parameters (day-0 email / thank-you page) win, then
+     the details stored on this device. Everything stays editable. */
+  var prior = storedDetails();
+  setVal("d-name", q.get("name") || (prior && prior.first_name) || "");
+  setVal("d-business", q.get("business") || "");
+  setVal("d-url", q.get("website") || (prior && prior.url) || "");
+  setVal("d-email", q.get("email") || (prior && prior.email) || "");
+  var paymentRef = q.get("payment_ref") || "";
+
+  var factsText = "";
+
+  function factsFromData(url, dateStr, score, grade, checks) {
+    var lines = [];
+    lines.push("Initial details for " + (url || "")
+      + (dateStr ? ", gathered " + dateStr : "")
+      + ": score " + score + "/100 (grade " + (grade || "?") + ").");
+    (checks || []).forEach(function (c) {
+      lines.push(c.name + ": " + c.status + " (" + c.score + "/" + c.weight + ")");
+    });
+    return lines.join("\n");
+  }
+
+  function goToForm() {
+    var p = new URLSearchParams();
+    p.set("typeA", val("d-name"));
+    p.set("typeA5", val("d-business"));
+    p.set("typeA7", val("d-url"));
+    p.set("email", val("d-email"));
+    if (factsText) p.set("scan_facts", factsText);
+    if (paymentRef) p.set("payment_ref", paymentRef);
+    window.location.href = FORM_URL + "?" + p.toString();
+  }
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var name = val("d-name"), business = val("d-business"),
+        url = val("d-url"), email = val("d-email");
+    if (!name || !business || !url || !email) return;
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+      box.hidden = false;
+      statusEl.textContent = "Please enter a valid email address.";
+      return;
+    }
+    var firstName = name.split(" ")[0];
+
+    /* Details already gathered for this exact website on this device
+       (for example from the homepage review a few minutes ago) are
+       used as-is: no need to gather them again. */
+    var s = storedDetails();
+    if (s && s.url && url.replace(/\/+$/, "") === String(s.url).replace(/\/+$/, "")
+        && s.score != null) {
+      factsText = factsFromData(s.url, (s.fetched_at || "").slice(0, 10),
+        s.score, s.grade, s.checks);
+      box.hidden = false;
+      statusEl.textContent = "Using the details gathered a few minutes ago. Taking you to your intake form...";
+      goToForm();
+      return;
+    }
+
+    continueBtn.disabled = true;
+    box.hidden = false;
+    var started = Date.now();
+    var timer = setInterval(function () {
+      var secs = Math.round((Date.now() - started) / 1000);
+      statusEl.textContent = "Gathering your initial details for " + url
+        + " now. This usually takes under a minute. (" + secs + "s)";
+    }, 500);
+    statusEl.textContent = "Gathering your initial details for " + url
+      + " now. This usually takes under a minute.";
+
+    var controller = ("AbortController" in window) ? new AbortController() : null;
+    var timeout = setTimeout(function () { if (controller) controller.abort(); }, 60000);
+
+    fetch("/api/audit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: url, first_name: firstName, email: email, suppress_email: true }),
+      signal: controller ? controller.signal : undefined
+    })
+      .then(function (resp) { return resp.json().then(function (b) { return { ok: resp.ok, body: b }; }); })
+      .then(function (out) {
+        if (!out.ok || !out.body || out.body.error) throw new Error("gather failed");
+        factsText = factsFromData(out.body.url || url,
+          (out.body.fetched_at || "").slice(0, 10),
+          out.body.score, out.body.grade, out.body.checks);
+        try {
+          window.localStorage.setItem("arhq_scan", JSON.stringify({
+            first_name: name, email: email, url: out.body.url || url,
+            score: out.body.score, grade: out.body.grade || "",
+            checks: (out.body.checks || []).map(function (c) {
+              return { name: c.name, status: c.status, score: c.score, weight: c.weight };
+            }),
+            fetched_at: out.body.fetched_at || ""
+          }));
+        } catch (err) {}
+      })
+      .catch(function () {
+        /* Gathering the details never blocks the intake: continue to
+           the form with no facts attached, and the order follows the
+           existing fallback (facts confirmed by email before anything
+           is built). */
+        factsText = "";
+      })
+      .finally(function () {
+        clearInterval(timer);
+        clearTimeout(timeout);
+        statusEl.textContent = "Taking you to your intake form...";
+        goToForm();
+      });
+  });
+})();
+</script>
+</body>
+</html>

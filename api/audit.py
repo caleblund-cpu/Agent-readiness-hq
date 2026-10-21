@@ -970,12 +970,14 @@ def send_business_email(msg_factory, label):
 # trigger an email or an order record.
 SITE_BASE = "https://agentreadinesshq.com"
 INTAKE_DOOR_PATH = "/intake-149.html"
+INTAKE_DOOR_PATH_449 = "/intake-449.html"
 STRIPE_149_PAYMENT_LINK = "plink_1UQtKCLHicydTGP1aeNJjxNF"
+STRIPE_449_PAYMENT_LINK = "plink_1UQtKaLHicydTGP1LHr3CtWE"
 _WEBHOOK_TOLERANCE_S = 300
 _PROCESSED_SESSIONS = set()  # per-instance idempotency; Stripe also dedupes
 
 
-def _intake_door_link(name, email, session_id):
+def _intake_door_link(name, email, session_id, door_path=INTAKE_DOOR_PATH):
     """Personalized link to the scan-first intake door. Carries exactly
     what the webhook knows (name, email, payment reference); the door
     collects the website, runs the scan, and pre-fills the intake form.
@@ -985,7 +987,7 @@ def _intake_door_link(name, email, session_id):
         params["name"] = name
     if email:
         params["email"] = email
-    return SITE_BASE + INTAKE_DOOR_PATH + "?" + urlencode(params)
+    return SITE_BASE + door_path + "?" + urlencode(params)
 
 
 def compose_day0_email(first_name, email, session_id, door_link):
@@ -1061,6 +1063,86 @@ def compose_order_notice(name, email, session_id, amount_paid, day0_sent):
     return msg
 
 
+def compose_day0_email_449(first_name, email, session_id, door_link):
+    """Template 12 ($449 purchase confirmation), automated. Adaptations
+    for the pay-first journey, flagged for Caleb's copy review: the
+    intake link points at the scan-first door (intake-449); step 1 no
+    longer names a domain (the webhook does not know it yet; the door
+    collects it); the template's markdown bold is dropped for
+    plain-text sending. Payment is not authorization, and the
+    10-business-day clock starts only when all four prerequisites are
+    complete: completed intake, signed authorization, written approval
+    of the specific change list, and confirmed working website access.
+    """
+    lines = [
+        f"Hi {first_name},",
+        "",
+        f"Thank you. Your payment of $449 has been received (order {session_id}).",
+        "",
+        "Here is what happens next:",
+        "",
+        f"1. Intake form. Use this link whenever you are ready: {door_link}",
+        "It takes about 5 minutes. The first step gathers a few initial details about your business and your website, and most of the form is then already filled in for you. The key step is confirming your business facts. We build your AI Information Page from verified facts only. We never guess at your services, prices, hours, or service areas.",
+        "",
+        "2. Authorization. After your intake, we analyze your website and prepare a specific list of proposed changes. We email you that list with a short authorization form covering exactly those changes. Your payment does not authorize changes by itself; nothing is changed on your website until you review the list and sign.",
+        "",
+        "3. Temporary access. After you sign, we send step by step instructions for creating temporary website access for us, with the minimum permissions needed (or a platform invitation). You create the login yourself; we never ask for your password. Access is removed when the work is done.",
+        "",
+        "4. Implementation. Within 10 business days after all of the following are complete: (1) completed intake, (2) signed authorization, (3) written approval of the specific change list, and (4) confirmed working website access. The clock does not start until all four are received. If we are waiting on information, access, approval, or a decision from you, the clock pauses until we receive it. Implementation covers the approved improvements from your report. What can be implemented depends on your website platform and the access you provide; if a platform cannot support an approved change, we will tell you plainly and document the alternative in your report. You get a before-and-after report documenting every change, with undo instructions.",
+        "",
+        "Refunds: If you cancel before we begin work, you get a full refund. If you cancel after we start analysis but before implementation begins, we refund the portion of the work not performed. Once implementation begins, the fee is non-refundable.",
+        "",
+        "SEND TO ADMINISTRATOR: If someone else manages your website, forward them this email. The access instructions will need their help, and the authorization form may need the site owner's signature.",
+        "",
+        "Questions in the meantime? Just reply to this email.",
+        "",
+        "-- Rachael",
+        "Agent Readiness HQ",
+        "agentreadinesshq.com",
+    ]
+    msg = EmailMessage()
+    msg["From"] = f"Agent Readiness HQ <{RESULTS_FROM}>"
+    msg["To"] = email
+    msg["Subject"] = "Your $449 Done-for-You is confirmed"
+    msg.set_content("\n".join(lines))
+    return msg
+
+
+def compose_order_notice_449(name, email, session_id, amount_paid, day0_sent):
+    """Internal $449 order record to hello@, fields per
+    20-order-tracker.md. Business name and website are not known at
+    payment time; the intake supplies them (the door runs the scan),
+    so the row completes when the intake notification arrives.
+    """
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    lines = [
+        "A $449 payment was confirmed by Stripe (webhook). Day-0 confirmation email "
+        + ("sent to the customer." if day0_sent else "FAILED to send; send Template 12 by hand."),
+        "",
+        f"order_id: {session_id}",
+        f"order_date: {today}",
+        f"customer_name: {name or ''}",
+        "business_name: (pending intake)",
+        "website: (pending intake)",
+        f"email: {email or ''}",
+        "product: 449",
+        f"amount_paid: {amount_paid}",
+        "payment_status: paid",
+        "status: INTAKE_PENDING",
+        "notes: Order recorded automatically by the Stripe webhook. "
+        "Reminders at day 3, day 7, day 14 after payment if intake is still missing. "
+        "The 10 business day fulfillment clock starts only when completed intake, "
+        "signed authorization, written approval of the change list, and confirmed "
+        "working access are all in hand.",
+    ]
+    msg = EmailMessage()
+    msg["From"] = f"Agent Readiness HQ <{RESULTS_FROM}>"
+    msg["To"] = RESULTS_FROM
+    msg["Subject"] = f"New $449 order (webhook): {name or email or session_id}"
+    msg.set_content("\n".join(lines))
+    return msg
+
+
 def _stripe_signature_ok(payload, sig_header, secret):
     """Verify a Stripe-Signature header: HMAC-SHA256 keyed with the
     endpoint secret over "<t>.<raw payload>", with timestamp tolerance.
@@ -1098,10 +1180,15 @@ def process_checkout_completed(session):
         print(f"stripe webhook: session {session_id} payment_status="
               f"{session.get('payment_status')}; not processed")
         return {"processed": False, "reason": "not paid"}
-    if session.get("payment_link") != STRIPE_149_PAYMENT_LINK:
+    link = session.get("payment_link")
+    if link == STRIPE_149_PAYMENT_LINK:
+        tier = 149
+    elif link == STRIPE_449_PAYMENT_LINK:
+        tier = 449
+    else:
         print(f"stripe webhook: session {session_id} is for payment link "
-              f"{session.get('payment_link')}, not the $149 link; recorded only")
-        return {"processed": False, "reason": "not the $149 payment link"}
+              f"{link}, not a known product link; recorded only")
+        return {"processed": False, "reason": "not a known payment link"}
     if session_id in _PROCESSED_SESSIONS:
         print(f"stripe webhook: duplicate delivery for {session_id}; skipped")
         return {"processed": False, "reason": "duplicate"}
@@ -1111,30 +1198,39 @@ def process_checkout_completed(session):
     email = str(details.get("email") or session.get("customer_email") or "").strip()
     name = str(details.get("name") or "").strip()
     first_name = name.split()[0] if name else "there"
+    default_cents = 14900 if tier == 149 else 44900
     try:
-        amount_paid = f"{(session.get('amount_total') or 14900) / 100:.2f}"
+        amount_paid = f"{(session.get('amount_total') or default_cents) / 100:.2f}"
     except (TypeError, ValueError):
-        amount_paid = "149.00"
-    door_link = _intake_door_link(name, email, session_id)
+        amount_paid = "149.00" if tier == 149 else "449.00"
+    if tier == 149:
+        door_link = _intake_door_link(name, email, session_id)
+        day0_factory = lambda: compose_day0_email(  # noqa: E731
+            first_name, email, session_id, door_link)
+        notice_factory = lambda: compose_order_notice(  # noqa: E731
+            name, email, session_id, amount_paid, day0_sent)
+    else:
+        door_link = _intake_door_link(
+            name, email, session_id, INTAKE_DOOR_PATH_449)
+        day0_factory = lambda: compose_day0_email_449(  # noqa: E731
+            first_name, email, session_id, door_link)
+        notice_factory = lambda: compose_order_notice_449(  # noqa: E731
+            name, email, session_id, amount_paid, day0_sent)
 
     day0_sent = False
     if email and _EMAIL_RE.match(email):
-        day0_sent = send_business_email(
-            lambda: compose_day0_email(first_name, email, session_id, door_link),
-            "day-0 email")
+        day0_sent = send_business_email(day0_factory, "day-0 email")
     else:
         print(f"stripe webhook: no usable customer email on {session_id}; "
               "day-0 email not sent")
-    notice_sent = send_business_email(
-        lambda: compose_order_notice(name, email, session_id, amount_paid, day0_sent),
-        "order notice")
+    notice_sent = send_business_email(notice_factory, "order notice")
 
     record = {
         "order_id": session_id,
         "order_date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
         "customer_name": name,
         "email": email,
-        "product": 149,
+        "product": tier,
         "amount_paid": amount_paid,
         "payment_status": "paid",
         "status": "INTAKE_PENDING",
@@ -1292,6 +1388,8 @@ class handler(BaseHTTPRequestHandler):
             "app.v4.js": "application/javascript; charset=utf-8",
             "thanks-149.html": "text/html; charset=utf-8",
             "intake-149.html": "text/html; charset=utf-8",
+            "thanks-449.html": "text/html; charset=utf-8",
+            "intake-449.html": "text/html; charset=utf-8",
             "packet.html": "text/html; charset=utf-8",
             "blog.html": "text/html; charset=utf-8",
             "support.html": "text/html; charset=utf-8",
