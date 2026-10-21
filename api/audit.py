@@ -1405,7 +1405,7 @@ def compose_day0_email(first_name, email, session_id, door_link):
         "",
         "SEND TO ADMINISTRATOR: If your web person handles your site, forward them this email and the report when it arrives. The report includes a dedicated developer handoff section with everything technical in one place.",
         "",
-        "Note: if your site runs on a hosted platform (WordPress, Wix, Squarespace, Kajabi), some fixes have platform limits. We check your platform as part of the audit, and we disclose any ceiling on your score honestly. If Kajabi or similar is your platform, we will tell you what is and is not possible.",
+        "Note: some fixes depend on your website platform and plan. We check your platform as part of the audit, and your report states plainly what your platform does and does not allow, so you will know exactly what can and cannot be implemented.",
         "",
         "Questions in the meantime? Just reply to this email.",
         "",
