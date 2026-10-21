@@ -360,21 +360,18 @@ def assess_platform(platform_name, raw_checks):
     ceiling_line = None
     if blocked_points:
         n = len(blocked_checks)
-        if n == 1:
-            checks_phrase = ("1 of the checks in this scan to be "
-                             "implemented in the required way. That "
-                             "check accounts for")
-        else:
-            checks_phrase = (f"{n} of the checks in this scan to be "
-                             "implemented in the required way. Those "
-                             "checks account for")
+        # Caleb ruling 2026-10-21 (evening): a platform ceiling is
+        # always phrased as a "may cap at", never a hard permanent
+        # fact; platform features change over time.
         ceiling_line = (
-            f"Platform limit: {platform_name} does not currently allow "
-            f"{checks_phrase} {_fmt_num(blocked_points)} points, so "
-            f"this site's maximum score on its current platform is "
-            f"{_fmt_num(100 - blocked_points)}/100. That is a limit of "
-            f"the platform, not of your site or of the work you have "
-            f"done on it.")
+            f"Platform limit: on its current platform, this site's "
+            f"score may cap at {_fmt_num(100 - blocked_points)}/100, "
+            f"because {platform_name} does not currently allow {n} "
+            f"of the checks in this scan ({_fmt_num(blocked_points)} "
+            f"points) to be implemented in the required way. Platform "
+            f"providers update their features over time, so what a "
+            f"platform allows may change; we work to what it allows "
+            f"today.")
     ceiling_val = 100 - blocked_points
     if float(ceiling_val).is_integer():
         ceiling_val = int(ceiling_val)
