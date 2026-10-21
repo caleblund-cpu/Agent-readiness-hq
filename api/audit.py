@@ -1297,6 +1297,7 @@ class handler(BaseHTTPRequestHandler):
             "support.html": "text/html; charset=utf-8",
             "blog-agent-economy.html": "text/html; charset=utf-8",
             "blog-servicetitan-website-ai-agent-readiness.html": "text/html; charset=utf-8",
+            "blog-seo-vs-aeo.html": "text/html; charset=utf-8",
             "blog-yelp-agent-access.html": "text/html; charset=utf-8",
             "blog-musk-agent-first-amazon.html": "text/html; charset=utf-8",
             "blog-benioff-digital-labor.html": "text/html; charset=utf-8",
