@@ -10,7 +10,7 @@ Agent Readiness HQ is a Colorado-based, family-run business. It helps businesses
 
 - Free Readiness Scan: a free 7-check scan with a 0-100 score and top areas to review, run instantly on the website.
 - AI Readiness DIY ($149, coming soon): full audit with prioritized fixes in plain English, copy-paste code snippets, a Custom AI Information Page built from verified business facts and ready to publish on the customer's own site, step-by-step publish instructions, and a developer handoff. Delivered in 5 business days.
-- AI Readiness Implementation ($449, coming soon): everything in DIY, plus Agent Readiness HQ publishes the AI Information Page and implements the approved safe, high-priority fixes using temporary, minimum-permission access created by the customer. Includes a before-and-after report, done in 10 business days.
+- AI Readiness Implementation ($449, coming soon): everything in DIY, plus Agent Readiness HQ publishes the AI Information Page and implements the approved, platform-supported safe, high-priority fixes using temporary, minimum-permission access created by the customer. Includes a before-and-after report, done in 10 business days.
 - AI Page Monitoring (optional add-on): $9.99/month or $99.99/year. Monthly checks keep the customer's AI Information Page current. Cancel anytime online.
 
 ## Contact
