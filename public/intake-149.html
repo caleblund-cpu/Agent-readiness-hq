@@ -102,14 +102,20 @@
   }
 
   function goToForm() {
-    var p = new URLSearchParams();
-    p.set("typeA", val("d-name"));
-    p.set("typeA5", val("d-business"));
-    p.set("typeA7", val("d-url"));
-    p.set("email", val("d-email"));
-    if (factsText) p.set("scan_facts", factsText);
-    if (paymentRef) p.set("payment_ref", paymentRef);
-    window.location.href = FORM_URL + "?" + p.toString();
+    /* JotForm prefill keys are the form's own field names, and its
+       prefill reader percent-decodes values without translating "+"
+       back to a space, so encode values with encodeURIComponent
+       (spaces as %20), not URLSearchParams (spaces as "+"). Form 1's
+       Website URL field is named typeA7 (Form 2's is typeA6). */
+    var pairs = [];
+    function add(key, value) { pairs.push(key + "=" + encodeURIComponent(value)); }
+    add("typeA", val("d-name"));
+    add("typeA5", val("d-business"));
+    add("typeA7", val("d-url"));
+    add("email", val("d-email"));
+    if (factsText) add("scan_facts", factsText);
+    if (paymentRef) add("payment_ref", paymentRef);
+    window.location.href = FORM_URL + "?" + pairs.join("&");
   }
 
   form.addEventListener("submit", function (e) {
