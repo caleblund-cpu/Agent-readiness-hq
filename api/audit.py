@@ -126,7 +126,7 @@ CHECK_COPY = {
         "fixable": "Fixable: usually a small settings change.",
     },
     "llms_txt": {
-        "meaning": "A short introduction file written for AI agents. Without it, agents piece your business together from scattered pages.",
+        "meaning": "An optional file that introduces your business in a plain format written for AI agents. It supplements your pages. It is not a substitute for clear content, crawlability, structured data, or accurate facts.",
         "fixable": "Fixable: a standard addition to your site.",
     },
     "sitemap": {
