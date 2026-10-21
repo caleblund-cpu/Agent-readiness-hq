@@ -136,7 +136,7 @@ CHECK_COPY = {
         "fixable": "Fixable: structured facts can be added without redesigning your site.",
     },
     "pricing_html": {
-        "meaning": "Prices stated in the page itself, where an agent can read them. An agent will not guess at prices; it moves on.",
+        "meaning": "Prices stated in the page itself, where an agent can read them. When pricing isn't clearly stated, an agent may be unable to confidently present it to a customer.",
         "fixable": "Fixable: your prices can be presented in a form agents can quote.",
     },
     "bot_wall": {
@@ -144,7 +144,7 @@ CHECK_COPY = {
         "fixable": "Fixable: in most cases the blocking element can be adjusted.",
     },
     "page_speed": {
-        "meaning": "How fast your pages answer. An agent comparing many businesses may skip slow ones.",
+        "meaning": "How fast your pages answer. Slow pages can make it harder for automated systems to retrieve information reliably.",
         "fixable": "Fixable: speed usually improves with a few standard adjustments.",
     },
 }
