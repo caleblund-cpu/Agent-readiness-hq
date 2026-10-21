@@ -91,9 +91,43 @@
       if (c.fixable) {
         html += '<div class="check-fixable">' + esc(c.fixable) + "</div>";
       }
+      /* Platform treatment (2026-10-21): when the customer's own
+         platform is what blocks a fix, the line says so instead of
+         calling the check fixable. Wording comes from the audit API,
+         identical to the emailed copy. */
+      if (c.platform_note) {
+        html += '<div class="check-fixable check-platform">' + esc(c.platform_note) + "</div>";
+      }
       html += "</li>";
     });
     html += "</ul>";
+
+    /* Platform block (2026-10-21): detected platform, the customer's
+       own score ceiling where the platform makes one calculable, the
+       $449 eligibility disclosure (limitations named beside the
+       offer, or Done For You stated unavailable for this platform
+       configuration), and the confirm-your-platform line when the
+       scan could not identify the platform. All copy is server-side,
+       shared with the results email. */
+    var pf = report.platform;
+    if (pf) {
+      var plines = "";
+      if (pf.detected) {
+        plines += '<p class="platform-line"><strong>Website platform:</strong> ' + esc(pf.name) + " (detected automatically).</p>";
+      }
+      if (pf.ceiling_line) {
+        plines += '<p class="platform-line">' + esc(pf.ceiling_line) + "</p>";
+      }
+      if (pf.offer_line) {
+        plines += '<p class="platform-line">' + esc(pf.offer_line) + "</p>";
+      }
+      if (pf.confirm_line) {
+        plines += '<p class="platform-line">' + esc(pf.confirm_line) + "</p>";
+      }
+      if (plines) {
+        html += '<div class="platform-block">' + plines + "</div>";
+      }
+    }
 
     /* Top fixes are hidden from the free audit - the specific fixes are
        what the $149 report sells. The free result shows the diagnosis

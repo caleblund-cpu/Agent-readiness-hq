@@ -152,6 +152,246 @@ CHECK_COPY = {
 }
 
 
+# ------------------------------------------------------- platform rules ---
+# Platform feasibility (Caleb ruling 2026-10-21, controlling): platform
+# limits are a qualification and disclosure issue, identified during
+# the free scan wherever detection is reliable, and always before a
+# $449 purchase when material. The scan distinguishes, per check:
+# fixable / platform-limited / uncertain (platform not identified).
+# Eligibility outcomes: A = eligible; B = eligible with platform or
+# plan limitations, disclosed before purchase; C = $449 unavailable
+# (the platform blocks core implementation; the $149 DIY Audit is the
+# offer instead). Capability facts mirror access-guides/INDEX.md
+# (vendor-documentation sourced, 2026-10-21) and are keyed on current
+# capabilities, not on platform names alone: only the checks whose
+# implementation depends on the platform vary (llms.txt, JSON-LD).
+# Every other check is implementable on every platform we know.
+#
+# Capability values: "implementable", "limited" (possible, but depends
+# on the plan or on a specific access path), "not_implementable"
+# (the platform cannot do it in the required form at all).
+PLATFORM_CAPABILITY = {
+    "WordPress": {},
+    "Wix": {},
+    "Shopify": {},
+    "Webflow": {},
+    "Duda": {},
+    "Kajabi": {
+        "llms_txt": (
+            "not_implementable",
+            "Kajabi does not let a site place a file at its domain root, "
+            "so an llms.txt file cannot be added in the required form. "
+            "The AI Information Page covers much of the same ground in "
+            "page form."),
+        "schema_jsonld": (
+            "limited",
+            "Structured data can be added on Kajabi only through the "
+            "site-wide scripts setting, which needs an Administrator "
+            "login. It is part of Done For You when that access is "
+            "provided."),
+    },
+    "Squarespace": {
+        "llms_txt": (
+            "not_implementable",
+            "Squarespace cannot place an llms.txt file at the domain "
+            "root in the required form. An upload-and-redirect "
+            "workaround exists, but AI tools may not honour it, so we "
+            "do not count it as implemented."),
+        "schema_jsonld": (
+            "limited",
+            "Structured data on Squarespace is added through Code "
+            "Injection, a premium-plan feature (Core, Plus, or "
+            "Advanced). On a Basic plan this fix cannot be implemented "
+            "until the plan changes."),
+    },
+    "GoDaddy Website Builder": {
+        "llms_txt": (
+            "not_implementable",
+            "GoDaddy Website Builder has no way to place a file at the "
+            "domain root, so an llms.txt file cannot be added."),
+        "schema_jsonld": (
+            "not_implementable",
+            "GoDaddy Website Builder has no site-wide code area, and "
+            "its embed sections are isolated from the page itself, so "
+            "structured data cannot be added in a form AI tools can "
+            "read."),
+    },
+}
+_PLATFORM_VARYING_CHECKS = ("llms_txt", "schema_jsonld")
+
+# Host suffixes that identify the platform outright (the site is
+# served from the platform's own subdomain space).
+_HOST_PLATFORM = [
+    ("myshopify.com", "Shopify"),
+    ("mykajabi.com", "Kajabi"),
+    ("wixsite.com", "Wix"),
+    ("squarespace.com", "Squarespace"),
+    ("godaddysites.com", "GoDaddy Website Builder"),
+    ("webflow.io", "Webflow"),
+    ("dudaone.com", "Duda"),
+    ("wordpress.com", "WordPress"),
+]
+
+# Strong in-page signals per platform: platform asset hosts, runtime
+# globals, and markup attributes a site only carries when it is built
+# on that platform. Matched against the lowercased homepage HTML.
+_HTML_PLATFORM_MARKERS = [
+    ("Shopify", ["cdn.shopify.com", "shopify.theme",
+                 "myshopify.com", "shopify-section"]),
+    ("Kajabi", ["kajabi-cdn.com", "kajabiapp.com", "mykajabi.com"]),
+    ("Wix", ["wixstatic.com", "wix.com website builder"]),
+    ("Squarespace", ["squarespace-cdn.com", "static1.squarespace.com",
+                     "assets.squarespace.com"]),
+    ("GoDaddy Website Builder", ["wsimg.com"]),
+    ("Webflow", ["website-files.com", "data-wf-page", "webflow.js",
+                 "w-mod-"]),
+    ("Duda", ["dudaone.com", "cdn-website.com"]),
+    ("WordPress", ["/wp-content/", "/wp-includes/",
+                   'generator" content="wordpress']),
+]
+
+CONFIRM_PLATFORM_LINE = (
+    "We could not identify your website platform from the scan. Your "
+    "platform decides part of what can be implemented, so we confirm "
+    "it with you before any Done For You ($449) purchase: platform "
+    "limitations, where they exist, are identified before you buy, "
+    "not after. Your intake form asks for the platform as well.")
+
+
+def detect_platform(host, html):
+    """Identify the website platform from the site address and the
+    homepage HTML. Conservative by design: returns (name, evidence)
+    only on a strong signal, otherwise (None, None) and the results
+    ask the prospect to confirm. Conflicting in-page signals with no
+    clear winner also return (None, None) rather than a guess.
+    """
+    host = (host or "").lower()
+    for suffix, name in _HOST_PLATFORM:
+        if host == suffix or host.endswith("." + suffix):
+            return name, f"the site is served from a {suffix} address"
+    low = (html or "").lower()
+    hits = {}
+    for name, markers in _HTML_PLATFORM_MARKERS:
+        found = [m for m in markers if m in low]
+        if found:
+            hits[name] = found
+    if not hits:
+        return None, None
+    if len(hits) == 1:
+        name = next(iter(hits))
+        return name, f"the page code references {hits[name][0]}"
+    ranked = sorted(hits.items(), key=lambda kv: -len(kv[1]))
+    if len(ranked[0][1]) > len(ranked[1][1]):
+        name, found = ranked[0]
+        return name, f"the page code references {found[0]}"
+    return None, None
+
+
+def assess_platform(platform_name, raw_checks):
+    """Apply the capability rules for a detected platform.
+    raw_checks: list of (check_id, name, score, status, detail).
+    Returns per-check capability, eligibility (A/B/C, or "unknown"
+    when no platform was detected), the customer's own score ceiling
+    when the platform makes one calculable, the ceiling line in the
+    ruling's framing, and the list of affected failed checks.
+    Category C is a platform-level outcome per the ruling: when both
+    core components (llms.txt and effective JSON-LD) cannot be
+    implemented at all, $449 is unavailable for that configuration.
+    """
+    if not platform_name:
+        return {"eligibility": "unknown", "ceiling": None,
+                "ceiling_line": None, "limitations": [],
+                "per_check": {}}
+    rules = PLATFORM_CAPABILITY.get(platform_name, {})
+    per_check = {}
+    limitations = []
+    core_blocked = all(
+        rules.get(cid, ("implementable", None))[0] == "not_implementable"
+        for cid in _PLATFORM_VARYING_CHECKS)
+    scores = {cid: sc for cid, _n, sc, _s, _d in raw_checks}
+    # Unearnable points: what a not-implementable check has not
+    # already scored. A check the site somehow passes (e.g. an
+    # llms.txt redirect workaround that resolves) blocks nothing.
+    blocked_checks = []
+    blocked_points = 0
+    for cid in _PLATFORM_VARYING_CHECKS:
+        if rules.get(cid, ("implementable", None))[0] == "not_implementable":
+            lost = WEIGHTS[cid] - scores.get(cid, 0)
+            if lost > 0:
+                blocked_checks.append(cid)
+                blocked_points += lost
+    for cid, name, sc, _st, _d in raw_checks:
+        cap, reason = rules.get(cid, ("implementable", None))
+        per_check[cid] = cap
+        if sc < WEIGHTS[cid] and cap != "implementable":
+            limitations.append({
+                "check_id": cid, "check_name": name,
+                "capability": cap, "reason": reason,
+                "points": WEIGHTS[cid]})
+    if core_blocked:
+        eligibility = "C"
+    elif limitations:
+        eligibility = "B"
+    else:
+        eligibility = "A"
+    ceiling_line = None
+    if blocked_points:
+        n = len(blocked_checks)
+        if n == 1:
+            checks_phrase = ("1 of the checks in this scan to be "
+                             "implemented in the required way. That "
+                             "check accounts for")
+        else:
+            checks_phrase = (f"{n} of the checks in this scan to be "
+                             "implemented in the required way. Those "
+                             "checks account for")
+        ceiling_line = (
+            f"Platform limit: {platform_name} does not currently allow "
+            f"{checks_phrase} {_fmt_num(blocked_points)} points, so "
+            f"this site's maximum score on its current platform is "
+            f"{_fmt_num(100 - blocked_points)}/100. That is a limit of "
+            f"the platform, not of your site or of the work you have "
+            f"done on it.")
+    ceiling_val = 100 - blocked_points
+    if float(ceiling_val).is_integer():
+        ceiling_val = int(ceiling_val)
+    return {"eligibility": eligibility,
+            "ceiling": ceiling_val if blocked_points else None,
+            "ceiling_line": ceiling_line,
+            "limitations": limitations, "per_check": per_check}
+
+
+def platform_offer_line(platform_name, assessment):
+    """The pre-purchase disclosure line for the results page and the
+    results email. A: nothing to add (no known limits). B: name the
+    limitations beside the offer. C: $449 is not offered for this
+    configuration; the $149 DIY Audit is the offer. Unknown: the
+    confirm-platform line instead (see CONFIRM_PLATFORM_LINE).
+    """
+    eligibility = assessment.get("eligibility")
+    if eligibility == "B":
+        items = "; ".join(
+            f"{lim['check_name']} ({lim['reason']})"
+            for lim in assessment["limitations"])
+        return (
+            "Done For You ($449) is available for your site, with "
+            "platform limitations we are disclosing before any "
+            f"purchase: {items} Everything else in your results can "
+            "be implemented as usual, and your report will state "
+            "these limits plainly.")
+    if eligibility == "C":
+        return (
+            "Done For You ($449) is not available for this platform "
+            "configuration: the platform itself prevents core parts "
+            "of the implementation, and we will not sell work we "
+            "cannot deliver. The DIY Audit ($149) is the right option "
+            "here: it covers everything that can be done on your "
+            "platform, explains these limits in full, and gives you "
+            "the materials to use yourself or hand to a developer.")
+    return None
+
+
+
 # ------------------------------------------------------------------ fetch ---
 def make_session():
     s = requests.Session()
@@ -555,15 +795,47 @@ def run_audit(raw_url):
         s, st, d = check_speed(ttfb, total)
         checks.append(("page_speed", "page speed (TTFB + total)", s, st, d))
 
+        # Platform feasibility (Caleb ruling 2026-10-21): detect the
+        # platform, mark each short check as fixable or platform-
+        # limited, and compute the $449 eligibility outcome. Runs on
+        # the already-fetched homepage; detection failure never
+        # affects the score, it only leaves the platform unconfirmed.
+        platform_name, platform_evidence = detect_platform(
+            urlparse(base).hostname or "", html)
+        assessment = assess_platform(platform_name, checks)
+
         total_score = round(sum(c[2] for c in checks), 1)
-        results = [
-            {"id": cid, "name": name, "weight": WEIGHTS[cid],
-             "status": st, "score": round(sc, 1), "detail": detail,
-             "meaning": CHECK_COPY[cid]["meaning"],
-             "fixable": (CHECK_COPY[cid]["fixable"]
-                         if sc < WEIGHTS[cid] else None)}
-            for cid, name, sc, st, detail in checks
-        ]
+        results = []
+        for cid, name, sc, st, detail in checks:
+            entry = {
+                "id": cid, "name": name, "weight": WEIGHTS[cid],
+                "status": st, "score": round(sc, 1), "detail": detail,
+                "meaning": CHECK_COPY[cid]["meaning"],
+                "fixable": (CHECK_COPY[cid]["fixable"]
+                            if sc < WEIGHTS[cid] else None)}
+            cap = assessment["per_check"].get(cid, "implementable")
+            if platform_name and sc < WEIGHTS[cid] and cap != "implementable":
+                _cap, reason = PLATFORM_CAPABILITY[platform_name][cid]
+                head = ("Platform limit" if cap == "not_implementable"
+                        else "Platform-dependent")
+                entry["platform_status"] = "platform_limited"
+                entry["platform_note"] = f"{head}: {reason}"
+                entry["fixable"] = None
+            elif sc < WEIGHTS[cid]:
+                entry["platform_status"] = "fixable"
+            results.append(entry)
+        platform_block = {
+            "detected": bool(platform_name),
+            "name": platform_name,
+            "evidence": platform_evidence,
+            "eligibility": assessment["eligibility"],
+            "ceiling": assessment["ceiling"],
+            "ceiling_line": assessment["ceiling_line"],
+            "limitations": assessment["limitations"],
+            "offer_line": platform_offer_line(platform_name, assessment),
+            "confirm_line": (None if platform_name
+                             else CONFIRM_PLATFORM_LINE),
+        }
         lost = [(WEIGHTS[cid] - sc, WEIGHTS[cid], FIX_TEXT[cid], cid)
                 for cid, _n, sc, _s, _d in checks if sc < WEIGHTS[cid]]
         lost.sort(key=lambda x: (-x[1], -x[0]))
@@ -576,6 +848,7 @@ def run_audit(raw_url):
             "score": total_score,
             "grade": grade(total_score),
             "checks": results,
+            "platform": platform_block,
             "fixes": fixes,
             "errors": errors,
             "duration_s": round(time.perf_counter() - t_start, 2),
@@ -660,13 +933,18 @@ _GRADE_CHIP_STYLE = {
 }
 
 
-def _results_email_html(first_name, site, score, grade, checks):
+def _results_email_html(first_name, site, score, grade, checks, platform=None):
     """HTML version of the results email, mirroring the on-page results:
     score/grade header, then per check the technical name + score pill,
     the finding line, the plain-English meaning line, and the fixable
-    line when the check is not at full marks. Table layout + inline
-    styles for email-client compatibility; visual language follows the
-    2026-10-20 scan-email mock-up Caleb reviewed.
+    line when the check is not at full marks (or the platform-limit
+    line when the platform, not the site, is what blocks the fix).
+    When the scan identified the platform, a platform section follows
+    the checks: the customer's own score ceiling where the platform
+    makes one calculable, and the $449 eligibility disclosure (B) or
+    unavailability statement (C) before any purchase. Table layout +
+    inline styles for email-client compatibility; visual language
+    follows the 2026-10-20 scan-email mock-up Caleb reviewed.
     """
     chip_bg, chip_fg = _GRADE_CHIP_STYLE.get(grade, ("#fdf1d7", "#8a5a00"))
     try:
@@ -719,8 +997,74 @@ def _results_email_html(first_name, site, score, grade, checks):
                 'border-radius:0 8px 8px 0;"><strong style="color:#c21847;">'
                 "%s:</strong>%s</p>"
                 % (_esc_html(head), _esc_html(rest)))
+        pnote = (c.get("platform_note") or "").strip()
+        if pnote:
+            head, _, rest = pnote.partition(":")
+            block.append(
+                '<p style="font-size:15px; line-height:1.6; color:#454548; '
+                'margin-top:10px; margin-left:20px; padding:10px 14px; '
+                'background-color:#fdf6ec; border-left:3px solid #e8a13d; '
+                'border-radius:0 8px 8px 0;"><strong style="color:#8a5a00;">'
+                "%s:</strong>%s</p>"
+                % (_esc_html(head), _esc_html(rest)))
         block.append("</div>")
         blocks.append("".join(block))
+    # Platform section + offer wording follow the eligibility outcome
+    # computed by the scan (Caleb ruling 2026-10-21). C sites are not
+    # pitched Done For You at all; B sites get the limitation named
+    # beside the offer; unconfirmed platforms get the confirm line.
+    platform = platform or {}
+    eligibility = platform.get("eligibility")
+    platform_parts = []
+    if platform.get("detected"):
+        platform_parts.append(
+            '<p style="font-size:15.5px; line-height:1.6; color:#333336; '
+            'margin:0;">Website platform: <strong>%s</strong> '
+            "(detected automatically).</p>"
+            % _esc_html(platform.get("name") or ""))
+    for key in ("ceiling_line", "offer_line", "confirm_line"):
+        text = (platform.get(key) or "").strip()
+        if text:
+            platform_parts.append(
+                '<p style="font-size:15.5px; line-height:1.6; '
+                'color:#333336; margin-top:10px;">%s</p>'
+                % _esc_html(text))
+    platform_html = ""
+    if platform_parts:
+        platform_html = (
+            '<div style="border-top:1px solid #f0e6e8; margin-top:22px; '
+            'padding-top:22px;">' + "".join(platform_parts) + "</div>")
+    if eligibility == "C":
+        offer_html = (
+            "As noted above, Done For You is not available for your "
+            "site's current platform, so the option that fits is the "
+            "DIY Audit ($149): the full picture, everything that can "
+            "be done on your platform, and the materials to do it "
+            "yourself or hand to a developer. You can see it here: "
+            '<a href="https://agentreadinesshq.com/#pricing" '
+            'style="color:#c21847;">https://agentreadinesshq.com/'
+            "#pricing</a>")
+    elif eligibility == "B":
+        offer_html = (
+            "If you'd like help with the fixes, you have two options. "
+            "The DIY Audit ($149) gives you the full picture and the "
+            "materials to fix things yourself. With Done For You "
+            "($449), we make the approved improvements for you, "
+            "within the platform limitations noted above, which we "
+            "disclose before any purchase. You can see both here: "
+            '<a href="https://agentreadinesshq.com/#pricing" '
+            'style="color:#c21847;">https://agentreadinesshq.com/'
+            "#pricing</a>")
+    else:
+        offer_html = (
+            "If you'd like help with the fixes, you have two options. "
+            "The DIY Audit ($149) gives you the full picture and the "
+            "materials to fix things yourself. With Done For You "
+            "($449), we make the approved improvements for you. You "
+            "can see both here: "
+            '<a href="https://agentreadinesshq.com/#pricing" '
+            'style="color:#c21847;">https://agentreadinesshq.com/'
+            "#pricing</a>")
     return """<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -749,10 +1093,11 @@ def _results_email_html(first_name, site, score, grade, checks):
 </table>
 <p style="font-size:15.5px; line-height:1.6; color:#333336; margin-top:20px;">%(site)s scored %(score)s/100 (grade %(grade)s). Here is how the seven checks came out:</p>
 %(checks)s
+%(platform)s
 <table role="presentation" width="100%%" cellpadding="0" cellspacing="0" style="margin-top:30px; background-color:#fff7f8; border:1px solid #ffd9e1; border-radius:12px;">
 <tr><td style="padding:24px 26px;">
 <p style="font-size:15.5px; line-height:1.6; color:#333336; margin:0;">Your full results are on the page where you ran the scan.</p>
-<p style="font-size:15.5px; line-height:1.6; color:#333336; margin-top:12px;">If you'd like help with the fixes, you have two options. The DIY Audit ($149) gives you the full picture and the materials to fix things yourself. With Done For You ($449), we make the approved improvements for you. You can see both here: <a href="https://agentreadinesshq.com/#pricing" style="color:#c21847;">https://agentreadinesshq.com/#pricing</a></p>
+<p style="font-size:15.5px; line-height:1.6; color:#333336; margin-top:12px;">%(offer)s</p>
 <p style="font-size:15.5px; line-height:1.6; color:#333336; margin-top:12px;">Or just reply to this email with any questions.</p>
 </td></tr>
 </table>
@@ -770,6 +1115,8 @@ def _results_email_html(first_name, site, score, grade, checks):
         "chip_bg": chip_bg,
         "chip_fg": chip_fg,
         "checks": "".join(blocks),
+        "platform": platform_html,
+        "offer": offer_html,
     }
 
 
@@ -789,6 +1136,8 @@ def compose_results_email(first_name, email, report):
     score = _fmt_num(report.get("score"))
     grade = report.get("grade") or "?"
     checks = report.get("checks") or []
+    platform = report.get("platform") or {}
+    eligibility = platform.get("eligibility")
     lines = [
         f"Hi {first_name}, thanks for running your free AI Readiness Scan "
         "with Agent Readiness HQ!",
@@ -812,11 +1161,50 @@ def compose_results_email(first_name, email, report):
         fixable = (c.get("fixable") or "").strip()
         if fixable:
             lines.append(f"   {fixable}")
+        pnote = (c.get("platform_note") or "").strip()
+        if pnote:
+            lines.append(f"   {pnote}")
+    # Platform section (Caleb ruling 2026-10-21): the detected
+    # platform, the customer's own ceiling where calculable, the
+    # eligibility disclosure, and the confirm line when the platform
+    # could not be identified.
+    platform_lines = []
+    if platform.get("detected"):
+        platform_lines.append(
+            f"Website platform: {platform.get('name')} "
+            "(detected automatically).")
+    for key in ("ceiling_line", "offer_line", "confirm_line"):
+        text = (platform.get(key) or "").strip()
+        if text:
+            platform_lines.append(text)
+    if platform_lines:
+        lines += [""] + platform_lines
     lines += [
         "",
         "Your full results are on the page where you ran the scan.",
         "",
-        "If you'd like help with the fixes, you have two options. The DIY Audit ($149) gives you the full picture and the materials to fix things yourself. With Done For You ($449), we make the approved improvements for you. You can see both here: https://agentreadinesshq.com/#pricing",
+    ]
+    if eligibility == "C":
+        lines.append(
+            "As noted above, Done For You is not available for your "
+            "site's current platform, so the option that fits is the "
+            "DIY Audit ($149): the full picture, everything that can "
+            "be done on your platform, and the materials to do it "
+            "yourself or hand to a developer. You can see it here: "
+            "https://agentreadinesshq.com/#pricing")
+    elif eligibility == "B":
+        lines.append(
+            "If you'd like help with the fixes, you have two options. "
+            "The DIY Audit ($149) gives you the full picture and the "
+            "materials to fix things yourself. With Done For You "
+            "($449), we make the approved improvements for you, within "
+            "the platform limitations noted above, which we disclose "
+            "before any purchase. You can see both here: "
+            "https://agentreadinesshq.com/#pricing")
+    else:
+        lines.append(
+            "If you'd like help with the fixes, you have two options. The DIY Audit ($149) gives you the full picture and the materials to fix things yourself. With Done For You ($449), we make the approved improvements for you. You can see both here: https://agentreadinesshq.com/#pricing")
+    lines += [
         "",
         "Or just reply to this email with any questions.",
         "",
@@ -829,7 +1217,7 @@ def compose_results_email(first_name, email, report):
     msg["Subject"] = f"Your free scan results for {site}: {score}/100 (grade {grade})"
     msg.set_content("\n".join(lines))
     msg.add_alternative(
-        _results_email_html(first_name, site, score, grade, checks),
+        _results_email_html(first_name, site, score, grade, checks, platform),
         subtype="html")
     return msg
 
