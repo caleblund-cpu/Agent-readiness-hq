@@ -169,7 +169,13 @@ CHECK_COPY = {
 #
 # Capability values: "implementable", "limited" (possible, but depends
 # on the plan or on a specific access path), "not_implementable"
-# (the platform cannot do it in the required form at all).
+# (the platform cannot do it in the required form at all), and
+# "auto_only" (the component can exist only because the platform
+# generates it itself; nobody, customer or us, can implement, edit,
+# or replace it — unscored points on such a check are still lost,
+# but the component's possible presence means the platform does not
+# block BOTH core components the way a strict not_implementable
+# pair does).
 PLATFORM_CAPABILITY = {
     "WordPress": {},
     "Wix": {},
@@ -205,10 +211,17 @@ PLATFORM_CAPABILITY = {
             "until the plan changes."),
     },
     "GoDaddy Website Builder": {
+        # llms.txt: GoDaddy now generates one itself on builder sites
+        # (verified live 2026-10-21 on five sites), so the file can
+        # be present, but it is builder-controlled: it cannot be
+        # edited, replaced, or (where absent) added by anyone.
         "llms_txt": (
-            "not_implementable",
-            "GoDaddy Website Builder has no way to place a file at the "
-            "domain root, so an llms.txt file cannot be added."),
+            "auto_only",
+            "GoDaddy Website Builder generates an llms.txt file "
+            "itself, but neither you nor we can edit or replace what "
+            "it says, so its content cannot be improved. If your "
+            "site does not have one, it cannot be added in the "
+            "required form either."),
         "schema_jsonld": (
             "not_implementable",
             "GoDaddy Website Builder has no site-wide code area, and "
@@ -297,6 +310,10 @@ def assess_platform(platform_name, raw_checks):
     Category C is a platform-level outcome per the ruling: when both
     core components (llms.txt and effective JSON-LD) cannot be
     implemented at all, $449 is unavailable for that configuration.
+    GoDaddy Website Builder no longer qualifies (Caleb ruling
+    2026-10-21): its llms.txt is platform-generated ("auto_only"),
+    so only the schema component is strictly not implementable and
+    the outcome is B, sell with the limits disclosed beforehand.
     """
     if not platform_name:
         return {"eligibility": "unknown", "ceiling": None,
@@ -305,17 +322,23 @@ def assess_platform(platform_name, raw_checks):
     rules = PLATFORM_CAPABILITY.get(platform_name, {})
     per_check = {}
     limitations = []
+    # Strict test on purpose: an "auto_only" component (GoDaddy's
+    # generated llms.txt) does not count toward core_blocked, so a
+    # platform needs BOTH components strictly not implementable
+    # before the outcome is C.
     core_blocked = all(
         rules.get(cid, ("implementable", None))[0] == "not_implementable"
         for cid in _PLATFORM_VARYING_CHECKS)
     scores = {cid: sc for cid, _n, sc, _s, _d in raw_checks}
-    # Unearnable points: what a not-implementable check has not
-    # already scored. A check the site somehow passes (e.g. an
-    # llms.txt redirect workaround that resolves) blocks nothing.
+    # Unearnable points: what a not-implementable (or auto-only)
+    # check has not already scored. A check the site somehow passes
+    # (e.g. an llms.txt redirect workaround that resolves, or a
+    # platform-generated file) blocks only its unscored remainder.
     blocked_checks = []
     blocked_points = 0
     for cid in _PLATFORM_VARYING_CHECKS:
-        if rules.get(cid, ("implementable", None))[0] == "not_implementable":
+        if rules.get(cid, ("implementable", None))[0] in (
+                "not_implementable", "auto_only"):
             lost = WEIGHTS[cid] - scores.get(cid, 0)
             if lost > 0:
                 blocked_checks.append(cid)
@@ -370,6 +393,16 @@ def platform_offer_line(platform_name, assessment):
     """
     eligibility = assessment.get("eligibility")
     if eligibility == "B":
+        if platform_name == "GoDaddy Website Builder":
+            # Caleb refinement 2026-10-21: do not stack the specific
+            # limits into the offer notice for GoDaddy. One short
+            # plain line here; the specifics (schema cannot be
+            # implemented; the generated llms.txt cannot be edited)
+            # live in the per-check platform labels and the report.
+            return (
+                "Note: GoDaddy may limit some of the technical fixes "
+                "we can implement; anything it prevents is flagged "
+                "in your scan and report.")
         items = "; ".join(
             f"{lim['check_name']} ({lim['reason']})"
             for lim in assessment["limitations"])
@@ -816,7 +849,8 @@ def run_audit(raw_url):
             cap = assessment["per_check"].get(cid, "implementable")
             if platform_name and sc < WEIGHTS[cid] and cap != "implementable":
                 _cap, reason = PLATFORM_CAPABILITY[platform_name][cid]
-                head = ("Platform limit" if cap == "not_implementable"
+                head = ("Platform limit" if cap in (
+                    "not_implementable", "auto_only")
                         else "Platform-dependent")
                 entry["platform_status"] = "platform_limited"
                 entry["platform_note"] = f"{head}: {reason}"
