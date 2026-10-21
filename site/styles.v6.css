@@ -645,3 +645,15 @@ body {
   .explainer { padding-bottom: 1.5rem; }
   #pricing { padding-top: 1.5rem; }
 }
+
+/* ---------- Hero to Why-it-matters gap (Caleb 2026-10-21) ----------
+   Trims the whitespace between the hero and the Why-it-matters section
+   below it by 25% (total gap 8.7rem -> 6.525rem). Scoped to this pair
+   only; the shared .section padding above is unchanged. The Why section
+   is the section immediately after .hero in the markup. */
+.hero { padding-bottom: 3.375rem; }
+.hero + .section { padding-top: 3.15rem; }
+@media (max-width: 720px) {
+  .hero { padding-bottom: 2.25rem; }
+  .hero + .section { padding-top: 2.25rem; }
+}
