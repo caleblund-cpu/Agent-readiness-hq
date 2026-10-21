@@ -1412,47 +1412,160 @@ def _intake_door_link(name, email, session_id, door_path=INTAKE_DOOR_PATH):
     return SITE_BASE + door_path + "?" + urlencode(params)
 
 
+def _day0_p(inner_html):
+    """One body paragraph in a day-0 HTML part, styled like the
+    results email's body copy."""
+    return ('<p style="font-size:15.5px; line-height:1.6; '
+            'color:#333336; margin-top:14px;">%s</p>' % inner_html)
+
+
+def _day0_step_html(lead, body):
+    return _day0_p("<strong>%s</strong> %s"
+                   % (_esc_html(lead), _esc_html(body)))
+
+
+def _day0_intake_step_html(lead, body, door_link):
+    """Step 1 of a day-0 email, HTML part: the lead line, then the
+    personalized intake link rendered as the email's primary button
+    (anchor text "Complete your intake form"; the raw URL, prefill
+    params included, lives only in the href and is never displayed),
+    then the explanatory paragraph."""
+    return "".join([
+        _day0_p("<strong>%s</strong> Use this link whenever you are "
+                "ready:" % _esc_html(lead)),
+        '<p style="margin-top:16px;"><a href="%s" '
+        'style="display:inline-block; background-color:#ff4d6d; '
+        'color:#ffffff; font-size:16px; font-weight:700; '
+        'padding:13px 28px; border-radius:99px; '
+        'text-decoration:none;">Complete your intake form</a></p>'
+        % _esc_html(door_link),
+        _day0_p(_esc_html(body)),
+    ])
+
+
+def _day0_tail_html(paras):
+    """Closing paragraphs of a day-0 email (spam note, refunds,
+    administrator note, platform note, questions line). The Refunds
+    label is bolded, matching the template doc's markdown."""
+    out = []
+    for para in paras:
+        if para.startswith("Refunds: "):
+            out.append(_day0_p("<strong>Refunds:</strong>%s"
+                               % _esc_html(para[len("Refunds:"):])))
+        else:
+            out.append(_day0_p(_esc_html(para)))
+    return "".join(out)
+
+
+def _day0_email_html(heading, first_name, payment_line, blocks_html):
+    """HTML part for the day-0 purchase confirmations (Templates 7
+    and 12), added 2026-10-21 so the personalized intake link renders
+    as a hyperlink instead of a giant raw URL. Same shell as the
+    results email (table layout, inline styles, warm rose palette):
+    brand header, heading, greeting, payment line, the numbered next
+    steps, the closing paragraphs, and the text part's sign-off.
+    blocks_html is the steps + tail HTML built by the caller, so both
+    parts carry identical wording.
+    """
+    return """<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>%(heading)s</title></head>
+<body style="margin:0; padding:0; background-color:#f7f2f0; font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; color:#1d1d1f;">
+<table role="presentation" width="100%%" cellpadding="0" cellspacing="0" style="background-color:#f7f2f0;">
+<tr><td align="center" style="padding:28px 12px 36px 12px;">
+<table role="presentation" width="640" cellpadding="0" cellspacing="0" style="width:640px; max-width:640px; background-color:#ffffff; border:1px solid #f0dfe3; border-radius:16px;">
+<tr><td style="padding:36px 44px 40px 44px;">
+<span style="font-size:20px; font-weight:800; letter-spacing:-0.02em; color:#1d1d1f;">Agent Readiness <span style="color:#ff4d6d;">HQ</span></span>
+<div style="border-bottom:2px solid #ff4d6d; margin:20px 0 26px 0; font-size:0; line-height:0;">&nbsp;</div>
+<h1 style="font-size:27px; line-height:1.25; font-weight:800; letter-spacing:-0.01em; color:#1d1d1f; margin:0;">%(heading)s</h1>
+<p style="font-size:16px; line-height:1.6; color:#333336; margin-top:16px;">Hi %(first)s,</p>
+<p style="font-size:15.5px; line-height:1.6; color:#333336; margin-top:14px;">%(payment)s</p>
+<p style="font-size:15.5px; line-height:1.6; color:#333336; margin-top:18px;"><strong>Here is what happens next:</strong></p>
+%(blocks)s
+<p style="font-size:15.5px; line-height:1.6; color:#333336; margin-top:24px;">-- Rachael<br>Agent Readiness HQ<br>agentreadinesshq.com</p>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body></html>""" % {
+        "heading": _esc_html(heading),
+        "first": _esc_html(first_name),
+        "payment": _esc_html(payment_line),
+        "blocks": blocks_html,
+    }
+
+
 def compose_day0_email(first_name, email, session_id, door_link):
     """Template 7 ($149 purchase confirmation), automated. Adaptations
     for the new journey, flagged for Caleb's copy review: the intake
     link points at the scan-first door; step 2 no longer names a domain
     (the webhook does not know it yet; the door collects it); the
     template's markdown bold is dropped for plain-text sending.
+
+    Multipart since 2026-10-21 (Caleb's fix): the HTML part renders
+    the personalized intake link as a "Complete your intake form"
+    button, so it no longer shows as a giant raw URL; the text part
+    keeps the raw URL on its own line under the step-1 lead line.
+    The wording lives in the steps/tail lists below, shared by both
+    parts so they cannot drift apart.
     """
+    subject = "Your $149 AI Readiness Report is on its way"
+    payment_line = (
+        f"Thank you. Your payment of $149 has been received "
+        f"(order {session_id}).")
+    steps = [
+        ("1. Intake form.",
+         "It takes about 5 minutes. The first step runs a fresh scan of your website, and most of the form is then already filled in for you. The key step is confirming your business facts. We build your AI Information Page from verified facts only. We never guess at your services, prices, hours, or service areas."),
+        ("2. The audit.",
+         "Once your intake is complete (payment received, intake form submitted, and any follow-up information we asked for to verify your business facts), we run the full audit on your website. This takes up to 5 business days. If we need information from you, the clock pauses until we receive it."),
+        ("3. Your report.",
+         "You receive the full audit, your Agent Readiness HQ score, the prioritized fix list with exact copy and code, your custom AI Information Page, publishing instructions, and a developer handoff."),
+    ]
+    tail = [
+        "Your report will come from this same email address. If it does not appear by the delivery date, please check your spam or junk folder, and mark our messages Not Junk so they reach your inbox.",
+        "Refunds: If you cancel before we start work, you get a full refund. Once your customized report is delivered, the $149 fee is non-refundable.",
+        "SEND TO ADMINISTRATOR: If your web person handles your site, forward them this email and the report when it arrives. The report includes a dedicated developer handoff section with everything technical in one place.",
+        "Note: some fixes depend on your website platform and plan. We check your platform as part of the audit, and your report states plainly what your platform does and does not allow, so you will know exactly what can and cannot be implemented.",
+        "Questions in the meantime? Just reply to this email.",
+    ]
     lines = [
         f"Hi {first_name},",
         "",
-        f"Thank you. Your payment of $149 has been received (order {session_id}).",
+        payment_line,
         "",
         "Here is what happens next:",
         "",
-        f"1. Intake form. Use this link whenever you are ready: {door_link}",
-        "It takes about 5 minutes. The first step runs a fresh scan of your website, and most of the form is then already filled in for you. The key step is confirming your business facts. We build your AI Information Page from verified facts only. We never guess at your services, prices, hours, or service areas.",
+        f"{steps[0][0]} Use this link whenever you are ready:",
+        door_link,
+        steps[0][1],
         "",
-        "2. The audit. Once your intake is complete (payment received, intake form submitted, and any follow-up information we asked for to verify your business facts), we run the full audit on your website. This takes up to 5 business days. If we need information from you, the clock pauses until we receive it.",
-        "",
-        "3. Your report. You receive the full audit, your Agent Readiness HQ score, the prioritized fix list with exact copy and code, your custom AI Information Page, publishing instructions, and a developer handoff.",
-        "",
-        "Your report will come from this same email address. If it does not appear by the delivery date, please check your spam or junk folder, and mark our messages Not Junk so they reach your inbox.",
-        "",
-        "Refunds: If you cancel before we start work, you get a full refund. Once your customized report is delivered, the $149 fee is non-refundable.",
-        "",
-        "SEND TO ADMINISTRATOR: If your web person handles your site, forward them this email and the report when it arrives. The report includes a dedicated developer handoff section with everything technical in one place.",
-        "",
-        "Note: some fixes depend on your website platform and plan. We check your platform as part of the audit, and your report states plainly what your platform does and does not allow, so you will know exactly what can and cannot be implemented.",
-        "",
-        "Questions in the meantime? Just reply to this email.",
-        "",
+    ]
+    for lead, body in steps[1:]:
+        lines += [f"{lead} {body}", ""]
+    for para in tail:
+        lines += [para, ""]
+    lines += [
         "-- Rachael",
         "Agent Readiness HQ",
         "agentreadinesshq.com",
     ]
+    blocks_html = "".join(
+        [_day0_intake_step_html(steps[0][0], steps[0][1], door_link)]
+        + [_day0_step_html(lead, body) for lead, body in steps[1:]]
+        + [_day0_tail_html(tail)])
     msg = EmailMessage()
     msg["From"] = f"Agent Readiness HQ <{RESULTS_FROM}>"
     msg["To"] = email
-    msg["Subject"] = "Your $149 AI Readiness Report is on its way"
+    msg["Subject"] = subject
     msg.set_content("\n".join(lines))
+    msg.add_alternative(
+        _day0_email_html(subject, first_name, payment_line,
+                         blocks_html),
+        subtype="html")
     return msg
+
+
 
 
 def compose_order_notice(name, email, session_id, amount_paid, day0_sent):
@@ -1497,41 +1610,71 @@ def compose_day0_email_449(first_name, email, session_id, door_link):
     10-business-day clock starts only when all four prerequisites are
     complete: completed intake, signed authorization, written approval
     of the specific change list, and confirmed working website access.
+
+    Multipart since 2026-10-21 (Caleb's fix): the HTML part renders
+    the personalized intake link as a "Complete your intake form"
+    button, so it no longer shows as a giant raw URL; the text part
+    keeps the raw URL on its own line under the step-1 lead line.
+    The wording lives in the steps/tail lists below, shared by both
+    parts so they cannot drift apart.
     """
+    subject = "Your $449 Done-for-You is confirmed"
+    payment_line = (
+        f"Thank you. Your payment of $449 has been received "
+        f"(order {session_id}).")
+    steps = [
+        ("1. Intake form.",
+         "It takes about 5 minutes. The first step gathers a few initial details about your business and your website, and most of the form is then already filled in for you. The key step is confirming your business facts. We build your AI Information Page from verified facts only. We never guess at your services, prices, hours, or service areas."),
+        ("2. Authorization.",
+         "After your intake, we analyze your website and prepare a specific list of proposed changes. We email you that list with a short authorization form covering exactly those changes. Your payment does not authorize changes by itself; nothing is changed on your website until you review the list and sign."),
+        ("3. Temporary access.",
+         "After you sign, we send step by step instructions for creating temporary website access for us, with the minimum permissions needed (or a platform invitation). You create the login yourself; we never ask for your password. Access is removed when the work is done."),
+        ("4. Implementation.",
+         "Within 10 business days after all of the following are complete: (1) completed intake, (2) signed authorization, (3) written approval of the specific change list, and (4) confirmed working website access. The clock does not start until all four are received. If we are waiting on information, access, approval, or a decision from you, the clock pauses until we receive it. Implementation covers the approved improvements from your report. What can be implemented depends on your website platform and the access you provide; if a platform cannot support an approved change, we will tell you plainly and document the alternative in your report. You get a before-and-after report documenting every change, with undo instructions."),
+    ]
+    tail = [
+        "Your report will come from this same email address. If it does not appear by the delivery date, please check your spam or junk folder, and mark our messages Not Junk so they reach your inbox.",
+        "Refunds: If you cancel before we begin work, you get a full refund. If you cancel after we start analysis but before implementation begins, we refund the portion of the work not performed. Once implementation begins, the fee is non-refundable.",
+        "SEND TO ADMINISTRATOR: If someone else manages your website, forward them this email. The access instructions will need their help, and the authorization form may need the site owner's signature.",
+        "Questions in the meantime? Just reply to this email.",
+    ]
     lines = [
         f"Hi {first_name},",
         "",
-        f"Thank you. Your payment of $449 has been received (order {session_id}).",
+        payment_line,
         "",
         "Here is what happens next:",
         "",
-        f"1. Intake form. Use this link whenever you are ready: {door_link}",
-        "It takes about 5 minutes. The first step gathers a few initial details about your business and your website, and most of the form is then already filled in for you. The key step is confirming your business facts. We build your AI Information Page from verified facts only. We never guess at your services, prices, hours, or service areas.",
+        f"{steps[0][0]} Use this link whenever you are ready:",
+        door_link,
+        steps[0][1],
         "",
-        "2. Authorization. After your intake, we analyze your website and prepare a specific list of proposed changes. We email you that list with a short authorization form covering exactly those changes. Your payment does not authorize changes by itself; nothing is changed on your website until you review the list and sign.",
-        "",
-        "3. Temporary access. After you sign, we send step by step instructions for creating temporary website access for us, with the minimum permissions needed (or a platform invitation). You create the login yourself; we never ask for your password. Access is removed when the work is done.",
-        "",
-        "4. Implementation. Within 10 business days after all of the following are complete: (1) completed intake, (2) signed authorization, (3) written approval of the specific change list, and (4) confirmed working website access. The clock does not start until all four are received. If we are waiting on information, access, approval, or a decision from you, the clock pauses until we receive it. Implementation covers the approved improvements from your report. What can be implemented depends on your website platform and the access you provide; if a platform cannot support an approved change, we will tell you plainly and document the alternative in your report. You get a before-and-after report documenting every change, with undo instructions.",
-        "",
-        "Your report will come from this same email address. If it does not appear by the delivery date, please check your spam or junk folder, and mark our messages Not Junk so they reach your inbox.",
-        "",
-        "Refunds: If you cancel before we begin work, you get a full refund. If you cancel after we start analysis but before implementation begins, we refund the portion of the work not performed. Once implementation begins, the fee is non-refundable.",
-        "",
-        "SEND TO ADMINISTRATOR: If someone else manages your website, forward them this email. The access instructions will need their help, and the authorization form may need the site owner's signature.",
-        "",
-        "Questions in the meantime? Just reply to this email.",
-        "",
+    ]
+    for lead, body in steps[1:]:
+        lines += [f"{lead} {body}", ""]
+    for para in tail:
+        lines += [para, ""]
+    lines += [
         "-- Rachael",
         "Agent Readiness HQ",
         "agentreadinesshq.com",
     ]
+    blocks_html = "".join(
+        [_day0_intake_step_html(steps[0][0], steps[0][1], door_link)]
+        + [_day0_step_html(lead, body) for lead, body in steps[1:]]
+        + [_day0_tail_html(tail)])
     msg = EmailMessage()
     msg["From"] = f"Agent Readiness HQ <{RESULTS_FROM}>"
     msg["To"] = email
-    msg["Subject"] = "Your $449 Done-for-You is confirmed"
+    msg["Subject"] = subject
     msg.set_content("\n".join(lines))
+    msg.add_alternative(
+        _day0_email_html(subject, first_name, payment_line,
+                         blocks_html),
+        subtype="html")
     return msg
+
+
 
 
 def compose_order_notice_449(name, email, session_id, amount_paid, day0_sent):
