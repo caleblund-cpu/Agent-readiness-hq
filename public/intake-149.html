@@ -32,7 +32,7 @@
 <header class="site-header">
   <div class="container header-inner">
     <a class="wordmark" href="/"><svg width="30" height="30" viewBox="0 0 48 48" fill="none" style="vertical-align:-8px;margin-right:9px" aria-hidden="true"><rect x="5" y="5" width="38" height="38" rx="10" stroke="#1d1d1f" stroke-width="5"/><path d="M15.5 25 L22 31.5 L33.5 17.5" stroke="#ff4d6d" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Agent Readiness <span class="hq">HQ</span></a>
-    <a href="mailto:hello@agentreadinesshq.com" class="btn btn-small">Questions? Email us</a>
+    <a href="mailto:hello@agentreadinesshq.com" class="btn btn-small">Email us</a>
   </div>
 </header>
 <main class="details-wrap">
@@ -155,7 +155,7 @@
     fetch("/api/audit", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url: url, first_name: firstName, email: email }),
+      body: JSON.stringify({ url: url, first_name: firstName, email: email, suppress_email: true }),
       signal: controller ? controller.signal : undefined
     })
       .then(function (resp) { return resp.json().then(function (b) { return { ok: resp.ok, body: b }; }); })

@@ -10,7 +10,9 @@ hello@agentreadinesshq.com (see send_results_email below). That replaces
 the old FormSubmit _autoresponse, which never delivered. The send only
 happens when the RESULTS_SMTP_PASSWORD env var is configured; without it
 no email goes out (responses to lead-carrying requests report
-"email_sent": false, and all other responses are unchanged).
+"email_sent": false, and all other responses are unchanged). A body field
+"suppress_email": true (sent by the post-payment intake-149 details step)
+skips the results email while still returning the full report.
 
 Checks and weights are IDENTICAL to audit/scoring.md (7 checks, total 100).
 
@@ -1360,8 +1362,14 @@ class handler(BaseHTTPRequestHandler):
         # Optional lead capture: when the scan form's first name + email
         # ride along, email the visitor their results copy from hello@.
         # Best effort only — a mail failure never fails the scan.
+        # Callers that only need the facts (the post-payment intake-149
+        # initial-details step, whose scan prefills the intake form) pass
+        # "suppress_email": true so the buyer is NOT also sent the
+        # free-scan results email. Absent/false = default behavior.
         first_name, lead_email = _clean_lead(data)
-        if first_name and lead_email:
+        suppress_email = isinstance(data, dict) and bool(
+            data.get("suppress_email"))
+        if first_name and lead_email and not suppress_email:
             report["email_sent"] = send_results_email(
                 first_name, lead_email, report)
         self._send(200, report)
