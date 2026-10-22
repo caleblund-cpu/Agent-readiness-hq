@@ -52,7 +52,19 @@
 <main class="auth">
   <div id="auth-form-wrap">
     <h1>Website Implementation Authorization</h1>
-    <p class="lede">Thank you for purchasing Done-for-You ($449). Before we touch your website, we need your explicit authorization below. Payment alone does not authorize website changes.</p>
+    <p class="lede">Thank you for purchasing Done-for-You ($449). This page explains how authorization works, what it covers, and what it does not. Payment alone does not authorize website changes. Nothing on your website changes until you have reviewed a specific list of proposed changes and approved exactly those changes.</p>
+
+    <div class="auth-card">
+      <h2>How authorization and access work</h2>
+      <p>Authorization and temporary access happen in one form, in one sitting:</p>
+      <ul>
+        <li>We email your AI Readiness Report together with the specific proposed change list for your website.</li>
+        <li>That email links to one form, Approve changes &amp; set up access. The form shows the exact changes from your report, the business and website they apply to, and the report date, so you can review the list before you decide anything.</li>
+        <li>To approve, you check the approval box and type your full name. That approves exactly the changes listed, and nothing more. If the list later needs a material revision, we will ask you to approve the revised version through the same form before we implement it.</li>
+        <li>In the same form, you tell us who manages your website and how temporary access will be set up: a platform invitation, a temporary user, your webmaster or agency setting it up, or a note that you need instructions or help. We never ask for your existing website password, and you can remove our access at any time.</li>
+        <li>Approving the changes and granting access are two distinct acts. Setting up access by itself does not authorize any change, and the person who sets up access does not have to be the person who approves the changes.</li>
+      </ul>
+    </div>
 
     <div class="auth-card">
       <h2>What you are authorizing</h2>
@@ -73,50 +85,21 @@
       </ul>
     </div>
 
-    <form id="auth-form" aria-label="Implementation authorization">
-      <div class="field">
-        <label for="auth-name">Your full name</label>
-        <input type="text" id="auth-name" name="name" required autocomplete="name" placeholder="Jane Smith">
-      </div>
-      <div class="field">
-        <label for="auth-business">Business name</label>
-        <input type="text" id="auth-business" name="business" required autocomplete="organization" placeholder="Smith Heating &amp; Cooling">
-      </div>
-      <div class="field">
-        <label for="auth-domain">Website domain</label>
-        <input type="text" id="auth-domain" name="domain" required inputmode="url" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="smithheating.com">
-      </div>
-      <div class="field">
-        <label for="auth-order">Order ID</label>
-        <input type="text" id="auth-order" name="order_id" required placeholder="From your purchase confirmation email">
-      </div>
-      <div class="field">
-        <label for="auth-email">Email address</label>
-        <input type="email" id="auth-email" name="email" required autocomplete="email" placeholder="you@yourbusiness.com">
-      </div>
+    <div class="auth-card">
+      <h2>What you affirm when you approve</h2>
+      <p>When you check the approval box in the form, you affirm all of the following:</p>
+      <ul>
+        <li><strong>(1)</strong> I own this website or am authorized to approve changes to it.</li>
+        <li><strong>(2)</strong> I authorize Agent Readiness HQ to make the specific website changes described above (publishing the AI Information Page and up to five approved, platform-supported fixes).</li>
+        <li><strong>(3)</strong> I understand this does <em>not</em> authorize website redesign, hosting migration, DNS changes, security/WAF changes, or payment-system changes unless separately agreed in writing.</li>
+        <li><strong>(4)</strong> I understand some recommendations may not be technically possible because of my website platform, and Agent Readiness HQ will disclose platform limitations rather than work around them unsafely.</li>
+        <li><strong>(5)</strong> I have reviewed the business information I provided and confirm it is accurate to the best of my knowledge.</li>
+      </ul>
+    </div>
 
-      <label class="affirm" for="auth-check">
-        <input type="checkbox" id="auth-check" required>
-        <span>I affirm all of the following:
-          <strong>(1)</strong> I own this website or am authorized to approve changes to it.
-          <strong>(2)</strong> I authorize Agent Readiness HQ to make the specific website changes described above (publishing the AI Information Page and up to five approved, platform-supported fixes).
-          <strong>(3)</strong> I understand this does <em>not</em> authorize website redesign, hosting migration, DNS changes, security/WAF changes, or payment-system changes unless separately agreed in writing.
-          <strong>(4)</strong> I understand some recommendations may not be technically possible because of my website platform, and Agent Readiness HQ will disclose platform limitations rather than work around them unsafely.
-          <strong>(5)</strong> I have reviewed the business information I provided and confirm it is accurate to the best of my knowledge.
-        </span>
-      </label>
-
-      <button type="submit" class="btn">Submit authorization</button>
-      <p class="auth-note" style="margin-top:1rem;">By submitting, you agree to the <a href="/terms.html">Terms of Service</a>. Delivery within 10 business days after all of the following are complete: (1) completed intake, (2) signed authorization, (3) written approval of the specific change list, and (4) confirmed working website access. The clock does not start until all four are received. If we are waiting on information, access, approval, or a decision from you, the clock pauses until we receive it. Never send passwords; we will explain how to grant temporary access after you submit.</p>
-    </form>
+    <p class="auth-note">Your approval is recorded with the change list and the date shown in the form. By approving, you agree to the <a href="/terms.html">Terms of Service</a>. Your 10-business-day implementation period begins once we have your approved changes and working website access.</p>
   </div>
 
-  <div id="auth-confirm" aria-live="polite">
-    <div class="big-check">✓</div>
-    <h2>Authorization received</h2>
-    <p>Thank you. We have recorded your authorization<span id="confirm-domain"></span>. Watch your email for next steps, including how to grant temporary access.</p>
-    <p class="auth-note">Reference: <span id="confirm-ref"></span></p>
-  </div>
 </main>
 
 <footer class="site-footer">
@@ -127,30 +110,6 @@
   </div>
 </footer>
 
-<script>
-(function () {
-  "use strict";
-  var form = document.getElementById("auth-form");
-  var params = new URLSearchParams(window.location.search);
-  var prefill = params.get("order_id");
-  if (prefill) { document.getElementById("auth-order").value = prefill; }
-  form.addEventListener("submit", function (e) {
-    e.preventDefault();
-    var domain = document.getElementById("auth-domain").value.trim();
-    var now = new Date();
-    var ref = "AUTH-" + now.getFullYear() +
-      String(now.getMonth() + 1).padStart(2, "0") +
-      String(now.getDate()).padStart(2, "0") + "-" +
-      Math.random().toString(36).slice(2, 7).toUpperCase();
-    document.getElementById("confirm-domain").textContent = domain ? " for " + domain : "";
-    document.getElementById("confirm-ref").textContent = ref + " · " + now.toLocaleString();
-    document.getElementById("auth-form-wrap").style.display = "none";
-    var c = document.getElementById("auth-confirm");
-    c.style.display = "block";
-    c.scrollIntoView({ behavior: "smooth", block: "start" });
-  });
-})();
-</script>
 
 </body>
 </html>
