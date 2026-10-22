@@ -42,7 +42,7 @@
   <h1>A few initial details</h1>
   <p class="lede">Thank you, your payment is complete. One short step before your intake form: we gather a few initial details about you, your business, and your website, so the form opens already filled in. Confirm your details below and press Continue. Gathering the details usually takes under a minute, and your 5 business day delivery clock starts when your intake form is submitted.</p>
 
-  <div class="spam-note">
+  <div class="spam-note" id="spam-note">
     <h2>Check your spam folder</h2>
     <p>Your next steps and your finished report come from hello@agentreadinesshq.com. If an email from us lands in spam or junk, please mark it Not Junk so the next one reaches your inbox.</p>
   </div>
@@ -126,8 +126,7 @@
     window.location.href = FORM_URL + "?" + pairs.join("&");
   }
 
-  form.addEventListener("submit", function (e) {
-    e.preventDefault();
+  function startGather() {
     var name = val("d-name"), business = val("d-business"),
         url = val("d-url"), email = val("d-email");
     if (!name || !business || !url || !email) return;
@@ -202,7 +201,36 @@
         statusEl.textContent = "Taking you to your intake form...";
         goToForm();
       });
+  }
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    startGather();
   });
+
+  /* Door skip (journey simplification 2026-10-22, spec section 2):
+     when the link carries ALL of name, business, website, and email
+     AND a stored scan on this device matches the website parameter,
+     the confirmation screen has nothing left to confirm, so skip it:
+     hide the form and show only the brief progress state, then run
+     the exact same gather the submit button runs (which reuses the
+     stored scan for this website and proceeds to the prefilled
+     JotForm exactly as a submit would). If anything is missing, or
+     no matching stored scan exists, the door behaves exactly as
+     before and the customer confirms the details by hand. */
+  (function () {
+    var nm = q.get("name"), biz = q.get("business"),
+        web = q.get("website"), em = q.get("email");
+    if (!nm || !biz || !web || !em) return;
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) return;
+    var s = storedDetails();
+    if (!s || !s.url || s.score == null) return;
+    if (web.replace(/\/+$/, "") !== String(s.url).replace(/\/+$/, "")) return;
+    form.hidden = true;
+    var sn = document.getElementById("spam-note");
+    if (sn) sn.hidden = true;
+    startGather();
+  })();
 })();
 </script>
 </body>

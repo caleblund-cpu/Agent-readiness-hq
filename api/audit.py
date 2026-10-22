@@ -1393,7 +1393,6 @@ INTAKE_DOOR_PATH_449 = "/intake-449.html"
 STRIPE_149_PAYMENT_LINK = "plink_1UQtKCLHicydTGP1aeNJjxNF"
 STRIPE_449_PAYMENT_LINK = "plink_1UQtKaLHicydTGP1LHr3CtWE"
 STRIPE_UPGRADE_PAYMENT_LINK = "plink_1UQtKiLHicydTGP1gOmF4Rjd"
-FORM3_URL = "https://form.jotform.com/262887542235061"
 _WEBHOOK_TOLERANCE_S = 300
 _PROCESSED_SESSIONS = set()  # per-instance idempotency; Stripe also dedupes
 
@@ -1409,25 +1408,6 @@ def _intake_door_link(name, email, session_id, door_path=INTAKE_DOOR_PATH):
     if email:
         params["email"] = email
     return SITE_BASE + door_path + "?" + urlencode(params)
-
-
-def _form3_link(name, session_id):
-    """Prefilled Form 3 (Website Change Authorization) link for the
-    upgrade confirmation email. The webhook knows only what the
-    checkout itself carries (the signer's name and this order's
-    payment reference), so those two fields are prefilled here; the
-    business name and website are collected by the form, and the
-    operator's Template 19 companion re-sends the fully prefilled
-    link built from the original order record (prefill pattern:
-    09-email-templates.md, Template 19). Field names are the
-    builder-confirmed Form 3 unique names (2026-10-21).
-    """
-    params = {}
-    if name:
-        params["typeA8"] = name
-    if session_id:
-        params["payment_ref"] = session_id
-    return FORM3_URL + "?" + urlencode(params)
 
 
 def _day0_p(inner_html):
@@ -1461,26 +1441,6 @@ def _day0_intake_step_html(lead, body, door_link):
     ])
 
 
-def _day0_form3_step_html(lead, body, form3_link):
-    """Authorization step of the upgrade email, HTML part: the lead
-    line, then the prefilled Form 3 link rendered as the email's
-    primary button (anchor text "Open your authorization form", per
-    the Template 19 link-presentation rule; the raw URL, prefill
-    params included, lives only in the href and is never displayed),
-    then the explanatory paragraph."""
-    return "".join([
-        _day0_p("<strong>%s</strong> Use this link whenever you are "
-                "ready:" % _esc_html(lead)),
-        '<p style="margin-top:16px;"><a href="%s" '
-        'style="display:inline-block; background-color:#ff4d6d; '
-        'color:#ffffff; font-size:16px; font-weight:700; '
-        'padding:13px 28px; border-radius:99px; '
-        'text-decoration:none;">Open your authorization form</a></p>'
-        % _esc_html(form3_link),
-        _day0_p(_esc_html(body)),
-    ])
-
-
 def _day0_tail_html(paras):
     """Closing paragraphs of a day-0 email (spam note, refunds,
     administrator note, platform note, questions line). The Refunds
@@ -1495,7 +1455,8 @@ def _day0_tail_html(paras):
     return "".join(out)
 
 
-def _day0_email_html(heading, first_name, payment_line, blocks_html):
+def _day0_email_html(heading, first_name, payment_line, blocks_html,
+                     show_next=True):
     """HTML part for the day-0 purchase confirmations (Templates 7
     and 12), added 2026-10-21 so the personalized intake link renders
     as a hyperlink instead of a giant raw URL. Same shell as the
@@ -1505,6 +1466,10 @@ def _day0_email_html(heading, first_name, payment_line, blocks_html):
     blocks_html is the steps + tail HTML built by the caller, so both
     parts carry identical wording.
     """
+    next_html = (
+        '<p style="font-size:15.5px; line-height:1.6; color:#333336; '
+        'margin-top:18px;"><strong>Here is what happens next:</strong></p>'
+        if show_next else "")
     return """<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -1519,8 +1484,7 @@ def _day0_email_html(heading, first_name, payment_line, blocks_html):
 <h1 style="font-size:27px; line-height:1.25; font-weight:800; letter-spacing:-0.01em; color:#1d1d1f; margin:0;">%(heading)s</h1>
 <p style="font-size:16px; line-height:1.6; color:#333336; margin-top:16px;">Hi %(first)s,</p>
 <p style="font-size:15.5px; line-height:1.6; color:#333336; margin-top:14px;">%(payment)s</p>
-<p style="font-size:15.5px; line-height:1.6; color:#333336; margin-top:18px;"><strong>Here is what happens next:</strong></p>
-%(blocks)s
+%(next)s%(blocks)s
 <p style="font-size:15.5px; line-height:1.6; color:#333336; margin-top:24px;">-- Rachael<br>Agent Readiness HQ<br>agentreadinesshq.com</p>
 </td></tr>
 </table>
@@ -1530,41 +1494,43 @@ def _day0_email_html(heading, first_name, payment_line, blocks_html):
         "heading": _esc_html(heading),
         "first": _esc_html(first_name),
         "payment": _esc_html(payment_line),
+        "next": next_html,
         "blocks": blocks_html,
     }
 
 
 def compose_day0_email(first_name, email, session_id, door_link):
-    """Template 7 ($149 purchase confirmation), automated. Adaptations
-    for the new journey, flagged for Caleb's copy review: the intake
-    link points at the scan-first door; step 2 no longer names a domain
-    (the webhook does not know it yet; the door collects it); the
-    template's markdown bold is dropped for plain-text sending.
+    """Template 7 ($149 purchase confirmation), automated. Shortened
+    2026-10-22 (journey simplification, spec section 2): the email is
+    now a recovery receipt, not a journey explainer. It carries only
+    the payment confirmation, ONE next action (the personalized
+    intake-door button/link), a one-line note that report work begins
+    after intake (delivery clock starts at completed intake), the
+    one-line spam-folder note, the refunds paragraph (kept verbatim:
+    it is the durable legal record), and the reply-for-help line. The
+    numbered three-step journey explanation, the SEND TO ADMINISTRATOR
+    block, and the platform note were removed; the journey explanation
+    now lives on the post-payment thanks page only. The intake link
+    still points at the scan-first door, which is also the order's
+    secure resume link (payment_ref rides in its parameters).
 
-    Multipart since 2026-10-21 (Caleb's fix): the HTML part renders
-    the personalized intake link as a "Complete your intake form"
-    button, so it no longer shows as a giant raw URL; the text part
-    keeps the raw URL on its own line under the step-1 lead line.
-    The wording lives in the steps/tail lists below, shared by both
-    parts so they cannot drift apart.
+    Multipart: the HTML part renders the personalized intake link as
+    a "Complete your intake form" button; the text part keeps the
+    raw URL on its own line under the action lead line. The wording
+    lives in the shared lists below so both parts cannot drift apart.
     """
     subject = "Your $149 AI Readiness Report is on its way"
     payment_line = (
         f"Thank you. Your payment of $149 has been received "
         f"(order {session_id}).")
-    steps = [
-        ("1. Intake form.",
-         "It takes about 5 minutes. The first step runs a fresh scan of your website, and most of the form is then already filled in for you. The key step is confirming your business facts. We build your AI Information Page from verified facts only. We never guess at your services, prices, hours, or service areas."),
-        ("2. The audit.",
-         "Once your intake is complete (payment received, intake form submitted, and any follow-up information we asked for to verify your business facts), we run the full audit on your website. This takes up to 5 business days. If we need information from you, the clock pauses until we receive it."),
-        ("3. Your report.",
-         "You receive the full audit, your Agent Readiness HQ score, the prioritized fix list with exact copy and code, your custom AI Information Page, publishing instructions, and a developer handoff."),
-    ]
+    action_lead = "Complete your intake form."
+    action_body = (
+        "It takes about 5 minutes, and most of it is already filled "
+        "in for you.")
     tail = [
-        "Your report will come from this same email address. If it does not appear by the delivery date, please check your spam or junk folder, and mark our messages Not Junk so they reach your inbox.",
+        "We start work on your report once your intake is complete; your delivery clock starts at completed intake.",
+        "Your report will come from this same email address. If it does not appear, please check your spam or junk folder, and mark our messages Not Junk so they reach your inbox.",
         "Refunds: If you cancel before we start work, you get a full refund. Once your customized report is delivered, the $149 fee is non-refundable.",
-        "SEND TO ADMINISTRATOR: If your web person handles your site, forward them this email and the report when it arrives. The report includes a dedicated developer handoff section with everything technical in one place.",
-        "Note: some fixes depend on your website platform and plan. We check your platform as part of the audit, and your report states plainly what your platform does and does not allow, so you will know exactly what can and cannot be implemented.",
         "Questions in the meantime? Just reply to this email.",
     ]
     lines = [
@@ -1572,15 +1538,11 @@ def compose_day0_email(first_name, email, session_id, door_link):
         "",
         payment_line,
         "",
-        "Here is what happens next:",
-        "",
-        f"{steps[0][0]} Use this link whenever you are ready:",
+        f"{action_lead} Use this link whenever you are ready:",
         door_link,
-        steps[0][1],
+        action_body,
         "",
     ]
-    for lead, body in steps[1:]:
-        lines += [f"{lead} {body}", ""]
     for para in tail:
         lines += [para, ""]
     lines += [
@@ -1589,8 +1551,7 @@ def compose_day0_email(first_name, email, session_id, door_link):
         "agentreadinesshq.com",
     ]
     blocks_html = "".join(
-        [_day0_intake_step_html(steps[0][0], steps[0][1], door_link)]
-        + [_day0_step_html(lead, body) for lead, body in steps[1:]]
+        [_day0_intake_step_html(action_lead, action_body, door_link)]
         + [_day0_tail_html(tail)])
     msg = EmailMessage()
     msg["From"] = f"Agent Readiness HQ <{RESULTS_FROM}>"
@@ -1599,11 +1560,9 @@ def compose_day0_email(first_name, email, session_id, door_link):
     msg.set_content("\n".join(lines))
     msg.add_alternative(
         _day0_email_html(subject, first_name, payment_line,
-                         blocks_html),
+                         blocks_html, show_next=False),
         subtype="html")
     return msg
-
-
 
 
 def compose_order_notice(name, email, session_id, amount_paid, day0_sent):
@@ -1628,7 +1587,7 @@ def compose_order_notice(name, email, session_id, amount_paid, day0_sent):
         "payment_status: paid",
         "status: INTAKE_PENDING",
         "notes: Order recorded automatically by the Stripe webhook. "
-        "Reminders at day 3, day 7, day 14 after payment if intake is still missing.",
+        "Reminders at day 3 and day 14 after payment if intake is still missing.",
     ]
     msg = EmailMessage()
     msg["From"] = f"Agent Readiness HQ <{RESULTS_FROM}>"
@@ -1639,41 +1598,37 @@ def compose_order_notice(name, email, session_id, amount_paid, day0_sent):
 
 
 def compose_day0_email_449(first_name, email, session_id, door_link):
-    """Template 12 ($449 purchase confirmation), automated. Adaptations
-    for the pay-first journey, flagged for Caleb's copy review: the
-    intake link points at the scan-first door (intake-449); step 1 no
-    longer names a domain (the webhook does not know it yet; the door
-    collects it); the template's markdown bold is dropped for
-    plain-text sending. Payment is not authorization, and the
-    10-business-day clock starts only when all four prerequisites are
-    complete: completed intake, signed authorization, written approval
-    of the specific change list, and confirmed working website access.
+    """Template 12 ($449 purchase confirmation), automated. Shortened
+    2026-10-22 (journey simplification, spec section 5): the email is
+    now a recovery receipt, not a journey explainer. It carries only
+    the payment confirmation, ONE next action (the personalized
+    intake-door button/link, intake-449 door), a one-line note that
+    work on the report and proposed changes begins after intake plus
+    the short section-10 clock sentence, the refunds paragraph (kept
+    verbatim: it is the durable legal record), and the reply-for-help
+    line. Removed: the numbered four-step journey explanation
+    (authorization / access / implementation steps) and the long
+    four-prerequisite clock paragraph; the journey explanation now
+    lives on the post-payment thanks page only. The intake link is
+    also the order's secure resume link (payment_ref rides in its
+    parameters).
 
-    Multipart since 2026-10-21 (Caleb's fix): the HTML part renders
-    the personalized intake link as a "Complete your intake form"
-    button, so it no longer shows as a giant raw URL; the text part
-    keeps the raw URL on its own line under the step-1 lead line.
-    The wording lives in the steps/tail lists below, shared by both
-    parts so they cannot drift apart.
+    Multipart: the HTML part renders the personalized intake link as
+    a "Complete your intake form" button; the text part keeps the
+    raw URL on its own line under the action lead line. The wording
+    lives in the shared lists below so both parts cannot drift apart.
     """
     subject = "Your $449 Done-for-You is confirmed"
     payment_line = (
         f"Thank you. Your payment of $449 has been received "
         f"(order {session_id}).")
-    steps = [
-        ("1. Intake form.",
-         "It takes about 5 minutes. The first step gathers a few initial details about your business and your website, and most of the form is then already filled in for you. The key step is confirming your business facts. We build your AI Information Page from verified facts only. We never guess at your services, prices, hours, or service areas."),
-        ("2. Authorization.",
-         "After your intake, we analyze your website and prepare a specific list of proposed changes. We email you that list with a short authorization form covering exactly those changes. Your payment does not authorize changes by itself; nothing is changed on your website until you review the list and sign."),
-        ("3. Temporary access.",
-         "After you sign, we send step by step instructions for creating temporary website access for us, with the minimum permissions needed (or a platform invitation). You create the login yourself; we never ask for your password. Access is removed when the work is done."),
-        ("4. Implementation.",
-         "Within 10 business days after all of the following are complete: (1) completed intake, (2) signed authorization, (3) written approval of the specific change list, and (4) confirmed working website access. The clock does not start until all four are received. If we are waiting on information, access, approval, or a decision from you, the clock pauses until we receive it. Implementation covers the approved improvements from your report. What can be implemented depends on your website platform and the access you provide; if a platform cannot support an approved change, we will tell you plainly and document the alternative in your report. You get a before-and-after report documenting every change, with undo instructions."),
-    ]
+    action_lead = "Complete your intake form."
+    action_body = (
+        "It takes about 5 minutes, and most of it is already filled "
+        "in for you.")
     tail = [
-        "Your report will come from this same email address. If it does not appear by the delivery date, please check your spam or junk folder, and mark our messages Not Junk so they reach your inbox.",
+        "We start on your report and proposed changes once your intake is complete. Your 10-business-day implementation period begins once we have your approved changes and working website access.",
         "Refunds: If you cancel before we begin work, you get a full refund. If you cancel after we start analysis but before implementation begins, we refund the portion of the work not performed. Once implementation begins, the fee is non-refundable.",
-        "SEND TO ADMINISTRATOR: If someone else manages your website, forward them this email. The access instructions will need their help, and the authorization form may need the site owner's signature.",
         "Questions in the meantime? Just reply to this email.",
     ]
     lines = [
@@ -1681,15 +1636,11 @@ def compose_day0_email_449(first_name, email, session_id, door_link):
         "",
         payment_line,
         "",
-        "Here is what happens next:",
-        "",
-        f"{steps[0][0]} Use this link whenever you are ready:",
+        f"{action_lead} Use this link whenever you are ready:",
         door_link,
-        steps[0][1],
+        action_body,
         "",
     ]
-    for lead, body in steps[1:]:
-        lines += [f"{lead} {body}", ""]
     for para in tail:
         lines += [para, ""]
     lines += [
@@ -1698,8 +1649,7 @@ def compose_day0_email_449(first_name, email, session_id, door_link):
         "agentreadinesshq.com",
     ]
     blocks_html = "".join(
-        [_day0_intake_step_html(steps[0][0], steps[0][1], door_link)]
-        + [_day0_step_html(lead, body) for lead, body in steps[1:]]
+        [_day0_intake_step_html(action_lead, action_body, door_link)]
         + [_day0_tail_html(tail)])
     msg = EmailMessage()
     msg["From"] = f"Agent Readiness HQ <{RESULTS_FROM}>"
@@ -1708,11 +1658,9 @@ def compose_day0_email_449(first_name, email, session_id, door_link):
     msg.set_content("\n".join(lines))
     msg.add_alternative(
         _day0_email_html(subject, first_name, payment_line,
-                         blocks_html),
+                         blocks_html, show_next=False),
         subtype="html")
     return msg
-
-
 
 
 def compose_order_notice_449(name, email, session_id, amount_paid, day0_sent):
@@ -1737,7 +1685,7 @@ def compose_order_notice_449(name, email, session_id, amount_paid, day0_sent):
         "payment_status: paid",
         "status: INTAKE_PENDING",
         "notes: Order recorded automatically by the Stripe webhook. "
-        "Reminders at day 3, day 7, day 14 after payment if intake is still missing. "
+        "Reminders at day 3 and day 14 after payment if intake is still missing. "
         "The 10 business day fulfillment clock starts only when completed intake, "
         "signed authorization, written approval of the change list, and confirmed "
         "working access are all in hand.",
@@ -1750,42 +1698,35 @@ def compose_order_notice_449(name, email, session_id, amount_paid, day0_sent):
     return msg
 
 
-def compose_upgrade_email(first_name, email, session_id, form3_link):
-    """Post-upgrade confirmation ($149 to $449 upgrade), automated.
-    Canonized as Template 20 in 09-email-templates.md. The customer
-    already holds their $149 report and their intake facts carry
-    over, so there is no intake step: the next steps are the signed
-    authorization (Form 3, prefilled with the signer name and this
-    order's payment reference), written approval of the change list
-    from their report, and temporary access. Payment is not
-    authorization, and the 10-business-day clock starts only when
-    completed intake (already on file), signed authorization,
-    written approval of the specific change list, and confirmed
-    working website access are all in hand. Wording reuses the
-    approved Template 12 steps and Template 19 authorization
-    language; multipart like the day-0 emails, with the Form 3 link
-    rendered as a button in the HTML part and kept on its own line
-    in the text part.
+def compose_upgrade_email(first_name, email, session_id):
+    """Template 20 (post-upgrade confirmation, $149 to $449),
+    automated. Rewritten 2026-10-22 (journey simplification, spec
+    section 14): a SHORT RECEIPT ONLY. The old version carried a
+    partially prefilled Form 3 authorization link plus a four-step
+    authorization/access/implementation explainer, and the operator
+    then sent Template 19 with a second, fully prefilled Form 3 link:
+    two authorization asks for one signature. That double
+    authorization is eliminated. This receipt carries no form link
+    and no step list: payment confirmed, the $149 credit and
+    intake-facts carry-over, the line that the approval and access
+    step comes next, and the reply-for-help line. The single proper
+    approval/access interaction follows separately: once the $449
+    report and change list are reviewed, the operator sends the
+    merged Template 18 delivery email containing the proposed
+    changes and the combined "Approve changes & set up access" form
+    link (see compose_order_notice_upgrade). Implemented per spec
+    section 14; Workstream B's documentation of the new flow in
+    pre-launch-package/09 and /10 was not yet present when this was
+    written (files still dated 2026-10-21).
     """
-    subject = "Your upgrade to Done-for-You is confirmed"
+    subject = "Your Done For You upgrade is confirmed"
     payment_line = (
         f"Thank you. Your upgrade payment of $300 has been received "
         f"(order {session_id}). Your original $149 is credited in "
         f"full, and your audit and intake facts carry over.")
-    steps = [
-        ("1. Authorization.",
-         "Please sign the Website Change Authorization so we can start work on your site. The form covers exactly the changes proposed from your report, and nothing more. Your payment by itself does not authorize changes, and nothing on your website changes until you sign."),
-        ("2. Change list approval.",
-         "The authorization form names the specific change list from your report, so signing it is your written approval of that list. If you want anything changed on the list, tell us before you sign and we will update it."),
-        ("3. Temporary access.",
-         "After you sign, we send step by step instructions for creating temporary website access for us, with the minimum permissions needed (or a platform invitation), including the access guide for your website platform, which we already have on file from your audit. You create the login yourself; we never ask for your password. Access is removed when the work is done."),
-        ("4. Implementation.",
-         "Within 10 business days after all of the following are complete: (1) completed intake, (2) signed authorization, (3) written approval of the specific change list, and (4) confirmed working website access. Your intake is already on file, so it counts as complete. The clock does not start until all four are received. If we are waiting on information, access, approval, or a decision from you, the clock pauses until we receive it. Implementation covers the approved improvements from your report. What can be implemented depends on your website platform and the access you provide; if a platform cannot support an approved change, we will tell you plainly and document the alternative in your report. You get a before-and-after report documenting every change, with undo instructions."),
-    ]
-    tail = [
-        "Your before-and-after report will come from this same email address. If it does not appear by the delivery date, please check your spam or junk folder, and mark our messages Not Junk so they reach your inbox.",
-        "Refunds: If you cancel before we begin work, you get a full refund. If you cancel after we start analysis but before implementation begins, we refund the portion of the work not performed. Once implementation begins, the fee is non-refundable.",
-        "SEND TO ADMINISTRATOR: If someone else manages your website, forward them this email. The access instructions will need their help, and the authorization form may need the site owner's signature.",
+    paras = [
+        "We'll send your approval and access step next.",
+        "That email will include the proposed changes from your report, with one form to approve them and set up temporary website access.",
         "Questions in the meantime? Just reply to this email.",
     ]
     lines = [
@@ -1793,26 +1734,15 @@ def compose_upgrade_email(first_name, email, session_id, form3_link):
         "",
         payment_line,
         "",
-        "Here is what happens next:",
-        "",
-        f"{steps[0][0]} Use this link whenever you are ready:",
-        form3_link,
-        steps[0][1],
-        "",
     ]
-    for lead, body in steps[1:]:
-        lines += [f"{lead} {body}", ""]
-    for para in tail:
+    for para in paras:
         lines += [para, ""]
     lines += [
         "-- Rachael",
         "Agent Readiness HQ",
         "agentreadinesshq.com",
     ]
-    blocks_html = "".join(
-        [_day0_form3_step_html(steps[0][0], steps[0][1], form3_link)]
-        + [_day0_step_html(lead, body) for lead, body in steps[1:]]
-        + [_day0_tail_html(tail)])
+    blocks_html = _day0_tail_html(paras)
     msg = EmailMessage()
     msg["From"] = f"Agent Readiness HQ <{RESULTS_FROM}>"
     msg["To"] = email
@@ -1820,7 +1750,7 @@ def compose_upgrade_email(first_name, email, session_id, form3_link):
     msg.set_content("\n".join(lines))
     msg.add_alternative(
         _day0_email_html(subject, first_name, payment_line,
-                         blocks_html),
+                         blocks_html, show_next=False),
         subtype="html")
     return msg
 
@@ -1837,8 +1767,8 @@ def compose_order_notice_upgrade(name, email, session_id, amount_paid,
     """
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     lines = [
-        "A $300 upgrade payment ($149 to $449) was confirmed by Stripe (webhook). Post-upgrade confirmation email "
-        + ("sent to the customer." if day0_sent else "FAILED to send; send Template 20 by hand."),
+        "A $300 upgrade payment ($149 to $449) was confirmed by Stripe (webhook). Short Template 20 receipt "
+        + ("sent to the customer." if day0_sent else "FAILED to send; send the Template 20 receipt by hand."),
         "",
         f"order_id: {session_id}",
         f"order_date: {today}",
@@ -1853,11 +1783,13 @@ def compose_order_notice_upgrade(name, email, session_id, amount_paid,
         "notes: UPGRADE of the customer's $149 order. File as its own tracker row "
         "(product 449, amount_paid 300.00) with a note linking back to the original "
         "order_id, matched by customer email. Intake facts carry over; no new intake. "
-        "Next steps: signed authorization, written approval of the change list, "
-        "confirmed working access. The 10 business day clock starts only when "
-        "completed intake (already on file), signed authorization, written approval "
-        "of the change list, and confirmed working access are all in hand.",
-    ]
+        "The customer received a short receipt only: no authorization link, no step "
+        "list. Next step: once the $449 report and change list are reviewed (Caleb "
+        "review gate), send the merged Template 18 delivery email with the combined "
+        "'Approve changes & set up access' form link, so the customer gets ONE "
+        "approval/access interaction containing the actual change list. The "
+        "10-business-day implementation period begins once we have the approved "
+        "changes and working website access.",]
     msg = EmailMessage()
     msg["From"] = f"Agent Readiness HQ <{RESULTS_FROM}>"
     msg["To"] = RESULTS_FROM
@@ -1942,10 +1874,10 @@ def process_checkout_completed(session):
             first_name, email, session_id, door_link)
         notice_factory = lambda: compose_order_notice_449(  # noqa: E731
             name, email, session_id, amount_paid, day0_sent)
-    else:  # upgrade: no intake door; the next step is the authorization
-        form3_link = _form3_link(name, session_id)
+    else:  # upgrade: short receipt only; approval+access follows in
+        # the merged Template 18 delivery (spec section 14, 2026-10-22)
         day0_factory = lambda: compose_upgrade_email(  # noqa: E731
-            first_name, email, session_id, form3_link)
+            first_name, email, session_id)
         notice_factory = lambda: compose_order_notice_upgrade(  # noqa: E731
             name, email, session_id, amount_paid, day0_sent)
 
