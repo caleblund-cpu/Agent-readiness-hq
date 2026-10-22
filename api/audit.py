@@ -1395,6 +1395,8 @@ STRIPE_449_PAYMENT_LINK = "plink_1UQtKaLHicydTGP1LHr3CtWE"
 STRIPE_UPGRADE_PAYMENT_LINK = "plink_1UQtKiLHicydTGP1gOmF4Rjd"
 _WEBHOOK_TOLERANCE_S = 300
 _PROCESSED_SESSIONS = set()  # per-instance idempotency; Stripe also dedupes
+_PAID_EMAILS = set()  # buyer emails (lowercased) from processed checkouts;
+# per-instance, like _PROCESSED_SESSIONS — consulted by do_POST (D-1 fix)
 
 
 def _intake_door_link(name, email, session_id, door_path=INTAKE_DOOR_PATH):
@@ -1855,6 +1857,11 @@ def process_checkout_completed(session):
     details = session.get("customer_details") or {}
     email = str(details.get("email") or session.get("customer_email") or "").strip()
     name = str(details.get("name") or "").strip()
+    if email and _EMAIL_RE.match(email):
+        # Remember the buyer so a later public re-scan does not send
+        # them the free-scan results (sales) email again (defect D-1).
+        # Lowercased to match _clean_lead's normalization scan-side.
+        _PAID_EMAILS.add(email.lower())
     first_name = name.split()[0] if name else "there"
     default_cents = {149: 14900, 449: 44900, "upgrade": 30000}[tier]
     try:
@@ -2136,6 +2143,13 @@ class handler(BaseHTTPRequestHandler):
         first_name, lead_email = _clean_lead(data)
         suppress_email = isinstance(data, dict) and bool(
             data.get("suppress_email"))
+        if lead_email and lead_email in _PAID_EMAILS:
+            # Paid buyer re-running the public scan (defect D-1,
+            # 2026-10-22): the full report still returns and renders
+            # on-page, but the results email is a sales copy and a
+            # buyer never gets it twice. Same skip as the flag above.
+            suppress_email = True
+            report["email_suppressed"] = "paid_buyer"
         if first_name and lead_email and not suppress_email:
             report["email_sent"] = send_results_email(
                 first_name, lead_email, report)
