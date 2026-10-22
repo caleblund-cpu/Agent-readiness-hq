@@ -1241,6 +1241,7 @@ def compose_results_email(first_name, email, report):
         "",
         "Thanks,",
         "Agent Readiness HQ",
+        "hello@agentreadinesshq.com",
     ]
     msg = EmailMessage()
     msg["From"] = f"Agent Readiness HQ <{RESULTS_FROM}>"
@@ -1572,7 +1573,7 @@ def _day0_email_html(heading, first_name, payment_line, blocks_html,
 <p style="font-size:16px; line-height:1.6; color:#333336; margin-top:16px;">Hi %(first)s,</p>
 <p style="font-size:15.5px; line-height:1.6; color:#333336; margin-top:14px;">%(payment)s</p>
 %(next)s%(blocks)s
-<p style="font-size:15.5px; line-height:1.6; color:#333336; margin-top:24px;">Agent Readiness HQ<br>agentreadinesshq.com</p>
+<p style="font-size:15.5px; line-height:1.6; color:#333336; margin-top:24px;">Thanks,<br>Agent Readiness HQ<br>hello@agentreadinesshq.com</p>
 </td></tr>
 </table>
 </td></tr>
@@ -1633,8 +1634,9 @@ def compose_day0_email(first_name, email, session_id, door_link):
     for para in tail:
         lines += [para, ""]
     lines += [
+        "Thanks,",
         "Agent Readiness HQ",
-        "agentreadinesshq.com",
+        "hello@agentreadinesshq.com",
     ]
     blocks_html = "".join(
         [_day0_intake_step_html(action_lead, action_body, door_link)]
@@ -1730,8 +1732,9 @@ def compose_day0_email_449(first_name, email, session_id, door_link):
     for para in tail:
         lines += [para, ""]
     lines += [
+        "Thanks,",
         "Agent Readiness HQ",
-        "agentreadinesshq.com",
+        "hello@agentreadinesshq.com",
     ]
     blocks_html = "".join(
         [_day0_intake_step_html(action_lead, action_body, door_link)]
@@ -1823,8 +1826,9 @@ def compose_upgrade_email(first_name, email, session_id):
     for para in paras:
         lines += [para, ""]
     lines += [
+        "Thanks,",
         "Agent Readiness HQ",
-        "agentreadinesshq.com",
+        "hello@agentreadinesshq.com",
     ]
     blocks_html = _day0_tail_html(paras)
     msg = EmailMessage()
