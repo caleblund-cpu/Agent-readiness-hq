@@ -1398,6 +1398,91 @@ _PROCESSED_SESSIONS = set()  # per-instance idempotency; Stripe also dedupes
 _PAID_EMAILS = set()  # buyer emails (lowercased) from processed checkouts;
 # per-instance, like _PROCESSED_SESSIONS — consulted by do_POST (D-1 fix)
 
+# --- Durable paid-buyer store (D-1 durability upgrade, 2026-10-22) -------
+# _PAID_EMAILS is only a per-instance cache: a cold instance has never
+# seen the checkout, so without a durable record it would send a paid
+# buyer the free-scan results (sales) email again. The durable record
+# lives in the private Vercel Blob store "agent-readiness-paid-buyers"
+# (BLOB_READ_WRITE_TOKEN is injected into the project env by the store
+# connection): one tiny JSON blob per buyer, pathname keyed by the
+# normalized email, value {"session": ..., "ts": ...}. Checkout writes
+# it; do_POST consults it on a cache miss and warms the cache on a hit.
+# EVERY store call is failure-isolated: any error (including "token not
+# configured") falls back to the in-memory behavior and is logged — the
+# store can never break a scan or a checkout.
+_BLOB_API = "https://vercel.com/api/blob"
+_PAID_PATH_PREFIX = "paid-buyers/v1/"
+
+
+def _blob_token():
+    return (os.environ.get("BLOB_READ_WRITE_TOKEN") or "").strip()
+
+
+def _paid_pathname(email):
+    return _PAID_PATH_PREFIX + email + ".json"
+
+
+def _paid_store_write(email, session_id):
+    """Persist the paid record for email (already lowercased)."""
+    token = _blob_token()
+    if not token:
+        return
+    body = json.dumps({"session": session_id or "",
+                       "ts": datetime.now(timezone.utc).isoformat()})
+    try:
+        resp = requests.put(
+            _BLOB_API + "/",
+            params={"pathname": _paid_pathname(email)},
+            data=body.encode("utf-8"),
+            headers={"Authorization": f"Bearer {token}",
+                     "x-api-version": "12",
+                     "x-vercel-blob-access": "private",
+                     "x-add-random-suffix": "0",
+                     "x-allow-overwrite": "1",
+                     "x-content-type": "application/json"},
+            timeout=3)
+        if resp.status_code != 200:
+            print(f"paid-store: write for {email} returned "
+                  f"HTTP {resp.status_code}; memory-only record kept")
+    except Exception as exc:  # never break checkout processing
+        print(f"paid-store: write for {email} failed ({exc!r}); "
+              "memory-only record kept")
+
+
+def _paid_store_has(email):
+    """True only on a confirmed durable record for email."""
+    token = _blob_token()
+    if not token:
+        return False
+    try:
+        resp = requests.get(
+            _BLOB_API + "/",
+            params={"url": _paid_pathname(email)},
+            headers={"Authorization": f"Bearer {token}",
+                     "x-api-version": "12"},
+            timeout=3)
+    except Exception as exc:  # store trouble must never break a scan
+        print(f"paid-store: read for {email} failed ({exc!r}); "
+              "falling back to memory-only suppression")
+        return False
+    if resp.status_code == 200:
+        return True
+    if resp.status_code != 404:
+        print(f"paid-store: read for {email} returned "
+              f"HTTP {resp.status_code}; treating as not-paid")
+    return False
+
+
+def _is_paid_buyer(email):
+    """Suppression lookup: in-memory cache first, durable store second;
+    a durable hit warms the cache for the rest of this instance's life."""
+    if email in _PAID_EMAILS:
+        return True
+    if _paid_store_has(email):
+        _PAID_EMAILS.add(email)
+        return True
+    return False
+
 
 def _intake_door_link(name, email, session_id, door_path=INTAKE_DOOR_PATH):
     """Personalized link to the scan-first intake door. Carries exactly
@@ -1862,6 +1947,9 @@ def process_checkout_completed(session):
         # them the free-scan results (sales) email again (defect D-1).
         # Lowercased to match _clean_lead's normalization scan-side.
         _PAID_EMAILS.add(email.lower())
+        # Durable copy in the Blob paid-buyer store, so suppression
+        # survives cold instances and restarts (D-1 durability).
+        _paid_store_write(email.lower(), session_id)
     first_name = name.split()[0] if name else "there"
     default_cents = {149: 14900, 449: 44900, "upgrade": 30000}[tier]
     try:
@@ -2144,7 +2232,7 @@ class handler(BaseHTTPRequestHandler):
         first_name, lead_email = _clean_lead(data)
         suppress_email = isinstance(data, dict) and bool(
             data.get("suppress_email"))
-        if lead_email and lead_email in _PAID_EMAILS:
+        if lead_email and _is_paid_buyer(lead_email):
             # Paid buyer re-running the public scan (defect D-1,
             # 2026-10-22): the full report still returns and renders
             # on-page, but the results email is a sales copy and a
