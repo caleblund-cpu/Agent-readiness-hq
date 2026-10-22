@@ -2063,6 +2063,7 @@ class handler(BaseHTTPRequestHandler):
             "intake-149.html": "text/html; charset=utf-8",
             "thanks-449.html": "text/html; charset=utf-8",
             "intake-449.html": "text/html; charset=utf-8",
+            "intake-thanks.html": "text/html; charset=utf-8",
             "thanks-upgrade.html": "text/html; charset=utf-8",
             "packet.html": "text/html; charset=utf-8",
             "blog.html": "text/html; charset=utf-8",
