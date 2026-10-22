@@ -1,0 +1,20 @@
+name: Rename explainer video
+
+on:
+  workflow_dispatch:
+
+jobs:
+  rename:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rename video file and remove placeholder
+        run: |
+          git mv public/video/explainer-no-name-v1-web.mp4 public/video/explainer.mp4
+          rm -f public/video/.gitkeep
+          git config user.name "caleblund-cpu"
+          git config user.email "caleblund-cpu@users.noreply.github.com"
+          git commit -m "Rename explainer video to explainer.mp4; remove placeholder"
+          git push
