@@ -2072,7 +2072,7 @@ class handler(BaseHTTPRequestHandler):
                           "We'll be in touch soon with your fix-it report and "
                           "practical tips for making your business easy for AI "
                           "agents to find, understand, and buy from. "
-                          "— Caleb, Agent Readiness HQ"
+                          "— Agent Readiness HQ"
                       )},
                 timeout=8,
             )
