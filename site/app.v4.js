@@ -25,7 +25,7 @@
   var AUTORESPONSE_TEXT = "Thanks for your interest in Agent Readiness HQ! "
     + "We'll be in touch within one business day with a fix-it report "
     + "and details on our $149 report and $449 done-for-you cleanup. "
-    + "Rachael, Agent Readiness HQ";
+    + "Agent Readiness HQ";
 
   var SITE_URL = "https://agentreadinesshq.com/";
 
@@ -303,7 +303,7 @@
      shown to Caleb on 2026-10-10. */
   var CONTACT_AUTORESPONSE = "Thanks for reaching out to Agent Readiness HQ! "
     + "We've got your message and will get back to you within one business "
-    + "day, Rachael, Agent Readiness HQ";
+    + "day. Agent Readiness HQ";
   var contactForm = document.getElementById("contact-form");
   var contactNote = document.getElementById("contact-note");
   if (contactForm) contactForm.addEventListener("submit", function (e) {

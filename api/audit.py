@@ -1132,7 +1132,7 @@ def _results_email_html(first_name, site, score, grade, checks, platform=None):
 <p style="font-size:15.5px; line-height:1.6; color:#333336; margin-top:12px;">Or just reply to this email with any questions.</p>
 </td></tr>
 </table>
-<p style="font-size:16px; line-height:1.6; color:#333336; margin-top:26px;">Thanks,<br><strong>Rachael Lund</strong><br><span style="color:#5c5c60;">Founder, Agent Readiness HQ</span></p>
+<p style="font-size:16px; line-height:1.6; color:#333336; margin-top:26px;">Thanks,<br><strong>Agent Readiness HQ</strong><br><span style="color:#5c5c60;">hello@agentreadinesshq.com</span></p>
 </td></tr>
 </table>
 </td></tr>
@@ -1240,7 +1240,7 @@ def compose_results_email(first_name, email, report):
         "Or just reply to this email with any questions.",
         "",
         "Thanks,",
-        "Rachael Lund, Founder, Agent Readiness HQ",
+        "Agent Readiness HQ",
     ]
     msg = EmailMessage()
     msg["From"] = f"Agent Readiness HQ <{RESULTS_FROM}>"
@@ -1572,7 +1572,7 @@ def _day0_email_html(heading, first_name, payment_line, blocks_html,
 <p style="font-size:16px; line-height:1.6; color:#333336; margin-top:16px;">Hi %(first)s,</p>
 <p style="font-size:15.5px; line-height:1.6; color:#333336; margin-top:14px;">%(payment)s</p>
 %(next)s%(blocks)s
-<p style="font-size:15.5px; line-height:1.6; color:#333336; margin-top:24px;">-- Rachael<br>Agent Readiness HQ<br>agentreadinesshq.com</p>
+<p style="font-size:15.5px; line-height:1.6; color:#333336; margin-top:24px;">Agent Readiness HQ<br>agentreadinesshq.com</p>
 </td></tr>
 </table>
 </td></tr>
@@ -1633,7 +1633,6 @@ def compose_day0_email(first_name, email, session_id, door_link):
     for para in tail:
         lines += [para, ""]
     lines += [
-        "-- Rachael",
         "Agent Readiness HQ",
         "agentreadinesshq.com",
     ]
@@ -1731,7 +1730,6 @@ def compose_day0_email_449(first_name, email, session_id, door_link):
     for para in tail:
         lines += [para, ""]
     lines += [
-        "-- Rachael",
         "Agent Readiness HQ",
         "agentreadinesshq.com",
     ]
@@ -1825,7 +1823,6 @@ def compose_upgrade_email(first_name, email, session_id):
     for para in paras:
         lines += [para, ""]
     lines += [
-        "-- Rachael",
         "Agent Readiness HQ",
         "agentreadinesshq.com",
     ]
