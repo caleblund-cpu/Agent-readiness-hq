@@ -1782,7 +1782,8 @@ def compose_order_notice_upgrade(name, email, session_id, amount_paid,
         "status: NEW",
         "notes: UPGRADE of the customer's $149 order. File as its own tracker row "
         "(product 449, amount_paid 300.00) with a note linking back to the original "
-        "order_id, matched by customer email. Intake facts carry over; no new intake. "
+        "order_id, matched by customer email. Intake facts carry over; no new intake; "
+        "confirm the intake facts are still current if needed. "
         "The customer received a short receipt only: no authorization link, no step "
         "list. Next step: once the $449 report and change list are reviewed (Caleb "
         "review gate), send the merged Template 18 delivery email with the combined "
