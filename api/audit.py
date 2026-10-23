@@ -1119,7 +1119,7 @@ def _results_email_html(first_name, site, score, grade, checks, platform=None):
         conv.append(
             '<table role="presentation" width="100%" cellpadding="0" '
             'cellspacing="0" style="margin-top:14px; background-color:'
-            '#fff7f8; border:2px solid #ff4d6d; border-radius:12px;">'
+            '#ffffff; border:2px solid #ffd9e1; border-radius:12px;">'
             '<tr><td style="padding:22px 26px;">'
             '<div style="font-size:30px; font-weight:800; '
             'letter-spacing:-0.02em; color:#1d1d1f;">$449</div>'
