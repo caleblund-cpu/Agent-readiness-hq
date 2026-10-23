@@ -254,7 +254,7 @@ body {
   border-radius: 999px;
   padding: 0.3rem 0.9rem;
   margin: 0 0 1rem;
-  min-height: 1.2rem;
+  min-height: 1.8rem;
 }
 .price-card .pill:empty { visibility: hidden; }
 .price-card h3 { font-size: 1.85rem; line-height: 1.25; min-height: 2em; margin: 0 0 0.45rem; }
