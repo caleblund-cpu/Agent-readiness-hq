@@ -1115,8 +1115,8 @@ def _results_email_html(first_name, site, score, grade, checks, platform=None):
         '<div style="border-top:1px solid #f0e6e8; margin-top:22px; '
         'padding-top:22px;">',
         '<h2 style="font-size:21px; line-height:1.3; font-weight:800; '
-        'letter-spacing:-0.01em; color:#1d1d1f; margin:0;">Your score '
-        "is fixable. You don\u2019t need to know how to code.</h2>",
+        'letter-spacing:-0.01em; color:#1d1d1f; margin:0;">We\u2019ll '
+        'help you fix your score.</h2>',
         '<p style="font-size:15.5px; line-height:1.6; color:#333336; '
         'margin-top:10px;">Most of these issues sound more technical '
         "than they are. We turn your results into simple, "
@@ -1144,7 +1144,7 @@ def _results_email_html(first_name, site, score, grade, checks, platform=None):
         'color:#1d1d1f; margin-top:4px;">Show me how</div>'
         '<p style="font-size:15px; line-height:1.55; color:#6e6e73; '
         'margin-top:8px;">Step-by-step instructions + ready-to-use '
-        "content.<br>Copy, paste, publish.</p>"
+        "content: copy, paste, publish.</p>"
         + _email_button_html(STRIPE_149_CHECKOUT_URL, "Show me how")
         + "</td></tr></table>")
     if eligibility == "C":
@@ -1320,8 +1320,7 @@ def compose_results_email(first_name, email, report):
          "limitations": platform.get("limitations") or []})
     lines += [
         "",
-        "Your score is fixable. You don\u2019t need to know how to "
-        "code.",
+        "We\u2019ll help you fix your score.",
         "Most of these issues sound more technical than they are. "
         "We turn your results into simple, plain-English fixes.",
         "",
@@ -1335,8 +1334,8 @@ def compose_results_email(first_name, email, report):
     lines += [
         "$149",
         "Show me how",
-        "Step-by-step instructions + ready-to-use content.",
-        "Copy, paste, publish.",
+        "Step-by-step instructions + ready-to-use content: copy, "
+        "paste, publish.",
         f"Get it here: {STRIPE_149_CHECKOUT_URL}",
         "",
         "$449",
