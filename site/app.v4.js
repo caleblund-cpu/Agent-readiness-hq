@@ -100,13 +100,13 @@
     var url149 = urls.audit_149 || CHECKOUT_URL_149;
     var url449 = urls.done_for_you_449 || CHECKOUT_URL_449;
     html += '<div class="conversion-box">';
-    html += '<h3 class="conversion-headline">Your score is fixable. You don\u2019t need to know how to code.</h3>';
+    html += '<h3 class="conversion-headline">We\u2019ll help you fix your score.</h3>';
     html += '<p class="conversion-sub">Most of these issues sound more technical than they are. We turn your results into simple, plain-English fixes.</p>';
     html += '<div class="offer-cards">';
     html += '<div class="offer-card">';
     html += '<div class="offer-price">$149</div>';
     html += '<div class="offer-name">Show me how</div>';
-    html += '<p class="offer-desc">Step-by-step instructions + ready-to-use content.<br>Copy, paste, publish.</p>';
+    html += '<p class="offer-desc">Step-by-step instructions + ready-to-use content: copy, paste, publish.</p>';
     html += '<a class="btn offer-btn" href="' + esc(url149) + '">Show me how</a>';
     html += "</div>";
     if (elig === "C") {
