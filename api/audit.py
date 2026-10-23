@@ -415,6 +415,32 @@ def platform_offer_line(platform_name, assessment):
     return None
 
 
+def platform_short_line(platform_name, assessment):
+    """The one plain-language sentence shown at the conversion point
+    (results page caveat + results email), Caleb ruling 2026-10-22:
+    universal "limits" wording for B; for C, the sentence explains
+    Done For You is unavailable on this platform. The full technical
+    disclosure stays available verbatim (page: the caveat's expanded
+    state; email: the Platform details section). Returns None for A
+    and unknown, where no limitation sentence applies. Single source:
+    the results page reads this from the scan JSON (platform block),
+    the email composes it with the same function.
+    """
+    eligibility = assessment.get("eligibility")
+    if eligibility == "B":
+        n = len(assessment.get("limitations") or [])
+        return (
+            f"{platform_name} limits {n} of the seven scan "
+            "improvements. You can still address the others, and "
+            "we\u2019ll show you the best available alternative.")
+    if eligibility == "C":
+        return (
+            f"{platform_name} prevents the core parts of Done For "
+            "You, so that option is not available for your site. The "
+            "DIY Audit covers everything that can be done on your "
+            "platform.")
+    return None
+
 
 # ------------------------------------------------------------------ fetch ---
 def make_session():
@@ -848,6 +874,7 @@ def run_audit(raw_url):
             "ceiling_line": assessment["ceiling_line"],
             "limitations": assessment["limitations"],
             "offer_line": platform_offer_line(platform_name, assessment),
+            "short_line": platform_short_line(platform_name, assessment),
             "confirm_line": (None if platform_name
                              else CONFIRM_PLATFORM_LINE),
         }
@@ -864,6 +891,10 @@ def run_audit(raw_url):
             "grade": grade(total_score),
             "checks": results,
             "platform": platform_block,
+            "checkout_urls": {
+                "audit_149": STRIPE_149_CHECKOUT_URL,
+                "done_for_you_449": STRIPE_449_CHECKOUT_URL,
+            },
             "fixes": fixes,
             "errors": errors,
             "duration_s": round(time.perf_counter() - t_start, 2),
@@ -948,18 +979,35 @@ _GRADE_CHIP_STYLE = {
 }
 
 
+def _email_button_html(url, label):
+    """The site's standard rose pill button, email-safe (table cell
+    carries the background; the anchor carries the padding)."""
+    return (
+        '<table role="presentation" cellpadding="0" cellspacing="0" '
+        'style="margin-top:16px;"><tr>'
+        '<td style="background-color:#ff4d6d; border-radius:99px;">'
+        '<a href="%s" style="display:inline-block; padding:13px 32px; '
+        'font-size:16px; font-weight:700; color:#ffffff; '
+        'text-decoration:none;">%s</a></td></tr></table>'
+        % (_esc_html(url), _esc_html(label)))
+
+
 def _results_email_html(first_name, site, score, grade, checks, platform=None):
     """HTML version of the results email, mirroring the on-page results:
     score/grade header, then per check the technical name + score pill,
     the finding line, and the plain-English meaning line. (Per-check
     fixable / platform-limit lines were removed by Caleb ruling
     2026-10-22; each check renders exactly those two parts.)
-    When the scan identified the platform, a platform section follows
-    the checks: the customer's own score ceiling where the platform
-    makes one calculable, and the $449 eligibility disclosure (B) or
-    unavailability statement (C) before any purchase. Table layout +
-    inline styles for email-client compatibility; visual language
-    follows the 2026-10-20 scan-email mock-up Caleb reviewed.
+    After the checks comes the conversion block (Caleb ruling
+    2026-10-22): headline + subline, for B/C the short platform
+    limitation sentence, then the two purchase options as stacked
+    cards with rose pill buttons linking straight to the Stripe
+    checkouts (for C the $449 card is muted, carries no button, and
+    only the $149 button appears). The full technical platform
+    disclosure is preserved verbatim at the end, under a small
+    "Platform details" subhead. Table layout + inline styles for
+    email-client compatibility; visual language follows the
+    2026-10-20 scan-email mock-up Caleb reviewed.
     """
     chip_bg, chip_fg = _GRADE_CHIP_STYLE.get(grade, ("#fdf1d7", "#8a5a00"))
     try:
@@ -1004,62 +1052,126 @@ def _results_email_html(first_name, site, score, grade, checks, platform=None):
                 % _esc_html(meaning))
         block.append("</div>")
         blocks.append("".join(block))
-    # Platform section + offer wording follow the eligibility outcome
-    # computed by the scan (Caleb ruling 2026-10-21). C sites are not
-    # pitched Done For You at all; B sites get the limitation named
-    # beside the offer; unconfirmed platforms get the confirm line.
+    # Conversion block (Caleb ruling 2026-10-22), mirroring the
+    # on-page conversion box: headline + subline; for B/C the short
+    # platform limitation sentence before the purchase choices (email
+    # cannot collapse, so it is a static strip); then the two options
+    # as stacked cards with rose pill buttons to the Stripe checkouts.
+    # For C the $449 card is muted with no button. For an
+    # unidentified platform the confirmation note follows the cards.
     platform = platform or {}
     eligibility = platform.get("eligibility")
-    platform_parts = []
+    short_line = platform_short_line(
+        platform.get("name"),
+        {"eligibility": eligibility,
+         "limitations": platform.get("limitations") or []})
+    conv = [
+        '<div style="border-top:1px solid #f0e6e8; margin-top:22px; '
+        'padding-top:22px;">',
+        '<h2 style="font-size:21px; line-height:1.3; font-weight:800; '
+        'letter-spacing:-0.01em; color:#1d1d1f; margin:0;">Your score '
+        "is fixable. You don\u2019t need to know how to code.</h2>",
+        '<p style="font-size:15.5px; line-height:1.6; color:#333336; '
+        'margin-top:10px;">Most of these issues sound more technical '
+        "than they are. We turn your results into simple, "
+        "plain-English fixes.</p>",
+    ]
+    if eligibility in ("B", "C") and short_line:
+        conv.append(
+            '<div style="margin-top:18px; background-color:#fff7f8; '
+            'border:1px solid #ffd9e1; border-radius:12px; '
+            'padding:16px 20px;">'
+            '<p style="font-size:15.5px; font-weight:700; '
+            'color:#1d1d1f; margin:0;">&#9888; Your website platform '
+            "has a limitation</p>"
+            '<p style="font-size:15px; line-height:1.55; '
+            'color:#333336; margin-top:6px;">%s</p></div>'
+            % _esc_html(short_line))
+    conv.append(
+        '<table role="presentation" width="100%" cellpadding="0" '
+        'cellspacing="0" style="margin-top:18px; background-color:'
+        '#ffffff; border:2px solid #ffd9e1; border-radius:12px;">'
+        '<tr><td style="padding:22px 26px;">'
+        '<div style="font-size:30px; font-weight:800; '
+        'letter-spacing:-0.02em; color:#1d1d1f;">$149</div>'
+        '<div style="font-size:17px; font-weight:700; '
+        'color:#1d1d1f; margin-top:4px;">Show me how</div>'
+        '<p style="font-size:15px; line-height:1.55; color:#6e6e73; '
+        'margin-top:8px;">Step-by-step instructions + ready-to-use '
+        "content.<br>Copy, paste, publish.</p>"
+        + _email_button_html(STRIPE_149_CHECKOUT_URL, "Show me how")
+        + "</td></tr></table>")
+    if eligibility == "C":
+        conv.append(
+            '<table role="presentation" width="100%" cellpadding="0" '
+            'cellspacing="0" style="margin-top:14px; background-color:'
+            '#f4f4f5; border:2px solid #e4e4e7; border-radius:12px;">'
+            '<tr><td style="padding:22px 26px;">'
+            '<div style="font-size:30px; font-weight:800; '
+            'color:#8e8e93;">$449</div>'
+            '<div style="font-size:17px; font-weight:700; '
+            'color:#8e8e93; margin-top:4px;">Do it for me</div>'
+            '<p style="font-size:15px; line-height:1.55; '
+            'color:#8e8e93; margin-top:8px;">Not available on your '
+            "website platform.</p>"
+            "</td></tr></table>")
+    else:
+        conv.append(
+            '<table role="presentation" width="100%" cellpadding="0" '
+            'cellspacing="0" style="margin-top:14px; background-color:'
+            '#fff7f8; border:2px solid #ff4d6d; border-radius:12px;">'
+            '<tr><td style="padding:22px 26px;">'
+            '<div style="font-size:30px; font-weight:800; '
+            'letter-spacing:-0.02em; color:#1d1d1f;">$449</div>'
+            '<div style="font-size:17px; font-weight:700; '
+            'color:#1d1d1f; margin-top:4px;">Do it for me</div>'
+            '<p style="font-size:15px; line-height:1.55; '
+            'color:#6e6e73; margin-top:8px;">We make the approved '
+            "improvements for you.</p>"
+            + _email_button_html(STRIPE_449_CHECKOUT_URL,
+                                 "Do it for me")
+            + "</td></tr></table>")
+    confirm = (platform.get("confirm_line") or "").strip()
+    if confirm:
+        conv.append(
+            '<p style="font-size:14px; line-height:1.55; '
+            'color:#6e6e73; margin-top:16px;">%s</p>'
+            % _esc_html(confirm))
+    conv.append(
+        '<p style="font-size:15.5px; line-height:1.6; color:#333336; '
+        'margin-top:22px;">Your full results are on the page where '
+        "you ran the scan.</p>")
+    conv.append(
+        '<p style="font-size:15.5px; line-height:1.6; color:#333336; '
+        'margin-top:10px;">Or just reply to this email with any '
+        "questions.</p>")
+    conv.append("</div>")
+    conversion_html = "".join(conv)
+    # Platform details: the full technical disclosure, preserved
+    # verbatim (detected line, ceiling paragraph, eligibility
+    # paragraph), at the end of the email under a small subhead in
+    # muted type.
+    detail_parts = []
     if platform.get("detected"):
-        platform_parts.append(
-            '<p style="font-size:15.5px; line-height:1.6; color:#333336; '
-            'margin:0;">Website platform: <strong>%s</strong> '
-            "(detected automatically).</p>"
+        detail_parts.append(
+            '<p style="font-size:13.5px; line-height:1.55; '
+            'color:#6e6e73; margin-top:10px;">Website platform: '
+            "<strong>%s</strong> (detected automatically).</p>"
             % _esc_html(platform.get("name") or ""))
-    for key in ("ceiling_line", "offer_line", "confirm_line"):
+    for key in ("ceiling_line", "offer_line"):
         text = (platform.get(key) or "").strip()
         if text:
-            platform_parts.append(
-                '<p style="font-size:15.5px; line-height:1.6; '
-                'color:#333336; margin-top:10px;">%s</p>'
+            detail_parts.append(
+                '<p style="font-size:13.5px; line-height:1.55; '
+                'color:#6e6e73; margin-top:8px;">%s</p>'
                 % _esc_html(text))
-    platform_html = ""
-    if platform_parts:
-        platform_html = (
-            '<div style="border-top:1px solid #f0e6e8; margin-top:22px; '
-            'padding-top:22px;">' + "".join(platform_parts) + "</div>")
-    if eligibility == "C":
-        offer_html = (
-            "As noted above, Done For You is not available for your "
-            "site's current platform, so the option that fits is the "
-            "DIY Audit ($149): the full picture, everything that can "
-            "be done on your platform, and the materials to do it "
-            "yourself or hand to a developer. You can see it here: "
-            '<a href="https://agentreadinesshq.com/#pricing" '
-            'style="color:#c21847;">https://agentreadinesshq.com/'
-            "#pricing</a>")
-    elif eligibility == "B":
-        offer_html = (
-            "If you'd like help with the fixes, you have two options. "
-            "The DIY Audit ($149) gives you the full picture and the "
-            "materials to fix things yourself. With Done For You "
-            "($449), we make the approved improvements for you, "
-            "within the platform limitations noted above, which we "
-            "disclose before any purchase. You can see both here: "
-            '<a href="https://agentreadinesshq.com/#pricing" '
-            'style="color:#c21847;">https://agentreadinesshq.com/'
-            "#pricing</a>")
-    else:
-        offer_html = (
-            "If you'd like help with the fixes, you have two options. "
-            "The DIY Audit ($149) gives you the full picture and the "
-            "materials to fix things yourself. With Done For You "
-            "($449), we make the approved improvements for you. You "
-            "can see both here: "
-            '<a href="https://agentreadinesshq.com/#pricing" '
-            'style="color:#c21847;">https://agentreadinesshq.com/'
-            "#pricing</a>")
+    details_html = ""
+    if detail_parts:
+        details_html = (
+            '<div style="margin-top:26px;">'
+            '<p style="font-size:13px; font-weight:700; '
+            'letter-spacing:0.05em; color:#8e8e93; margin:0;">'
+            "Platform details</p>" + "".join(detail_parts) + "</div>")
     return """<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -1088,14 +1200,8 @@ def _results_email_html(first_name, site, score, grade, checks, platform=None):
 </table>
 <p style="font-size:15.5px; line-height:1.6; color:#333336; margin-top:20px;">%(site)s scored %(score)s/100 (grade %(grade)s). Here is how the seven checks came out:</p>
 %(checks)s
-%(platform)s
-<table role="presentation" width="100%%" cellpadding="0" cellspacing="0" style="margin-top:30px; background-color:#fff7f8; border:1px solid #ffd9e1; border-radius:12px;">
-<tr><td style="padding:24px 26px;">
-<p style="font-size:15.5px; line-height:1.6; color:#333336; margin:0;">Your full results are on the page where you ran the scan.</p>
-<p style="font-size:15.5px; line-height:1.6; color:#333336; margin-top:12px;">%(offer)s</p>
-<p style="font-size:15.5px; line-height:1.6; color:#333336; margin-top:12px;">Or just reply to this email with any questions.</p>
-</td></tr>
-</table>
+%(conversion)s
+%(details)s
 <p style="font-size:16px; line-height:1.6; color:#333336; margin-top:26px;">Thanks,<br><br><strong>Agent Readiness HQ</strong><br><span style="color:#5c5c60;">hello@agentreadinesshq.com</span></p>
 </td></tr>
 </table>
@@ -1110,8 +1216,8 @@ def _results_email_html(first_name, site, score, grade, checks, platform=None):
         "chip_bg": chip_bg,
         "chip_fg": chip_fg,
         "checks": "".join(blocks),
-        "platform": platform_html,
-        "offer": offer_html,
+        "conversion": conversion_html,
+        "details": details_html,
     }
 
 
@@ -1154,49 +1260,70 @@ def compose_results_email(first_name, email, report):
         meaning = (c.get("meaning") or "").strip()
         if meaning:
             lines.append(f"   {meaning}")
-    # Platform section (Caleb ruling 2026-10-21): the detected
-    # platform, the customer's own ceiling where calculable, the
-    # eligibility disclosure, and the confirm line when the platform
-    # could not be identified.
-    platform_lines = []
-    if platform.get("detected"):
-        platform_lines.append(
-            f"Website platform: {platform.get('name')} "
-            "(detected automatically).")
-    for key in ("ceiling_line", "offer_line", "confirm_line"):
-        text = (platform.get(key) or "").strip()
-        if text:
-            platform_lines.append(text)
-    if platform_lines:
-        lines += [""] + platform_lines
+    # Conversion block (Caleb ruling 2026-10-22), mirroring the
+    # results page and the HTML part: headline + subline; for B/C the
+    # short platform limitation sentence before the choices; the two
+    # options with their checkout links as plain URLs (for C, Done
+    # For You is named unavailable and carries no link); for an
+    # unidentified platform, the confirm line as a note after the
+    # choices. The full technical disclosure follows at the end
+    # under "Platform details:", preserved verbatim.
+    short_line = platform_short_line(
+        platform.get("name"),
+        {"eligibility": eligibility,
+         "limitations": platform.get("limitations") or []})
+    lines += [
+        "",
+        "Your score is fixable. You don\u2019t need to know how to "
+        "code.",
+        "Most of these issues sound more technical than they are. "
+        "We turn your results into simple, plain-English fixes.",
+        "",
+    ]
+    if eligibility in ("B", "C") and short_line:
+        lines += [
+            "\u26a0 Your website platform has a limitation",
+            short_line,
+            "",
+        ]
+    lines += [
+        "$149",
+        "Show me how",
+        "Step-by-step instructions + ready-to-use content.",
+        "Copy, paste, publish.",
+        f"Get it here: {STRIPE_149_CHECKOUT_URL}",
+        "",
+        "$449",
+        "Do it for me",
+    ]
+    if eligibility == "C":
+        lines.append("Not available on your website platform.")
+    else:
+        lines += [
+            "We make the approved improvements for you.",
+            f"Get it here: {STRIPE_449_CHECKOUT_URL}",
+        ]
+    confirm = (platform.get("confirm_line") or "").strip()
+    if confirm:
+        lines += ["", confirm]
     lines += [
         "",
         "Your full results are on the page where you ran the scan.",
         "",
-    ]
-    if eligibility == "C":
-        lines.append(
-            "As noted above, Done For You is not available for your "
-            "site's current platform, so the option that fits is the "
-            "DIY Audit ($149): the full picture, everything that can "
-            "be done on your platform, and the materials to do it "
-            "yourself or hand to a developer. You can see it here: "
-            "https://agentreadinesshq.com/#pricing")
-    elif eligibility == "B":
-        lines.append(
-            "If you'd like help with the fixes, you have two options. "
-            "The DIY Audit ($149) gives you the full picture and the "
-            "materials to fix things yourself. With Done For You "
-            "($449), we make the approved improvements for you, within "
-            "the platform limitations noted above, which we disclose "
-            "before any purchase. You can see both here: "
-            "https://agentreadinesshq.com/#pricing")
-    else:
-        lines.append(
-            "If you'd like help with the fixes, you have two options. The DIY Audit ($149) gives you the full picture and the materials to fix things yourself. With Done For You ($449), we make the approved improvements for you. You can see both here: https://agentreadinesshq.com/#pricing")
-    lines += [
-        "",
         "Or just reply to this email with any questions.",
+    ]
+    detail_lines = []
+    if platform.get("detected"):
+        detail_lines.append(
+            f"Website platform: {platform.get('name')} "
+            "(detected automatically).")
+    for key in ("ceiling_line", "offer_line"):
+        text = (platform.get(key) or "").strip()
+        if text:
+            detail_lines.append(text)
+    if detail_lines:
+        lines += ["", "Platform details:"] + detail_lines
+    lines += [
         "",
         "Thanks,",
         "",
@@ -1354,6 +1481,16 @@ INTAKE_DOOR_PATH_449 = "/intake-449.html"
 STRIPE_149_PAYMENT_LINK = "plink_1UQtKCLHicydTGP1aeNJjxNF"
 STRIPE_449_PAYMENT_LINK = "plink_1UQtKaLHicydTGP1LHr3CtWE"
 STRIPE_UPGRADE_PAYMENT_LINK = "plink_1UQtKiLHicydTGP1gOmF4Rjd"
+# Stripe checkout (payment link) URLs for the free-scan conversion
+# box (Caleb ruling 2026-10-22). These are the same links the pricing
+# section buttons use. Both are ACTIVE sandbox/test-mode links today;
+# at Stripe live activation they swap to the live URLs, the same swap
+# as the pricing buttons. Single config spot for the results
+# surfaces: the results page reads them from the scan JSON
+# (checkout_urls, built from these constants) and the results email
+# uses them directly.
+STRIPE_149_CHECKOUT_URL = "https://buy.stripe.com/test_aFadRa9aIe4adNv2uxeAg00"
+STRIPE_449_CHECKOUT_URL = "https://buy.stripe.com/test_bJe4gA86EaRYfVDd9beAg01"
 _WEBHOOK_TOLERANCE_S = 300
 _PROCESSED_SESSIONS = set()  # per-instance idempotency; Stripe also dedupes
 _PAID_EMAILS = set()  # buyer emails (lowercased) from processed checkouts;

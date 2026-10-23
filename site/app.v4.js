@@ -29,6 +29,15 @@
 
   var SITE_URL = "https://agentreadinesshq.com/";
 
+  /* Stripe checkout links for the results conversion box. Both are
+     ACTIVE sandbox/test-mode payment links today (the same links the
+     pricing-section buttons use); at Stripe live activation they swap
+     to the live URLs. renderResults prefers the pair returned in the
+     scan JSON (checkout_urls, whose single config spot is audit.py);
+     these constants are the fallback if a response lacks them. */
+  var CHECKOUT_URL_149 = "https://buy.stripe.com/test_aFadRa9aIe4adNv2uxeAg00";
+  var CHECKOUT_URL_449 = "https://buy.stripe.com/test_bJe4gA86EaRYfVDd9beAg01";
+
   var auditForm = document.getElementById("audit-form");
   var urlInput = document.getElementById("site-url");
   var auditBtn = document.getElementById("audit-btn");
@@ -74,6 +83,75 @@
     html += '<div class="score-url">' + esc(report.url) + "</div>";
     html += "</div>";
 
+    /* Conversion box (Caleb ruling 2026-10-22): immediately after the
+       score, before the technical findings. Reassurance + the two
+       options, buttons only (never whole-card links), each button
+       linking straight to its Stripe checkout. Eligibility comes from
+       the scan: A/unknown both buttons active; B both active with the
+       platform caveat directly underneath; C keeps the $449 card
+       visible but muted and non-clickable. No timing, fulfillment,
+       authorization, or process copy inside the box. */
+    var pf = report.platform || {};
+    var elig = pf.eligibility || "unknown";
+    var urls = report.checkout_urls || {};
+    var url149 = urls.audit_149 || CHECKOUT_URL_149;
+    var url449 = urls.done_for_you_449 || CHECKOUT_URL_449;
+    html += '<div class="conversion-box">';
+    html += '<h3 class="conversion-headline">Your score is fixable. You don\u2019t need to know how to code.</h3>';
+    html += '<p class="conversion-sub">Most of these issues sound more technical than they are. We turn your results into simple, plain-English fixes.</p>';
+    html += '<div class="offer-cards">';
+    html += '<div class="offer-card">';
+    html += '<div class="offer-price">$149</div>';
+    html += '<div class="offer-name">Show me how</div>';
+    html += '<p class="offer-desc">Step-by-step instructions + ready-to-use content.<br>Copy, paste, publish.</p>';
+    html += '<a class="btn offer-btn" href="' + esc(url149) + '">Show me how</a>';
+    html += "</div>";
+    if (elig === "C") {
+      html += '<div class="offer-card offer-unavailable">';
+      html += '<div class="offer-price">$449</div>';
+      html += '<div class="offer-name">Do it for me</div>';
+      html += '<p class="offer-desc">Not available on your website platform.</p>';
+      html += "</div>";
+    } else {
+      html += '<div class="offer-card featured">';
+      html += '<div class="offer-price">$449</div>';
+      html += '<div class="offer-name">Do it for me</div>';
+      html += '<p class="offer-desc">We make the approved improvements for you.</p>';
+      html += '<a class="btn offer-btn" href="' + esc(url449) + '">Do it for me</a>';
+      html += "</div>";
+    }
+    html += "</div>";
+    html += "</div>";
+
+    /* Platform caveat (2026-10-22): for B/C, a collapsed plain-language
+       warning directly under the conversion box; "See details" expands
+       (native <details>) to the full technical disclosure, preserved
+       verbatim (detected line, ceiling paragraph, offer paragraph).
+       For an unidentified platform, the existing confirmation line
+       stays as a small note under the box. A: nothing. */
+    if ((elig === "B" || elig === "C") && pf.short_line) {
+      var dl = "";
+      if (pf.detected) {
+        dl += '<p class="platform-line"><strong>Website platform:</strong> ' + esc(pf.name) + " (detected automatically).</p>";
+      }
+      if (pf.ceiling_line) {
+        dl += '<p class="platform-line">' + esc(pf.ceiling_line) + "</p>";
+      }
+      if (pf.offer_line) {
+        dl += '<p class="platform-line">' + esc(pf.offer_line) + "</p>";
+      }
+      html += '<details class="platform-caveat">';
+      html += "<summary>";
+      html += '<span class="caveat-title">\u26a0 Your website platform has a limitation</span>';
+      html += '<span class="caveat-line">' + esc(pf.short_line) + "</span>";
+      html += '<span class="caveat-more">See details <span class="caveat-chev">\u203a</span></span>';
+      html += "</summary>";
+      html += '<div class="caveat-body">' + dl + "</div>";
+      html += "</details>";
+    } else if (elig === "unknown" && pf.confirm_line) {
+      html += '<p class="platform-confirm-note">' + esc(pf.confirm_line) + "</p>";
+    }
+
     html += '<ul class="result-checks">';
     (report.checks || []).forEach(function (c) {
       html += '<li class="check-' + esc(c.status) + '">';
@@ -102,32 +180,10 @@
     });
     html += "</ul>";
 
-    /* Platform block (2026-10-21): detected platform, the customer's
-       own score ceiling where the platform makes one calculable, the
-       $449 eligibility disclosure (limitations named beside the
-       offer, or Done For You stated unavailable for this platform
-       configuration), and the confirm-your-platform line when the
-       scan could not identify the platform. All copy is server-side,
-       shared with the results email. */
-    var pf = report.platform;
-    if (pf) {
-      var plines = "";
-      if (pf.detected) {
-        plines += '<p class="platform-line"><strong>Website platform:</strong> ' + esc(pf.name) + " (detected automatically).</p>";
-      }
-      if (pf.ceiling_line) {
-        plines += '<p class="platform-line">' + esc(pf.ceiling_line) + "</p>";
-      }
-      if (pf.offer_line) {
-        plines += '<p class="platform-line">' + esc(pf.offer_line) + "</p>";
-      }
-      if (pf.confirm_line) {
-        plines += '<p class="platform-line">' + esc(pf.confirm_line) + "</p>";
-      }
-      if (plines) {
-        html += '<div class="platform-block">' + plines + "</div>";
-      }
-    }
+    /* The platform disclosure no longer renders as a bottom box
+       (2026-10-22): it lives in the collapsed caveat directly under
+       the conversion box above; the expanded state carries the same
+       verbatim lines this block used to show. */
 
     /* Top fixes are hidden from the free audit - the specific fixes are
        what the $149 report sells. The free result shows the diagnosis

@@ -462,6 +462,41 @@ body {
 .check-platform { color: #8a5a00; }
 .platform-block { border: 1px solid #ffd9e1; background: #fff7f8; border-radius: 12px; padding: 1rem 1.25rem; margin: 0.5rem 0 1rem; }
 .platform-line { margin: 0.35rem 0; font-size: 0.92rem; line-height: 1.55; color: #333336; }
+
+/* Conversion box (2026-10-22): the offer immediately after the score.
+   Visually interrupts the technical report: whitespace, hierarchy,
+   two simple cards. Buttons only; cards themselves are not links. */
+.conversion-box { margin: 1.9rem 0 0.5rem; text-align: center; }
+.conversion-headline { font-size: 1.6rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.25; margin: 0 0 0.6rem; }
+.conversion-sub { color: var(--muted); font-size: 1rem; line-height: 1.55; max-width: 32rem; margin: 0 auto; }
+.offer-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 1.1rem; margin-top: 1.5rem; text-align: left; }
+.offer-card { display: flex; flex-direction: column; border: 2px solid var(--border); border-radius: var(--radius); padding: 1.6rem 1.5rem; background: #fff; }
+.offer-card.featured { border-color: var(--rose); background: linear-gradient(180deg, #fff 0%, #fff9fb 100%); box-shadow: 0 12px 36px rgba(255, 77, 109, 0.18); }
+.offer-price { font-size: 2.2rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1; color: var(--ink); }
+.offer-name { font-size: 1.15rem; font-weight: 800; margin-top: 0.45rem; color: var(--ink); }
+.offer-desc { color: var(--muted); font-size: 0.95rem; line-height: 1.5; margin: 0.55rem 0 1.3rem; flex: 1; }
+.offer-btn { text-align: center; margin-top: auto; }
+.offer-unavailable { background: #f4f4f5; border-color: #e4e4e7; }
+.offer-unavailable .offer-price, .offer-unavailable .offer-name { color: var(--faint); }
+.offer-unavailable .offer-desc { color: var(--faint); font-weight: 600; }
+
+/* Platform caveat (2026-10-22): collapsed plain-language warning under
+   the conversion box; native <details>, expanded state carries the
+   full technical disclosure. Visually secondary to the box. */
+.platform-caveat { border: 1px solid #ffd9e1; background: #fff7f8; border-radius: 12px; padding: 1rem 1.25rem; margin: 0.75rem 0 1rem; text-align: left; }
+.platform-caveat summary { cursor: pointer; list-style: none; }
+.platform-caveat summary::-webkit-details-marker { display: none; }
+.caveat-title { display: block; font-weight: 800; font-size: 0.98rem; color: var(--ink); }
+.caveat-line { display: block; color: #333336; font-size: 0.94rem; line-height: 1.55; margin-top: 0.3rem; }
+.caveat-more { display: inline-block; color: var(--rose-dark); font-weight: 700; font-size: 0.92rem; margin-top: 0.45rem; }
+.caveat-chev { display: inline-block; transition: transform 0.15s ease; }
+.platform-caveat[open] .caveat-chev { transform: rotate(90deg); }
+.caveat-body { margin-top: 0.75rem; border-top: 1px solid #ffd9e1; padding-top: 0.75rem; }
+.platform-confirm-note { color: var(--muted); font-size: 0.9rem; line-height: 1.55; margin: 0.75rem 0 1rem; text-align: left; }
+@media (max-width: 720px) {
+  .offer-cards { grid-template-columns: 1fr; }
+  .offer-btn { width: 100%; }
+}
 .top-fixes h3 { margin-bottom: 0.5rem; }
 .top-fixes ol { margin: 0; padding-left: 1.25rem; font-size: 0.95rem; }
 .top-fixes li { margin-bottom: 0.4rem; }
