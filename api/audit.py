@@ -1928,7 +1928,7 @@ def compose_day0_email(first_name, email, order_ref, door_link):
         "It takes about 5 minutes, and most of it is already filled "
         "in for you.")
     tail = [
-        "We start work on your report once your intake is complete; your delivery clock starts at completed intake.",
+        "Your report is delivered within 5 business days after we receive the information we need from you. The clock starts when your completed intake arrives. If we’re waiting on required information, the delivery clock pauses until we receive it.",
         "Your report will come from this same email address. If it does not appear, please check your spam or junk folder, and mark our messages Not Junk so they reach your inbox.",
         "Refunds: If you cancel before we start work, you get a full refund. Once your customized report is delivered, the $149 fee is non-refundable.",
         "Questions in the meantime? Just reply to this email.",
@@ -2037,7 +2037,7 @@ def compose_day0_email_449(first_name, email, order_ref, door_link):
         "It takes about 5 minutes, and most of it is already filled "
         "in for you.")
     tail = [
-        "We start on your report and proposed changes once your intake is complete. Your 10-business-day implementation period begins once we have your approved changes and working website access.",
+        "We start on your report and proposed changes once your intake is complete. Implementation is completed within 10 business days after we have your signed authorization, required information, and the site access needed to perform the approved work. If we’re waiting on something from you, the delivery clock pauses until we receive it.",
         "Refunds: If you cancel before we begin work, you get a full refund. If you cancel after we start analysis but before implementation begins, we refund the portion of the work not performed. Once implementation begins, the fee is non-refundable.",
         "Questions in the meantime? Just reply to this email.",
     ]
