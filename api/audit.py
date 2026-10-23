@@ -1704,7 +1704,7 @@ def compose_day0_email(first_name, email, session_id, door_link):
     raw URL on its own line under the action lead line. The wording
     lives in the shared lists below so both parts cannot drift apart.
     """
-    subject = "Your $149 AI Readiness Report is on its way"
+    subject = "Payment confirmed. Now the intake form, then your report."
     payment_line = (
         f"Thank you. Your payment of $149 has been received "
         f"(order {session_id}).")
