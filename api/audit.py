@@ -1630,10 +1630,11 @@ _ORDER_PREFIX = "orders/v1/"
 
 
 def _blob_put_json(pathname, obj):
-    """PUT one JSON object to the private Blob store. Never raises."""
+    """PUT one JSON object to the private Blob store. Never raises.
+    Returns True only when the store accepted the write (HTTP 200)."""
     token = _blob_token()
     if not token:
-        return
+        return False
     body = json.dumps(obj)
     try:
         resp = requests.put(
@@ -1650,9 +1651,12 @@ def _blob_put_json(pathname, obj):
         if resp.status_code != 200:
             print(f"blob-store: write of {pathname} returned "
                   f"HTTP {resp.status_code}; record skipped")
+            return False
     except Exception as exc:  # never break the caller's flow
         print(f"blob-store: write of {pathname} failed ({exc!r}); "
               "record skipped")
+        return False
+    return True
 
 
 def _blob_get_json(pathname):
@@ -1749,15 +1753,31 @@ def _claim_arhq_number(session_id):
             nxt = None
     if nxt is None or nxt < _ORDER_SEQ_SEED:
         nxt = _ORDER_SEQ_SEED
-    _blob_put_json(_ORDER_SEQ_PATHNAME,
-                   {"next": nxt + 1,
-                    "ts": datetime.now(timezone.utc).isoformat()})
-    confirm = _blob_get_json(_ORDER_SEQ_PATHNAME)
-    if not isinstance(confirm, dict) or confirm.get("next") != nxt + 1:
-        print(f"order-numbering: sequence claim for session "
-              f"{session_id} could not be confirmed durable; "
-              "day-0 email will carry no order reference")
+    if not _blob_put_json(_ORDER_SEQ_PATHNAME,
+                          {"next": nxt + 1,
+                           "ts": datetime.now(timezone.utc).isoformat()}):
+        print(f"order-numbering: sequence write for session "
+              f"{session_id} was not accepted; day-0 email will "
+              "carry no order reference")
         return None
+    # Confirm by read-back, retrying briefly: a just-written blob can
+    # read back stale for a moment (the 2026-10-23 live failure, where
+    # the first real claim's instant read-back missed and the order
+    # went out numberless). If no read-back confirms but the store
+    # accepted the write (HTTP 200 above), hand the number out anyway
+    # and log it: an accepted write is durable, and a numberless
+    # order email is the worse failure.
+    confirmed = False
+    for delay in (0.5, 1.0, 2.0):
+        confirm = _blob_get_json(_ORDER_SEQ_PATHNAME)
+        if isinstance(confirm, dict) and confirm.get("next") == nxt + 1:
+            confirmed = True
+            break
+        time.sleep(delay)
+    if not confirmed:
+        print(f"order-numbering: read-back for session {session_id} "
+              "never confirmed the increment; handing out the number "
+              "on the accepted write")
     year = datetime.now(timezone.utc).year
     return f"ARHQ-{year}-{nxt:04d}"
 
