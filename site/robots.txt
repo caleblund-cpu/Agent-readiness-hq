@@ -1,4 +1,5 @@
 User-agent: *
 Allow: /
+Disallow: /packet
 
 Sitemap: https://agentreadinesshq.com/sitemap.xml
