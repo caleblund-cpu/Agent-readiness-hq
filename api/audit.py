@@ -50,7 +50,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from email.message import EmailMessage
 from http.server import BaseHTTPRequestHandler
-from urllib.parse import urlparse, urljoin, urlencode
+from urllib.parse import parse_qs, urlparse, urljoin, urlencode
 
 import requests
 
@@ -629,6 +629,50 @@ def extract_jsonld_blocks(html):
     return blocks
 
 
+def derive_business_name(html):
+    """Best-effort business name from the homepage the audit already
+    fetched: JSON-LD Organization/LocalBusiness/WebSite name, else
+    og:site_name, else the <title> stem before a separator. Returns
+    "" when nothing trustworthy is present - the intake door then
+    simply leaves the field for the customer, as today. Never used
+    for scoring."""
+    try:
+        for block in extract_jsonld_blocks(html or ""):
+            stack = [block]
+            while stack:
+                node = stack.pop()
+                if isinstance(node, dict):
+                    t = node.get("@type")
+                    types = ({str(x).lower() for x in t}
+                             if isinstance(t, list)
+                             else {str(t).lower()} if t else set())
+                    if types & {"organization", "localbusiness",
+                                "store", "restaurant", "website",
+                                "professionalservice", "dentist",
+                                "attorney", "medicalbusiness"}:
+                        nm = str(node.get("name") or "").strip()
+                        if 2 <= len(nm) <= 80:
+                            return nm
+                    stack.extend(v for v in node.values()
+                                 if isinstance(v, (dict, list)))
+                elif isinstance(node, list):
+                    stack.extend(node)
+        m = re.search(r'property=["\']og:site_name["\'][^>]*'
+                      r'content=["\']([^"\']{2,80})["\']', html or "", re.I)
+        if m:
+            return m.group(1).strip()
+        m = re.search(r"<title[^>]*>([^<]{2,120})</title>",
+                      html or "", re.I)
+        if m:
+            stem = re.split(r"\s*[|\u2013\u2014\u00b7]\s*|\s+-\s+",
+                            m.group(1).strip())[0].strip()
+            if 2 <= len(stem) <= 80:
+                return stem
+    except Exception:
+        pass
+    return ""
+
+
 def jsonld_has_product_price(blocks):
     found_product = found_price = False
 
@@ -856,6 +900,7 @@ def run_audit(raw_url):
         platform_name, platform_evidence = detect_platform(
             urlparse(base).hostname or "", html)
         assessment = assess_platform(platform_name, checks)
+        business_name = derive_business_name(html)
 
         total_score = round(sum(c[2] for c in checks), 1)
         results = []
@@ -889,6 +934,7 @@ def run_audit(raw_url):
             "fetched_at": datetime.now(timezone.utc).isoformat(),
             "score": total_score,
             "grade": grade(total_score),
+            "business_name": business_name,
             "checks": results,
             "platform": platform_block,
             "checkout_urls": {
@@ -1571,6 +1617,88 @@ def _paid_store_has(email):
     return False
 
 
+# Intake prefill records (2026-10-22): two more failure-isolated
+# stores in the same pattern, so the post-payment intake door can
+# re-supply what the journey already collected. A scan with lead
+# fields writes scan-leads/v1/<email>.json {url, business}; the
+# checkout webhook writes orders/v1/<session_id>.json {name, email,
+# tier}. GET /api/intake-prefill joins them by the session id the
+# door already carries. Same rule as the paid store: any failure is
+# logged and the flow falls back to today's behavior.
+_SCAN_LEAD_PREFIX = "scan-leads/v1/"
+_ORDER_PREFIX = "orders/v1/"
+
+
+def _blob_put_json(pathname, obj):
+    """PUT one JSON object to the private Blob store. Never raises."""
+    token = _blob_token()
+    if not token:
+        return
+    body = json.dumps(obj)
+    try:
+        resp = requests.put(
+            _BLOB_API + "/",
+            params={"pathname": pathname},
+            data=body.encode("utf-8"),
+            headers={"Authorization": f"Bearer {token}",
+                     "x-api-version": "12",
+                     "x-vercel-blob-access": "private",
+                     "x-add-random-suffix": "0",
+                     "x-allow-overwrite": "1",
+                     "x-content-type": "application/json"},
+            timeout=3)
+        if resp.status_code != 200:
+            print(f"blob-store: write of {pathname} returned "
+                  f"HTTP {resp.status_code}; record skipped")
+    except Exception as exc:  # never break the caller's flow
+        print(f"blob-store: write of {pathname} failed ({exc!r}); "
+              "record skipped")
+
+
+def _blob_get_json(pathname):
+    """GET and parse one JSON object from the private Blob store.
+    Returns None on any miss or error. Never raises."""
+    token = _blob_token()
+    if not token:
+        return None
+    try:
+        resp = requests.get(
+            _BLOB_API + "/",
+            params={"url": pathname},
+            headers={"Authorization": f"Bearer {token}",
+                     "x-api-version": "12"},
+            timeout=3)
+    except Exception as exc:  # store trouble must never break a page
+        print(f"blob-store: read of {pathname} failed ({exc!r}); "
+              "treating as missing")
+        return None
+    if resp.status_code != 200:
+        if resp.status_code != 404:
+            print(f"blob-store: read of {pathname} returned "
+                  f"HTTP {resp.status_code}; treating as missing")
+        return None
+    try:
+        obj = resp.json()
+    except ValueError:
+        print(f"blob-store: read of {pathname} was not JSON; "
+              "treating as missing")
+        return None
+    return obj if isinstance(obj, dict) else None
+
+
+def _scan_lead_write(email, url, business):
+    _blob_put_json(_SCAN_LEAD_PREFIX + email + ".json",
+                   {"url": url or "", "business": business or "",
+                    "ts": datetime.now(timezone.utc).isoformat()})
+
+
+def _order_write(session_id, name, email, tier):
+    _blob_put_json(_ORDER_PREFIX + session_id + ".json",
+                   {"name": name or "", "email": email or "",
+                    "tier": str(tier),
+                    "ts": datetime.now(timezone.utc).isoformat()})
+
+
 def _is_paid_buyer(email):
     """Suppression lookup: in-memory cache first, durable store second;
     a durable hit warms the cache for the rest of this instance's life."""
@@ -2051,6 +2179,9 @@ def process_checkout_completed(session):
         # Durable copy in the Blob paid-buyer store, so suppression
         # survives cold instances and restarts (D-1 durability).
         _paid_store_write(email.lower(), session_id)
+        # Intake prefill record, keyed by the session id the intake
+        # door carries as payment_ref (intake prefill fix, 2026-10-22).
+        _order_write(session_id, name, email.lower(), tier)
     first_name = name.split()[0] if name else "there"
     default_cents = {149: 14900, 449: 44900, "upgrade": 30000}[tier]
     try:
@@ -2227,10 +2358,44 @@ class handler(BaseHTTPRequestHandler):
         fwd = self.headers.get("x-forwarded-for", "")
         return fwd.split(",")[0].strip() if fwd else self.client_address[0]
 
+    def _handle_intake_prefill(self):
+        """GET /api/intake-prefill?payment_ref=cs_... -> the four
+        intake-door values the journey already collected: name +
+        email from the Stripe session (stored by the webhook),
+        website + business name from the scan (joined by email).
+        The session id is the same unguessable credential the
+        existing door/resume links already carry. Any miss returns
+        {} and the door behaves exactly as it does today."""
+        qs = parse_qs(urlparse(self.path).query)
+        ref = (qs.get("payment_ref") or [""])[0].strip()
+        out = {}
+        if re.match(r"^cs_(test_|live_)?[A-Za-z0-9_]+$", ref) and \
+                rate_ok("prefill:" + self._client_ip()):
+            order = _blob_get_json(_ORDER_PREFIX + ref + ".json")
+            if order and order.get("email"):
+                out = {"name": order.get("name") or "",
+                       "email": order.get("email") or ""}
+                lead = _blob_get_json(
+                    _SCAN_LEAD_PREFIX
+                    + str(order["email"]).lower() + ".json")
+                if lead:
+                    out["website"] = lead.get("url") or ""
+                    out["business"] = lead.get("business") or ""
+        body = json.dumps(out).encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(body)
+
     def do_GET(self):
         # Serve the landing page + static assets (Vercel routes every path
         # through this entrypoint, so the function doubles as the web server).
         path = self.path.split("?", 1)[0]
+        if path == "/api/intake-prefill":
+            self._handle_intake_prefill()
+            return
         if path == "/":
             path = "/index.html"
         if path == "/packet":
@@ -2340,6 +2505,14 @@ class handler(BaseHTTPRequestHandler):
             # buyer never gets it twice. Same skip as the flag above.
             suppress_email = True
             report["email_suppressed"] = "paid_buyer"
+        if first_name and lead_email:
+            # Intake prefill record (2026-10-22): remember which site
+            # this email scanned, so a later checkout's intake door
+            # can re-supply website + business name on any device.
+            # Latest scan for an email wins; every field stays
+            # editable at the door. Failure-isolated like all stores.
+            _scan_lead_write(lead_email, report.get("url") or url,
+                             report.get("business_name") or "")
         if first_name and lead_email and not suppress_email:
             report["email_sent"] = send_results_email(
                 first_name, lead_email, report)
