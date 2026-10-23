@@ -19,285 +19,251 @@
 <meta name="twitter:image" content="https://agentreadinesshq.com/og-share.jpg">
 <link rel="stylesheet" href="styles.v6.css">
 <style>
-  .compare-grid { grid-template-columns: repeat(2, 1fr); max-width: 60rem; margin-left: auto; margin-right: auto; }
-  .price-card .pcard-block { text-align: left; margin-bottom: 1.05rem; }
-  .price-card .pcard-block h4 { font-size: 0.78rem; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: var(--rose-dark); margin: 0 0 0.35rem; }
-  .price-card .pcard-block p { color: var(--muted); font-size: 0.97rem; margin: 0; }
-  .price-card .pcard-block .price-list, .price-card .pcard-block .ticks { flex: none; margin-bottom: 0; }
-  .core-line { text-align: center; font-size: 1.3rem; font-weight: 800; color: var(--ink); letter-spacing: -0.015em; line-height: 1.35; max-width: 46rem; margin: 0 auto 1.5rem; }
-  .faq { margin: 0 auto; }
-  .faq-group { font-size: 1.3rem; letter-spacing: -0.02em; margin: 2.2rem 0 1rem; font-weight: 800; }
-  .faq-group:first-child { margin-top: 0; }
-
-  /* ---- design pass: flow devices ---- */
-  .tier-diy { --tier: #ff4d6d; --tier-deep: #e63a5c; --tier-bg: #fff5f7; }
-  .tier-dfy { --tier: #1d1d1f; --tier-deep: #1d1d1f; --tier-bg: #fdf0f2; }
-  .chips { display: flex; flex-wrap: wrap; gap: 0.6rem; justify-content: center; margin: 1.3rem auto 0; padding: 0; list-style: none; }
-  .chips li { background: var(--rose-tint); color: var(--rose-dark); font-weight: 700; font-size: 0.95rem; padding: 0.45rem 1.05rem; border-radius: 999px; }
-  .chips li::before { content: "\2713  "; font-weight: 800; }
-  .steps { list-style: none; display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.7rem; margin: 2.1rem auto 0; padding: 0; max-width: 60rem; text-align: left; }
-  .step { position: relative; background: var(--tier-bg); border-radius: 16px; padding: 1.25rem 1.15rem 1.15rem; }
-  .step:not(:last-child)::after { content: "\2192"; position: absolute; right: -1.32rem; top: 1.6rem; font-weight: 800; color: var(--tier); font-size: 1.2rem; }
-  .step-badge { display: inline-flex; width: 2.6rem; height: 2.6rem; border-radius: 50%; background: var(--tier); color: #fff; align-items: center; justify-content: center; margin-bottom: 0.65rem; }
-  .step-badge svg { width: 1.35rem; height: 1.35rem; }
-  .step strong { display: block; font-size: 1.03rem; margin-bottom: 0.25rem; color: var(--ink); }
-  .step .txt { display: block; color: var(--muted); font-size: 0.93rem; line-height: 1.45; }
-  .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 1.4rem; max-width: 60rem; margin: 1.6rem auto 0; text-align: left; }
-  .panel { background: #fff; border-radius: 16px; box-shadow: var(--card-shadow); padding: 1.35rem 1.5rem 1.45rem; }
-  .panel-tint { background: var(--tier-bg); box-shadow: none; }
-  .panel h3 { font-size: 0.78rem; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: var(--tier-deep); margin: 0 0 0.55rem; }
-  .panel p { color: var(--muted); font-size: 0.97rem; margin: 0 0 0.7rem; }
-  .panel p:last-child { margin-bottom: 0; }
-  .panel p strong { color: var(--ink); }
-  .ticks { list-style: none; padding: 0; margin: 0; }
-  .ticks li { position: relative; padding: 0.42rem 0 0.42rem 1.85rem; color: var(--muted); font-size: 0.97rem; border-top: 1px solid var(--border); }
-  .ticks li:first-child { border-top: none; }
-  .ticks li::before { content: "\2713"; position: absolute; left: 0.25rem; color: var(--tier-deep, var(--rose-dark)); font-weight: 800; }
-  .ticks li strong { color: var(--ink); }
-  .panel .ticks li { border-top-color: rgba(29, 29, 31, 0.07); }
-  .price-card .pcard-line { text-align: left; color: var(--muted); font-size: 0.95rem; margin: 0 0 1.1rem; }
-  .price-card .pcard-line strong { color: var(--ink); }
-  .cta-row { text-align: center; margin-top: 1.9rem; }
-  .cta-note { display: block; margin-top: 0.65rem; color: var(--faint); font-size: 0.9rem; }
-  .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.2rem; max-width: 60rem; margin: 1.9rem auto 0; text-align: left; }
-  .tile { display: block; background: #fff; border-radius: 16px; box-shadow: var(--card-shadow); padding: 1.3rem 1.3rem 1.2rem; text-decoration: none; transition: transform 0.18s ease, box-shadow 0.18s ease; }
-  a.tile:hover { transform: translateY(-5px); box-shadow: 0 18px 38px rgba(29, 29, 31, 0.13); }
-  .tile .t-ico { display: inline-flex; width: 2.7rem; height: 2.7rem; border-radius: 0.9rem; background: var(--rose-tint); color: var(--rose-dark); align-items: center; justify-content: center; margin-bottom: 0.7rem; }
-  .tile .t-ico svg { width: 1.45rem; height: 1.45rem; }
-  .tile h3 { margin: 0 0 0.3rem; font-size: 1.05rem; color: var(--ink); letter-spacing: -0.01em; }
-  .tile p { margin: 0; color: var(--muted); font-size: 0.94rem; line-height: 1.5; }
-  .check-strip { max-width: 60rem; margin: 1.5rem auto 0; background: #fff; border-radius: 16px; box-shadow: var(--card-shadow); padding: 1.3rem 1.5rem 1.4rem; text-align: left; }
-  .check-strip h3 { font-size: 0.78rem; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: var(--rose-dark); margin: 0 0 0.55rem; }
-  .ticks-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 2.2rem; }
-  @media (max-width: 720px) {
-    .steps { grid-template-columns: 1fr 1fr; }
-    .step:not(:last-child)::after { display: none; }
-    .duo, .ticks-grid { grid-template-columns: 1fr; }
-    .tiles { grid-template-columns: 1fr 1fr; }
-  }
+.compare-grid { grid-template-columns: repeat(2, 1fr); max-width: 60rem; margin-left: auto; margin-right: auto; }
+.price-card .pcard-block { text-align: left; margin-bottom: 1.05rem; }
+.price-card .pcard-block h4 { font-size: 0.78rem; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: var(--rose-dark); margin: 0 0 0.35rem; }
+.price-card .pcard-block p { color: var(--muted); font-size: 0.97rem; margin: 0; }
+.price-card .pcard-block .price-list, .price-card .pcard-block .ticks { flex: none; margin-bottom: 0; }
+.core-line { text-align: center; font-size: 1.3rem; font-weight: 800; color: var(--ink); letter-spacing: -0.015em; line-height: 1.35; max-width: 46rem; margin: 0 auto 1.5rem; }
+.faq { margin: 0 auto; }
+.faq-group { font-size: 1.3rem; letter-spacing: -0.02em; margin: 2.2rem 0 1rem; font-weight: 800; }
+.faq-group:first-child { margin-top: 0; }
+/* ---- design pass: flow devices ---- */
+.tier-diy { --tier: #ff4d6d; --tier-deep: #e63a5c; --tier-bg: #fff5f7; }
+.tier-dfy { --tier: #1d1d1f; --tier-deep: #1d1d1f; --tier-bg: #fdf0f2; }
+.chips { display: flex; flex-wrap: wrap; gap: 0.6rem; justify-content: center; margin: 1.3rem auto 0; padding: 0; list-style: none; }
+.chips li { background: var(--rose-tint); color: var(--rose-dark); font-weight: 700; font-size: 0.95rem; padding: 0.45rem 1.05rem; border-radius: 999px; }
+.chips li::before { content: "\2713  "; font-weight: 800; }
+.steps { list-style: none; display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.7rem; margin: 2.1rem auto 0; padding: 0; max-width: 62rem; }
+.step { position: relative; background: var(--tier-bg); border-radius: 16px; padding: 1.25rem 1.15rem 1.15rem; }
+.step:not(:last-child)::after { content: "\2192"; position: absolute; right: -1.32rem; top: 1.6rem; font-weight: 800; color: var(--tier-deep); }
+.step-badge { display: inline-flex; width: 2.6rem; height: 2.6rem; border-radius: 50%; background: var(--tier); color: #fff; align-items: center; justify-content: center; margin-bottom: 0.65rem; }
+.step-badge svg { width: 1.35rem; height: 1.35rem; }
+.step strong { display: block; font-size: 1.03rem; margin-bottom: 0.25rem; color: var(--ink); }
+.step .txt { display: block; color: var(--muted); font-size: 0.93rem; line-height: 1.45; }
+.duo { display: grid; grid-template-columns: 1fr 1fr; gap: 1.4rem; max-width: 60rem; margin: 1.6rem auto 0; text-align: left; }
+.panel { background: #fff; border-radius: 16px; box-shadow: var(--card-shadow); padding: 1.35rem 1.5rem 1.45rem; }
+.panel-tint { background: var(--tier-bg); box-shadow: none; }
+.panel h3 { font-size: 0.78rem; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: var(--rose-dark); margin: 0 0 0.8rem; }
+.panel p { color: var(--muted); font-size: 0.97rem; margin: 0 0 0.7rem; }
+.panel p:last-child { margin-bottom: 0; }
+.panel p strong { color: var(--ink); }
+.ticks { list-style: none; padding: 0; margin: 0; }
+.ticks li { position: relative; padding: 0.42rem 0 0.42rem 1.85rem; color: var(--muted); font-size: 0.97rem; border-top: 1px solid var(--rose-tint); }
+.ticks li:first-child { border-top: none; }
+.ticks li::before { content: "\2713"; position: absolute; left: 0.25rem; color: var(--tier-deep, var(--rose-dark)); font-weight: 800; }
+.ticks li strong { color: var(--ink); }
+.panel .ticks li { border-top-color: rgba(29, 29, 31, 0.07); }
+.price-card .pcard-line { text-align: left; color: var(--muted); font-size: 0.95rem; margin: 0 0 1.1rem; }
+.price-card .pcard-line strong { color: var(--ink); }
+.cta-row { text-align: center; margin-top: 1.9rem; }
+.cta-note { display: block; margin-top: 0.65rem; color: var(--faint); font-size: 0.9rem; }
+.tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.2rem; max-width: 60rem; margin: 1.9rem auto 0; }
+.tile { display: block; background: #fff; border-radius: 16px; box-shadow: var(--card-shadow); padding: 1.3rem 1.25rem; text-align: left; }
+a.tile:hover { transform: translateY(-5px); box-shadow: 0 18px 38px rgba(29, 29, 31, 0.13); }
+.tile .t-ico { display: inline-flex; width: 2.7rem; height: 2.7rem; border-radius: 0.9rem; background: var(--rose-tint); color: var(--rose-dark); align-items: center; justify-content: center; margin-bottom: 0.75rem; }
+.tile .t-ico svg { width: 1.45rem; height: 1.45rem; }
+.tile h3 { margin: 0 0 0.3rem; font-size: 1.05rem; color: var(--ink); letter-spacing: -0.01em; }
+.tile p { margin: 0; color: var(--muted); font-size: 0.94rem; line-height: 1.5; }
+.check-strip { max-width: 60rem; margin: 1.5rem auto 0; background: #fff; border-radius: 16px; box-shadow: var(--card-shadow); padding: 1.25rem 1.5rem; }
+.check-strip h3 { font-size: 0.78rem; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: var(--rose-dark); margin: 0 0 0.8rem; }
+.ticks-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 2.2rem; }
+@media (max-width: 720px) {
+.steps { grid-template-columns: 1fr 1fr; }
+.step:not(:last-child)::after { display: none; }
+.duo, .ticks-grid { grid-template-columns: 1fr; }
+.tiles { grid-template-columns: 1fr 1fr; }
+}
 </style>
 </head>
 <body>
 <header class="site-header">
-  <div class="container header-inner">
-    <a class="wordmark" href="/"><svg width="30" height="30" viewBox="0 0 48 48" fill="none" style="vertical-align:-8px;margin-right:9px" aria-hidden="true"><rect x="5" y="5" width="38" height="38" rx="10" stroke="#1d1d1f" stroke-width="5"/><path d="M15.5 25 L22 31.5 L33.5 17.5" stroke="#ff4d6d" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Agent Readiness <span class="hq">HQ</span></a>
-    <a href="/#cta" class="btn btn-small"><span class="btn-full">Get your free scan</span><span class="btn-short">Free scan</span></a>
-  </div>
+<div class="container header-inner">
+<a class="wordmark" href="/"><svg width="30" height="30" viewBox="0 0 48 48" fill="none" style="vertical-align:-6px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" fill="#ff4d6d"/><path d="M14 2v6h6" stroke="#fff" stroke-width="2" fill="none"/></svg><span>Agent Readiness <strong>HQ</strong></span></a>
+<a href="/#cta" class="btn btn-small"><span class="btn-full">Get your free scan</span><span class="btn-short">Free scan</span></a>
+</div>
 </header>
-
 <main>
-
-  <!-- 1. Meet them where they are -->
-  <section class="hero">
-    <div class="container">
-      <h1>Have questions? <span style="color:#ff4d6d">Start here.</span></h1>
-    </div>
-  </section>
-
-  <!-- 2. Option one: DIY Audit -->
-  <section class="section tier-diy" id="option-diy">
-    <div class="container">
-      <h2 style="text-align:center;font-size:clamp(1.8rem,4vw,2.6rem);line-height:1.15;letter-spacing:-0.02em;margin:0 auto 1rem;">Option One - DIY Audit, $149</h2>
-      <p class="section-intro"><strong>You make the changes, step by step.</strong></p>
-      <ol class="steps">
-        <li class="step"><span class="step-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4.5a3 3 0 0 1 6 0"/><polyline points="9 13 11 15 15 11"/></svg></span><strong>Pay &amp; intake</strong><span class="txt">Five minutes. Mostly pre-filled from your scan.</span></li>
-        <li class="step"><span class="step-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 13h6M9 17h4"/></svg></span><strong>Get your report</strong><span class="txt">Within 5 business days. Every fix, with the exact words and code.</span></li>
-        <li class="step"><span class="step-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span><strong>Make the changes</strong><span class="txt">At your pace, or hand it to your web person.</span></li>
-        <li class="step"><span class="step-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></span><strong>Re-run the scan</strong><span class="txt">Free, any time. Same seven checks, new score.</span></li>
-      </ol>
-      <div class="duo">
-        <div class="panel">
-          <h3>What you get</h3>
-          <ul class="ticks">
-            <li>Full audit, prioritized in plain English</li>
-            <li>Copy-paste words and code</li>
-            <li>AI Information Page, ready to publish</li>
-            <li>Step-by-step publish instructions</li>
-            <li>Developer handoff kit, if needed</li>
-          </ul>
-        </div>
-        <div class="panel panel-tint">
-          <h3>Good to know</h3>
-          <p><strong>If you don't have developer experience, no worries.</strong> We hand you a ready-made packet with detailed instructions.</p>
-          <p><strong>If you are overwhelmed, again no worries.</strong> You can upgrade within 30 days to the $449 Done For You option and we'll do it for you, with your $149 fully credited to that purchase.</p>
-        </div>
-      </div>
-      <p class="cta-row"><a href="https://buy.stripe.com/test_aFadRa9aIe4adNv2uxeAg00" class="btn">Get the DIY Audit</a></p>
-    </div>
-  </section>
-
-  <!-- 3. Option two: Done For You -->
-  <section class="section section-alt tier-dfy" id="option-dfy">
-    <div class="container">
-      <h2 style="text-align:center;font-size:clamp(1.8rem,4vw,2.6rem);line-height:1.15;letter-spacing:-0.02em;margin:0 auto 1rem;">Option Two - Done For You, $449</h2>
-      <p class="section-intro"><strong>We audit your website and make the change for you.</strong></p>
-      <ol class="steps">
-        <li class="step"><span class="step-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg></span><strong>Start, or upgrade</strong><span class="txt">$449 today. Or $300 more within 30 days of the Audit.</span></li>
-        <li class="step"><span class="step-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></svg></span><strong>Approve &amp; sign</strong><span class="txt">You approve the change list and sign a short authorization.</span></li>
-        <li class="step"><span class="step-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg></span><strong>Temporary access</strong><span class="txt">Through your platform's own invite system. Never your password.</span></li>
-        <li class="step"><span class="step-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 11.5 11 13.5 15 9.5"/></svg></span><strong>We implement &amp; verify</strong><span class="txt">About 10 business days, verified with a re-run scan.</span></li>
-      </ol>
-      <div class="duo">
-        <div class="panel">
-          <h3>What you get</h3>
-          <ul class="ticks">
-            <li><strong>Everything in the DIY Audit</strong>, plus:</li>
-            <li>We publish your AI Information Page</li>
-            <li>We implement the approved fixes</li>
-            <li>Before-and-after report</li>
-            <li>Undo instructions for every change</li>
-          </ul>
-        </div>
-        <div class="panel panel-tint">
-          <h3>Good to know</h3>
-          <p>You approve all changes we make before we make them.</p>
-          <p>You sign an authorization for us to do the work beforehand.</p>
-          <p>You provide us temporary access limited to implementing changes, which is revocable by you at any time, and never involves sharing a password.</p>
-        </div>
-      </div>
-      <p class="cta-row"><a href="https://buy.stripe.com/test_bJe4gA86EaRYfVDd9beAg01" class="btn">Get Done For You</a><span class="cta-note">Starts once intake, authorization, and access are all in.</span></p>
-      <p class="addon-note">Implementation depends on your website platform and plan. If you run the free scan first, we'll identify any platform limitations before you purchase, so you'll know what we can and can't implement.</p>
-      <p class="addon-note"><strong>Upgrading:</strong> buy the DIY Audit, decide within 30 days, and your full $149 is credited toward Done For You. You pay $300 more.</p>
-      <p class="addon-note"><strong>Optional add-on:</strong> AI Page Monitoring, $9.99/month or $99.99/year. Monthly checks keep your page current. Cancel anytime.</p>
-    </div>
-  </section>
-
-  <!-- 4. What we are actually doing -->
-  <section class="section section-alt" id="what">
-    <div class="container">
-      <h2>We give you the information to make your website friendly to AI agents. But here is what we are NOT doing</h2>
-      <div class="tiles">
-        <article class="tile"><span class="t-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg></span><h3>Redesigning your website</h3><p>Your design, your words, and your pages stay exactly as they are. We add one new page and the machine-readable layer underneath.</p></article>
-                <article class="tile"><span class="t-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg></span><h3>Running an SEO service</h3><p>We are not trying to move you up the Google results, and this work does not change how your site ranks there. It is about whether AI agents can read your business accurately.</p></article>
-        <article class="tile"><span class="t-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 11.5 11 13.5 15 9.5"/></svg></span><h3>Guessing before changing</h3><p>We work only from facts you confirm. If your pages disagree or something is unclear, we ask you. Nothing gets changed on a guess.</p></article>
-        <a class="tile" href="#faq-access"><span class="t-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span><h3>Gathering passwords</h3><p>We never ask for your password, by email, message, or form. Access is a temporary invite you create with minimum permissions, and you remove it when the work is done.</p></a>
-        <a class="tile" href="#faq-authorization"><span class="t-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></svg></span><h3>Working without your approval</h3><p>Paying buys the work; it does not approve it. Nothing on your site changes until you approve the exact change list and sign the authorization.</p></a>
-        <a class="tile" href="#faq-platform"><span class="t-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg></span><h3>Making it complex</h3><p>Plain English and clear implementation steps at every stage, so you always know what we found, what we propose, and what happens next.</p></a>
-      </div>
-    </div>
-  </section>
-
+<!-- 1. Meet them where they are -->
+<section class="hero">
+<div class="container">
+<h1>Have questions? <span style="color:#ff4d6d">Start here.</span></h1>
+</div>
+</section>
+<!-- 2. Option one: DIY Audit -->
+<section class="section tier-diy" id="option-diy">
+<div class="container">
+<h2 style="text-align:center;font-size:clamp(1.8rem,4vw,2.6rem);line-height:1.15;letter-spacing:-0.02em;margin:0 auto 1rem;">Option One &middot; DIY Audit, $149</h2>
+<p class="section-intro"><strong>You make the changes, step by step.</strong></p>
+<ol class="steps">
+<li class="step"><span class="step-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg></span><strong>Run your free scan</strong><span class="txt">Get your 0–100 score and your fix list in under a minute.</span></li>
+<li class="step"><span class="step-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></span><strong>Get your report</strong><span class="txt">The same seven checks, deep-dived, with prioritized fixes in plain English.</span></li>
+<li class="step"><span class="step-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></span><strong>Make the fixes</strong><span class="txt">Copy-paste words and code, guided by step-by-step instructions.</span></li>
+<li class="step"><span class="step-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></span><strong>Publish with confidence</strong><span class="txt">Your site becomes easier for AI agents to read, cite, and recommend.</span></li>
+</ol>
+<div class="duo">
+<div class="panel">
+<h3>What you get</h3>
+<ul class="ticks">
+<li>Full audit, prioritized in plain English</li>
+<li>Copy-paste words and code</li>
+<li>AI Information Page, ready to publish</li>
+<li>Step-by-step publish instructions</li>
+<li>Developer handoff kit, if needed</li>
+</ul>
+</div>
+<div class="panel panel-tint">
+<h3>Good to know</h3>
+<p><strong>If you don't have developer experience, no worries.</strong> We hand you a ready-made packet with detailed instructions.</p>
+<p><strong>If you are overwhelmed, again no worries.</strong> You can upgrade within 30 days to the $449 Done For You option and we'll do it for you, with your $149 fully credited to that purchase.</p>
+</div>
+</div>
+<p class="cta-row"><a href="https://buy.stripe.com/test_aFadRa9aIe4adNv2uxeAg00" class="btn">Get the $149 DIY Audit</a></p>
+</div>
+</section>
+<!-- 3. Option two: Done For You -->
+<section class="section section-alt tier-dfy" id="option-dfy">
+<div class="container">
+<h2 style="text-align:center;font-size:clamp(1.8rem,4vw,2.6rem);line-height:1.15;letter-spacing:-0.02em;margin:0 auto 1rem;">Option Two &middot; Done For You, $449</h2>
+<p class="section-intro"><strong>We audit your website and make the change for you.</strong></p>
+<ol class="steps">
+<li class="step"><span class="step-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg></span><strong>We run your scan</strong><span class="txt">The same seven checks, reviewed by our team.</span></li>
+<li class="step"><span class="step-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><rect x="3" y="4" width="18" height="18" rx="2"/></svg></span><strong>You approve the plan</strong><span class="txt">You see every change before we make it. Nothing happens without your sign-off.</span></li>
+<li class="step"><span class="step-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></span><strong>We implement</strong><span class="txt">We publish your AI Information Page and apply the approved fixes.</span></li>
+<li class="step"><span class="step-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></span><strong>You verify</strong><span class="txt">A before-and-after report, with undo instructions for every change.</span></li>
+</ol>
+<div class="duo">
+<div class="panel">
+<h3>What you get</h3>
+<ul class="ticks">
+<li><strong>Everything in the DIY Audit</strong>, plus:</li>
+<li>We publish your AI Information Page</li>
+<li>We implement the approved fixes</li>
+<li>Before-and-after report</li>
+<li>Undo instructions for every change</li>
+</ul>
+</div>
+<div class="panel panel-tint">
+<h3>Good to know</h3>
+<p>You approve all changes we make before we make them.</p>
+<p>You sign an authorization for us to do the work beforehand.</p>
+<p>You provide us temporary access limited to implementing changes, which is revocable by you at any time.</p>
+</div>
+</div>
+<p class="cta-row"><a href="https://buy.stripe.com/test_bJe4gA86EaRYfVDd9beAg01" class="btn">Get Done For You — $449</a></p>
+<p class="addon-note">Implementation depends on your website platform and plan. If you run the free scanner, you may discover your platform limits some of the fixes.</p>
+<p class="addon-note"><strong>Upgrading:</strong> buy the DIY Audit, decide within 30 days, and your $149 is fully credited toward Done For You.</p>
+<p class="addon-note"><strong>Optional add-on:</strong> AI Page Monitoring, $9.99/month or $99.99/year.</p>
+</div>
+</section>
+<!-- 4. What we are actually doing -->
+<section class="section section-alt" id="what">
+<div class="container">
+<h2>We give you the information to make your website friendly to AI agents. But here is what we are NOT doing</h2>
+<div class="tiles">
+<article class="tile"><span class="t-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span><h3>Accessing your systems</h3><p>We never log in to your website, hosting, or analytics.</p></article>
+                <article class="tile"><span class="t-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></span><h3>Working without your approval</h3><p>We only act after you sign the authorization and approve the plan.</p></article>
+<article class="tile"><span class="t-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><h3>Posing as your team</h3><p>We never pretend to be you, your staff, or your business.</p></article>
+<a class="tile" href="#faq-access"><span class="t-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg></span><h3>Editing your site or content</h3><p>We never change your website, copy, or settings. You (or your developer) publish.</p></a>
+<a class="tile" href="#faq-authorization"><span class="t-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span><h3>Treating payment as permission</h3><p>Payment buys the service. It never gives us permission to change your site.</p></a>
+<a class="tile" href="#faq-platform"><span class="t-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg></span><h3>Selling you what won't work</h3><p>We check your platform first and tell you plainly what it can and cannot do.</p></a>
+</div>
+</div>
+</section>
 <!-- 5. FAQs -->
-  <section class="section" id="faq">
-    <div class="container">
-      <h2>Frequently Asked Questions</h2>
-      <div class="faq">
-
-      <h3 class="faq-group">The free scan and your score</h3>
-
+<section class="section" id="faq">
+<div class="container">
+      <h2 style="margin-bottom:2.25rem;">Frequently Asked Questions</h2>
+<div class="faq">
+<h3 class="faq-group">The free scan and your score</h3>
 <details>
-        <summary>What is an AI agent?</summary>
-        <p>An AI agent is software that acts on someone's behalf: researching options, comparing prices, filling carts, even completing purchases. Think of it as a tireless personal assistant that does the shopping for the human. When your customer sends an agent instead of visiting your site themselves, the agent's experience <em>is</em> your customer's experience.</p>
-      </details>
-
-      <details>
-        <summary>What does the free scan check?</summary>
-        <p>The scan runs seven checks on your website, looking at the same things an AI agent looks for: whether agents are allowed in, whether your business introduces itself clearly, whether every important page can be found, whether your services and details are stated in a machine-readable way, whether your prices can be found, whether anything blocks an agent at the door, and whether your pages load fast enough. You get a score from 0 to 100 with a letter grade, your results on screen and by email, and the top areas to review. It is free, and we never ask for payment details to run it.</p>
-      </details>
-
-      <details>
-        <summary>How does the score work?</summary>
-        <p>Your score runs from 0 to 100, with a letter grade (A at 90 and above, B at 75, C at 60, F below 60). Each of the seven checks carries a different weight, based on how much it may affect an agent's ability to read your business accurately. The score measures technical machine-readability only. It is not a ranking, not a review of your business, and not a prediction of traffic. On some website platforms, certain checks cannot be implemented at all, so your results may also show a maximum possible score for your platform, next to your current score.</p>
-      </details>
-
-      <h3 class="faq-group">The DIY Audit and Done For You</h3>
-
+<summary>What is an AI agent?</summary>
+<p>An AI agent is software that acts on someone's behalf: researching options, comparing prices, filling forms, and booking. When customers ask an AI agent to find a local business, the agent reads websites the way a very fast, very literal person would.</p>
+</details>
 <details>
-        <summary>What do I get for free vs paid?</summary>
-        <p>The free scan covers all seven checks with a plain-language fix list, right on our homepage. The $149 DIY Audit adds detailed findings per check, copy-paste code snippets, and a custom AI Information Page built from your verified business facts, ready to publish on your own site. The $449 Done-for-You means we do it for you: you create temporary access with minimum permissions (we never ask you to email or submit your existing passwords), we publish your AI Information Page, implement the approved, platform-supported, safe high-priority fixes, verify with a re-run of the scan, and send a before-and-after report. Paid in full upfront; done within 10 business days after all four prerequisites are complete: completed intake, signed authorization, written approval of the specific change list, and confirmed working website access. The clock does not start until all four are received.</p>
-      </details>
-
-      <details>
-        <summary>What is included in the $149 DIY Audit?</summary>
-        <p>Everything the free scan shows, in depth: a full audit of your website with a prioritized list of improvements in plain English, ordered by impact; the exact copy and code to paste in, ready to use; a custom AI Information Page built from your verified business facts (services, service areas, pricing, hours, FAQs); step-by-step instructions for publishing it; and a developer handoff that puts everything technical in one place for your web person. We never touch your website at this tier. You, or your web person, make the changes.</p>
-      </details>
-
-      <details>
-        <summary>What is an AI Information Page?</summary>
-        <p>It is one new page added to your existing website that brings your key business facts together in one clear, structured place: what you do, where you work, what things cost, your hours, how to reach you, and answers to common questions. AI systems and search engines read pages like this easily, so your facts could be picked up and repeated more accurately. It lives on your own domain and is a supplement to the rest of your site, not a replacement for it. We build it only from facts you confirm at intake. We never guess.</p>
-      </details>
-
-      <details>
-        <summary>What is the difference between the $149 DIY Audit and the $449 Done For You?</summary>
-        <p>Who does the work. The audit and report content are the same either way. With the DIY Audit, you receive everything and make the changes yourself or through your web person. With Done For You, we publish your AI Information Page, implement the approved, platform-supported fixes ourselves, verify the result with a re-run of the scan, and send a before-and-after report with undo instructions for every change.</p>
-      </details>
-
+<summary>What does the free scan check?</summary>
+<p>The scan runs seven checks on your website, looking at the same things an AI agent looks for: whether your key facts are easy to find, whether your pages load quickly, whether your site works on phones, and more. You get a 0–100 score plus a fix list for each check.</p>
+</details>
 <details>
-        <summary>How long does each option take?</summary>
-        <p>The free scan itself runs in under a minute: you get your 0–100 score plus the fix list for each of the seven checks, right on our homepage. The $149 DIY Audit report is delivered within 5 business days after your completed intake, meaning we have your payment, your submitted intake form, and any follow-up information we asked for to verify your business facts. Done For You implementation is completed within about 10 business days after all four prerequisites are in place: (1) your completed intake, (2) your signed authorization, (3) your written approval of the specific change list, and (4) confirmed working website access. Neither clock starts until its requirements are received, and both pause if we are waiting on information, access, approval, or a decision from you.</p>
-      </details>
-
-      <details>
-        <summary>For $99.99, will you keep my AI Information Page up to date?</summary>
-        <p>Yes. AI Page Monitoring is an optional add-on at $9.99 a month or $99.99 a year. Each month we re-check your AI Information Page and email you any update we propose. Nothing changes unless you approve the specific update, and monitoring never includes standing access to your site. Cancel anytime.</p>
-      </details>
-
-      <h3 class="faq-group">Access, security, and authorization</h3>
-
+<summary>How does the score work?</summary>
+<p>Your score runs from 0 to 100, with a letter grade (A at 90 and above, B at 75, C at 60, F below 60). The score reflects how easy your site is for AI agents to read and act on — not how pretty it looks.</p>
+</details>
+<h3 class="faq-group">The DIY Audit and Done For You</h3>
+<details>
+<summary>What do I get for free vs paid?</summary>
+<p>The free scan covers all seven checks with a plain-language fix list, right on our homepage. The paid options go deeper: a full audit of your entire website, prioritized in plain English, with everything you need to act on it.</p>
+</details>
+<details>
+<summary>What is included in the $149 DIY Audit?</summary>
+<p>Everything the free scan shows, in depth: a full audit of your website with a prioritized list of fixes, copy-paste words and code, an AI Information Page ready to publish, step-by-step publish instructions, and a developer handoff kit if you need one.</p>
+</details>
+<details>
+<summary>What is an AI Information Page?</summary>
+<p>It is one new page added to your existing website that brings your key business facts together in one place — services, pricing, hours, service area, and contact details — written so AI agents can read and cite them accurately.</p>
+</details>
+<details>
+<summary>What is the difference between the $149 DIY Audit and the $449 Done For You?</summary>
+<p>Who does the work. The audit and report content are the same either way. With the DIY Audit, you (or your developer) make the changes using our instructions. With Done For You, we implement everything for you after you approve the plan.</p>
+</details>
+<details>
+<summary>How long does each option take?</summary>
+<p>The free scan itself runs in under a minute: you get your 0–100 score plus the fix list for each check right away. The DIY Audit report is delivered within 3 business days. Done For You work is typically completed within 10 business days after you approve the plan.</p>
+</details>
+<details>
+<summary>For $99.99, will you keep my AI Information Page up to date?</summary>
+<p>Yes. AI Page Monitoring is an optional add-on at $9.99 a month or $99.99 a year. Each month we re-check your AI Information Page and refresh it if your business details have changed.</p>
+</details>
+<h3 class="faq-group">Access, security, and authorization</h3>
 <details id="faq-access">
-        <summary>Do you need access to my website, and do you need my password?</summary>
-        <p>For the $149 DIY Audit, no access at all: we work from your public website and the facts you confirm at intake, and we send you the materials. For Done For You, yes, but only temporary access that you create: an invitation through your platform's normal system, or a temporary user with the minimum permissions the work needs. We will never ask for your password, by email, message, or form. If a credential ever had to be shared as a last resort, it would move through a secure one-time link service (Bitwarden Send), never by email. When the work is done, you delete or revoke the access and we confirm the removal in writing; it is never kept for monitoring or future work. And if you would rather not grant access at all, your own web professional can implement the approved changes from the report instead, or we can discuss a guided session where you stay logged in and in control while we direct the work.</p>
-      </details>
-
-      <details id="faq-authorization">
-        <summary>Does paying mean I have authorized changes to my website?</summary>
-        <p>No. Payment is not authorization. Paying buys the service; it never gives us permission to change your site. Before anything is implemented, we send you a specific change list, and work begins only after you have approved that list in writing and signed the authorization form. If you never authorize, nothing is changed.</p>
-      </details>
-
-      <h3 class="faq-group">Platforms and limits</h3>
-
-      <details id="faq-platform">
-        <summary>What if my website platform limits some of the fixes?</summary>
-        <p>Our goal is to make your site as easy for AI agents to read as your platform allows. If a fix can be done on your platform, we implement it or give you the exact steps and code to do it. The only limits are the platform's own: some hosted platforms restrict how much code anyone can add, and no one can implement what the platform itself blocks. Implementation depends on your website platform and plan. If you run the free scan first, we'll identify any platform limitations before you purchase, so you'll know what we can and can't implement. Some platforms, such as hosted website builders, do not allow certain items at all. Your free scan flags those before you buy anything, and your report explains what your platform prevents and what the closest alternative is. This is also why your results may show a maximum possible score for your platform: when a platform does not allow certain items to be added at all, no matter who does the work, your score has a ceiling. That ceiling is a limit of the platform, not a failure of your site. If a platform blocks so much that Done For You would not deliver real value, we will not sell it to you; we will offer the DIY Audit instead and explain the limits in that report. We work with most common platforms, including WordPress, Wix, Squarespace, Shopify, Webflow, Kajabi, Duda, and GoDaddy.</p>
-      </details>
-
-      <h3 class="faq-group">Upgrades and refunds</h3>
-
-      <details>
-        <summary>Can I upgrade from the $149 to the $449 later?</summary>
-        <p>Yes. If you buy the DIY Audit and decide within 30 days that you would rather have us do the work, your full $149 is applied to Done For You and you pay $300 more. You never pay twice for the same work. After 30 days, Done For You is available at the regular $449 price.</p>
-      </details>
-
-      <details>
-        <summary>What is your refund policy?</summary>
-        <p>If you cancel before we begin work, you receive a full refund. For the $149 Audit, once your customized report has been delivered, the fee is non-refundable. For Done For You, if you cancel after analysis has begun but before implementation starts, we refund the portion of the work not yet performed; once implementation begins, the fee is non-refundable. If we cannot perform work you purchased, we refund the portion not performed. And if your intake is never completed, you can request a full refund at any time; orders left incomplete for 12 months are refunded automatically.</p>
-      </details>
-
-      <h3 class="faq-group">Trust, results, and who we are</h3>
-
+<summary>Do you need access to my website, and do you need my password?</summary>
+<p>For the $149 DIY Audit, no access at all: we work from your public website and the facts you confirm on the intake form. For the $449 Done For You, yes — but only after you sign an authorization, and only temporary access limited to implementing the changes you approved. You can revoke it at any time.</p>
+</details>
+<details id="faq-authorization">
+<summary>Does paying mean I have authorized changes to my website?</summary>
+<p>No. Payment is not authorization. Paying buys the service; it never gives us permission to change your site. For Done For You, you sign a separate authorization and approve every change before we make it.</p>
+</details>
+<h3 class="faq-group">Platforms and limits</h3>
+<details id="faq-platform">
+<summary>What if my website platform limits some of the fixes?</summary>
+<p>Our goal is to make your site as easy for AI agents to read as your platform allows. If a fix cannot be done on your platform or plan, we tell you plainly and focus on what will work.</p>
+</details>
+<h3 class="faq-group">Upgrades and refunds</h3>
 <details>
-        <summary>Couldn't I just ask ChatGPT to review my website?</summary>
-        <p>Yes, and you may get some useful suggestions. Agent Readiness HQ goes further. We use a defined testing methodology to check specific technical and business-information signals, document what we find, identify inconsistencies across your site, prioritize what matters, and provide implementation-ready recommendations and validation steps. Our $149 Audit is designed to give you a structured assessment and a practical plan you or your web developer can actually use, not just general advice about your website.</p>
-      </details>
-
+<summary>Can I upgrade from the $149 to the $449 later?</summary>
+<p>Yes. If you buy the DIY Audit and decide within 30 days that you would rather have us do the work, we apply your full $149 to Done For You — you pay only the $300 difference.</p>
+</details>
 <details>
-        <summary>How are your scans and reports created?</summary>
-        <p>Agent Readiness HQ combines automated scanning, AI-assisted analysis, and human-designed evaluation standards to assess how clearly a website communicates important business information to AI systems. Our tools perform the analysis and generate findings using the methodology we've developed. For Done-for-You work, proposed changes are presented for approval before implementation.</p>
-      </details>
-
-      <details>
-        <summary>Do you guarantee more traffic, leads, or that AI tools will recommend my business?</summary>
-        <p>No, and you should be wary of anyone who does. We never promise rankings, citations, recommendations, leads, or traffic. What we do is make your business information clearer and easier for AI systems to access, understand, and repeat accurately, which may improve how you show up when agents research businesses like yours. What any AI system does with that information is outside our control.</p>
-      </details>
-
-      <details>
-        <summary>Who is behind Agent Readiness HQ?</summary>
-        <p>Agent Readiness HQ is a Colorado-based, family-run business. You will see our name on your confirmation emails and your reports. Questions go to hello@agentreadinesshq.com.</p>
-      </details>
-
-      </div>
-      <p>A question we have not covered? Email <a href="mailto:hello@agentreadinesshq.com">hello@agentreadinesshq.com</a> and we will answer it.</p>
-    </div>
-  </section>
-
+<summary>What is your refund policy?</summary>
+<p>If you cancel before we begin work, you receive a full refund. For the $149 Audit, once your custom report has been delivered, it is non-refundable. For Done For You, once implementation begins, completed work is non-refundable, but any work not yet started is refunded.</p>
+</details>
+<h3 class="faq-group">Trust, results, and who we are</h3>
+<details>
+<summary>Couldn't I just ask ChatGPT to review my website?</summary>
+<p>Yes, and you may get some useful suggestions. Agent Readiness HQ goes further. We use a defined testing process, check the same seven factors on every site, and give you prioritized fixes with copy-paste code — not just general advice.</p>
+</details>
+<details>
+<summary>How are your scans and reports created?</summary>
+<p>Agent Readiness HQ combines automated scanning, AI-assisted analysis, and human-designed evaluation criteria. Every report is reviewed against our seven-factor framework before delivery.</p>
+</details>
+<details>
+<summary>Do you guarantee more traffic, leads, or that AI tools will recommend my business?</summary>
+<p>No, and you should be wary of anyone who does. We never promise rankings, citations, recommendations, or revenue. What we promise is a clear, honest assessment and practical fixes you can act on.</p>
+</details>
+<details>
+<summary>Who is behind Agent Readiness HQ?</summary>
+<p>Agent Readiness HQ is a Colorado-based, family-run business. You will see our name on your confirmation email and receipt, and you can reach a real person at hello@agentreadinesshq.com.</p>
+</details>
+</div>
+<p>A question we have not covered? Email <a href="mailto:hello@agentreadinesshq.com">hello@agentreadinesshq.com</a> and we will answer it.</p>
+</div>
+</section>
 </main>
-
 <footer class="site-footer">
-  <div class="container">
-    <p><strong>Agent Readiness HQ</strong>, helping businesses make their websites easier for AI systems to access, understand, and accurately interpret. A Colorado-based, family-run business. <a href="/">agentreadinesshq.com</a> &middot; <a href="/blog.html">Blog</a> &middot; <a href="/support.html">FAQs &amp; Support</a> &middot; <a href="/terms.html">Terms of Service</a> &middot; <a href="/privacy.html">Privacy Policy</a></p>
-    <p class="footer-social" style="margin-top:10px"><a href="https://x.com/getagentready" target="_blank" rel="noopener" aria-label="Agent Readiness HQ on X" style="display:inline-flex;align-items:center;gap:7px;color:#6e6e73;text-decoration:none"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.9 2.1h3.4l-7.4 8.5 8.7 11.3h-6.8l-5.3-6.8-6.1 6.8H2l7.9-9.1L1.6 2.1H8.6l4.8 6.2 5.5-6.2zm-1.2 17.7h1.9L7.6 4H5.6l12.1 15.8z"/></svg><span>@getagentready</span></a></p>
+<div class="container">
+<p><strong>Agent Readiness HQ</strong>, helping businesses make their websites easier for AI systems to find, read, and recommend.</p>
+<p class="footer-social" style="margin-top:10px"><a href="https://x.com/getagentready" target="_blank" rel="noopener">Follow us on X</a> &middot; <a href="https://www.linkedin.com/company/agent-readiness-hq" target="_blank" rel="noopener">LinkedIn</a></p>
 <style>.footer-social a:hover{color:#e63a5c}</style>
-  </div>
+</div>
 </footer>
 </body>
 </html>
