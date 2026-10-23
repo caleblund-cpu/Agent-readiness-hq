@@ -96,6 +96,38 @@
   setVal("d-email", q.get("email") || (prior && prior.email) || "");
   var paymentRef = q.get("payment_ref") || "";
 
+  /* Server prefill by payment reference (intake prefill fix,
+     2026-10-22): the post-checkout redirect carries ONLY the
+     payment reference - Stripe never puts the buyer's name or
+     email in the browser URL, and the scan details live on
+     whatever device ran the scan, so on a second device all four
+     fields used to land blank. The audit function can look the
+     order up by that reference (name + email from the Stripe
+     session, website + business name joined from the scan by
+     email), so ask it and fill whatever is still blank. Link
+     parameters keep priority; the checkout full name replaces a
+     first-name-only value carried from this device's stored scan.
+     Everything stays editable, and any lookup failure leaves the
+     form exactly as it was. */
+  function fillIfEmpty(id, v) {
+    var el = document.getElementById(id);
+    if (el && v && !el.value.trim()) el.value = v;
+  }
+  if (paymentRef) {
+    fetch("/api/intake-prefill?payment_ref=" + encodeURIComponent(paymentRef))
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (!d) return;
+        if (d.name && !q.get("name")) {
+          document.getElementById("d-name").value = d.name;
+        }
+        fillIfEmpty("d-business", d.business);
+        fillIfEmpty("d-url", d.website);
+        fillIfEmpty("d-email", d.email);
+      })
+      .catch(function () { /* prefill never blocks manual entry */ });
+  }
+
   var factsText = "";
 
   function factsFromData(url, dateStr, score, grade, checks) {
