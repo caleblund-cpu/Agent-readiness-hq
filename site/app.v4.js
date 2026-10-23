@@ -308,10 +308,11 @@
 
   /* Information packet form (homepage, under the scan results): posts
      the visitor's email to the business inbox via FormSubmit, labeled
-     as an information packet request. The packet is then emailed from
-     the inbox; FormSubmit's _autoresponse is deliberately NOT used
-     (delivery through it is unreliable). The on-page confirmation also
-     links straight to the hosted packet at /packet. */
+     as an information packet request. On success the visitor is sent
+     straight to the hosted packet at /packet: the packet is the
+     post-capture reward (Oct 23 ruling), never a public link. The
+     packet is also emailed from the inbox; FormSubmit's _autoresponse
+     is deliberately NOT used (delivery through it is unreliable). */
   if (emailForm) emailForm.addEventListener("submit", function (e) {
     e.preventDefault();
     var email = document.getElementById("email").value.trim();
@@ -339,9 +340,9 @@
       })
       .then(function (body) {
         if (!body || body.success !== "true") throw new Error("send failed");
-        emailNote.innerHTML = "Your packet is on its way. "
-          + '<a href="/packet" style="color:#ffd9e2;text-decoration:underline">Can&rsquo;t wait? View the packet now</a>';
+        emailNote.textContent = "Got it. Opening your information packet\u2026";
         emailForm.reset();
+        window.location.href = "/packet";
       })
       .catch(function (err) {
         console.error("[Agent Readiness HQ] packet request failed:", err);
