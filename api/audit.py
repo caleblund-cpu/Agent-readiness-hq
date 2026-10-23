@@ -115,39 +115,33 @@ FIX_TEXT = {
 
 # Plain-English layer shown with every check result, on the scan page
 # and in the results email (Caleb directive 2026-10-20): a short
-# "what this means" line per check, plus a high-level "Fixable:" line
-# shown only when the check is not at full marks. The fixable lines
-# deliberately say a fix exists without describing it — the how is
-# what the paid products provide (same rule as the hidden top-fixes
-# list on the scan page).
+# "what this means" line per check — what the check measures, what it
+# means, and what it does for a machine reader. Per-check "Fixable:"
+# lines and per-check platform-limit lines were removed by Caleb
+# ruling 2026-10-22: each check now shows only its finding and this
+# meaning line. Platform disclosure lives solely in the platform box
+# (and the results email's platform section), never per check.
 CHECK_COPY = {
     "robots_ai_posture": {
         "meaning": "This file tells AI crawlers whether they may look at your site at all.",
-        "fixable": "Fixable: usually a small settings change.",
     },
     "llms_txt": {
         "meaning": "An optional file that introduces your business in a plain format written for AI agents. It supplements your pages. It is not a substitute for clear content, crawlability, structured data, or accurate facts.",
-        "fixable": "Fixable: a standard addition to your site.",
     },
     "sitemap": {
         "meaning": "The map of your site, so an agent can find every page that matters instead of just a corner of it.",
-        "fixable": "Fixable: a standard addition to your site.",
     },
     "schema_jsonld": {
         "meaning": "Machine-readable labels for your services, prices, and business facts, in the form an agent can quote accurately.",
-        "fixable": "Fixable: structured facts can be added without redesigning your site.",
     },
     "pricing_html": {
         "meaning": "Prices stated in the page itself, where an agent can read them. When pricing isn't clearly stated, an agent may be unable to confidently present it to a customer.",
-        "fixable": "Fixable: your prices can be presented in a form agents can quote.",
     },
     "bot_wall": {
         "meaning": "Whether anything stops an agent at the door before it learns a single thing about your business.",
-        "fixable": "Fixable: in most cases the blocking element can be adjusted.",
     },
     "page_speed": {
         "meaning": "How fast your pages answer. Slow pages can make it harder for automated systems to retrieve information reliably.",
-        "fixable": "Fixable: speed usually improves with a few standard adjustments.",
     },
 }
 
@@ -826,10 +820,13 @@ def run_audit(raw_url):
         checks.append(("page_speed", "page speed (TTFB + total)", s, st, d))
 
         # Platform feasibility (Caleb ruling 2026-10-21): detect the
-        # platform, mark each short check as fixable or platform-
-        # limited, and compute the $449 eligibility outcome. Runs on
-        # the already-fetched homepage; detection failure never
-        # affects the score, it only leaves the platform unconfirmed.
+        # platform and compute the $449 eligibility outcome for the
+        # platform box below. Runs on the already-fetched homepage;
+        # detection failure never affects the score, it only leaves
+        # the platform unconfirmed. Per-check fixable / platform-
+        # limit labels were removed from the results by Caleb ruling
+        # 2026-10-22; eligibility still drives the platform box and
+        # the $449 offer wording, exactly as before.
         platform_name, platform_evidence = detect_platform(
             urlparse(base).hostname or "", html)
         assessment = assess_platform(platform_name, checks)
@@ -840,20 +837,7 @@ def run_audit(raw_url):
             entry = {
                 "id": cid, "name": name, "weight": WEIGHTS[cid],
                 "status": st, "score": round(sc, 1), "detail": detail,
-                "meaning": CHECK_COPY[cid]["meaning"],
-                "fixable": (CHECK_COPY[cid]["fixable"]
-                            if sc < WEIGHTS[cid] else None)}
-            cap = assessment["per_check"].get(cid, "implementable")
-            if platform_name and sc < WEIGHTS[cid] and cap != "implementable":
-                _cap, reason = PLATFORM_CAPABILITY[platform_name][cid]
-                head = ("Platform limit" if cap in (
-                    "not_implementable", "auto_only")
-                        else "Platform-dependent")
-                entry["platform_status"] = "platform_limited"
-                entry["platform_note"] = f"{head}: {reason}"
-                entry["fixable"] = None
-            elif sc < WEIGHTS[cid]:
-                entry["platform_status"] = "fixable"
+                "meaning": CHECK_COPY[cid]["meaning"]}
             results.append(entry)
         platform_block = {
             "detected": bool(platform_name),
@@ -967,9 +951,9 @@ _GRADE_CHIP_STYLE = {
 def _results_email_html(first_name, site, score, grade, checks, platform=None):
     """HTML version of the results email, mirroring the on-page results:
     score/grade header, then per check the technical name + score pill,
-    the finding line, the plain-English meaning line, and the fixable
-    line when the check is not at full marks (or the platform-limit
-    line when the platform, not the site, is what blocks the fix).
+    the finding line, and the plain-English meaning line. (Per-check
+    fixable / platform-limit lines were removed by Caleb ruling
+    2026-10-22; each check renders exactly those two parts.)
     When the scan identified the platform, a platform section follows
     the checks: the customer's own score ceiling where the platform
     makes one calculable, and the $449 eligibility disclosure (B) or
@@ -1018,26 +1002,6 @@ def _results_email_html(first_name, site, score, grade, checks, platform=None):
                 '<p style="font-size:15px; line-height:1.6; color:#333336; '
                 'margin-top:8px; padding-left:20px;">%s</p>'
                 % _esc_html(meaning))
-        fixable = (c.get("fixable") or "").strip()
-        if fixable:
-            head, _, rest = fixable.partition(":")
-            block.append(
-                '<p style="font-size:15px; line-height:1.6; color:#454548; '
-                'margin-top:10px; margin-left:20px; padding:10px 14px; '
-                'background-color:#fff7f8; border-left:3px solid #ff4d6d; '
-                'border-radius:0 8px 8px 0;"><strong style="color:#c21847;">'
-                "%s:</strong>%s</p>"
-                % (_esc_html(head), _esc_html(rest)))
-        pnote = (c.get("platform_note") or "").strip()
-        if pnote:
-            head, _, rest = pnote.partition(":")
-            block.append(
-                '<p style="font-size:15px; line-height:1.6; color:#454548; '
-                'margin-top:10px; margin-left:20px; padding:10px 14px; '
-                'background-color:#fdf6ec; border-left:3px solid #e8a13d; '
-                'border-radius:0 8px 8px 0;"><strong style="color:#8a5a00;">'
-                "%s:</strong>%s</p>"
-                % (_esc_html(head), _esc_html(rest)))
         block.append("</div>")
         blocks.append("".join(block))
     # Platform section + offer wording follow the eligibility outcome
@@ -1155,13 +1119,14 @@ def compose_results_email(first_name, email, report):
     """Build the visitor's copy of their free scan results.
 
     Multipart (plain text + HTML) since 2026-10-20. Both parts carry
-    the same three-layer structure the visitor sees on the results
-    page: score and grade, then each of the seven checks with its
-    status mark, points, finding line, plain-English meaning line,
-    and (when the check is not at full marks) the high-level fixable
-    line. Signed Rachael Lund, Founder (2026-10-16 ruling). The free
-    results are never called a "report" or an "Audit" — those words
-    belong to the paid products.
+    the same structure the visitor sees on the results page: score
+    and grade, then each of the seven checks with its status mark,
+    points, finding line, and plain-English meaning line. (The former
+    third layer — per-check fixable / platform-limit lines — was
+    removed by Caleb ruling 2026-10-22.) Signed with the business
+    name only (2026-10-22 ruling). The free results are never called
+    a "report" or an "Audit" — those words belong to the paid
+    products.
     """
     site = report.get("url") or ""
     score = _fmt_num(report.get("score"))
@@ -1189,12 +1154,6 @@ def compose_results_email(first_name, email, report):
         meaning = (c.get("meaning") or "").strip()
         if meaning:
             lines.append(f"   {meaning}")
-        fixable = (c.get("fixable") or "").strip()
-        if fixable:
-            lines.append(f"   {fixable}")
-        pnote = (c.get("platform_note") or "").strip()
-        if pnote:
-            lines.append(f"   {pnote}")
     # Platform section (Caleb ruling 2026-10-21): the detected
     # platform, the customer's own ceiling where calculable, the
     # eligibility disclosure, and the confirm line when the platform
