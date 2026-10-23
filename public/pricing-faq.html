@@ -61,6 +61,19 @@
 .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.2rem; max-width: 60rem; margin: 1.9rem auto 0; }
 .tile { display: block; background: #fff; border-radius: 16px; box-shadow: var(--card-shadow); padding: 1.3rem 1.25rem; text-align: left; }
 a.tile { text-decoration: none; color: inherit; }
+.packet-band { background: #1d1d1f; color: #fff; }
+.packet-band .email-capture { border-top: none; margin-top: 0; padding-top: 0; }
+.packet-band .section-intro { color: #d6d6da; }
+.email-capture { max-width: 42rem; margin: 1.75rem auto 0; padding-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.14); text-align: center; }
+.email-capture h3 { margin-bottom: 0.25rem; color: #fff; }
+.email-capture .form-note { font-size: 0.85rem; color: #a7a7b3; margin: 0.35rem 0 0; line-height: 1.45; }
+.email-capture .form-note:empty { margin: 0; }
+.email-capture .section-intro { font-size: 0.98rem; }
+.email-form { display: flex; gap: 0.75rem; justify-content: center; max-width: 38rem; margin: 0 auto 0.75rem; }
+.email-form input[type="email"] { flex: 1; min-width: 0; padding: 0.9rem 1.3rem; border: 1px solid rgba(255,255,255,0.22); border-radius: 999px; font-size: 1rem; font-family: inherit; background: rgba(255,255,255,0.08); color: #fff; }
+.email-form input[type="email"]::placeholder { color: #a7a7b3; }
+.email-form input[type="email"]:focus { outline: none; border-color: #ff4d6d; box-shadow: 0 0 0 3px rgba(255,77,109,0.35); }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 a.tile:hover { transform: translateY(-5px); box-shadow: 0 18px 38px rgba(29, 29, 31, 0.13); }
 .tile .t-ico { display: inline-flex; width: 2.7rem; height: 2.7rem; border-radius: 0.9rem; background: var(--rose-tint); color: var(--rose-dark); align-items: center; justify-content: center; margin-bottom: 0.75rem; }
 .tile .t-ico svg { width: 1.45rem; height: 1.45rem; }
@@ -172,6 +185,21 @@ a.tile:hover { transform: translateY(-5px); box-shadow: 0 18px 38px rgba(29, 29,
 </div>
 </section>
 <!-- 5. FAQs -->
+<section class="section packet-band">
+<div class="container">
+<div class="email-capture">
+<h3>Want the full picture first?</h3>
+<p class="section-intro">We'll email you our information packet: how the free scan works, what each plan includes, and what everything costs, with links to get started whenever you're ready.</p>
+<form class="email-form packet-form" aria-label="Send me the information packet">
+<label class="visually-hidden" for="packet-email-1">Email address</label>
+<input type="email" id="packet-email-1" name="email" placeholder="you@yourbusiness.com" required autocomplete="email">
+<button type="submit" class="btn">Send Me the Packet</button>
+</form>
+<p class="form-note packet-note" id="packet-note-1" role="status"></p>
+<p class="form-note trust-line">We'll send the packet right away, plus an occasional update from us. Unsubscribe anytime.</p>
+</div>
+</div>
+</section>
 <section class="section" id="faq">
 <div class="container">
       <h2 style="margin-bottom:2.25rem;">Frequently Asked Questions</h2>
@@ -266,5 +294,30 @@ a.tile:hover { transform: translateY(-5px); box-shadow: 0 18px 38px rgba(29, 29,
 <style>.footer-social a:hover{color:#e63a5c}</style>
 </div>
 </footer>
+<script>
+document.querySelectorAll(".packet-form").forEach(function (form) {
+  var note = form.parentElement.querySelector(".packet-note");
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var email = form.querySelector("input[type=email]").value.trim();
+    if (!/.+@.+\..+/.test(email)) { note.textContent = "Please enter a valid email address."; return; }
+    note.textContent = "Sending\u2026";
+    var params = new URLSearchParams();
+    params.append("email", email);
+    params.append("request", "Information packet request");
+    params.append("_subject", "Information packet request");
+    params.append("message", "Please send the Agent Readiness HQ information packet to " + email + ". Packet page: https://agentreadinesshq.com/packet");
+    params.append("_template", "table");
+    fetch("https://formsubmit.co/ajax/c171c3e0d3fb9d3525cb0945982c5d2b", { method: "POST", body: params })
+      .then(function (r) { return r.json().catch(function () { return {}; }); })
+      .then(function (body) {
+        if (!body || body.success !== "true") throw new Error("send failed");
+        note.innerHTML = "Your packet is on its way. <a href=\"/packet\" style=\"color:#ffd9e2;text-decoration:underline\">Can&rsquo;t wait? View the packet now</a>";
+        form.reset();
+      })
+      .catch(function () { note.textContent = "Something went wrong sending your request. Please try again."; });
+  });
+});
+</script>
 </body>
 </html>
