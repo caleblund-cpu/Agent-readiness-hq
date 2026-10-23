@@ -60,6 +60,7 @@
 .cta-note { display: block; margin-top: 0.65rem; color: var(--faint); font-size: 0.9rem; }
 .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.2rem; max-width: 60rem; margin: 1.9rem auto 0; }
 .tile { display: block; background: #fff; border-radius: 16px; box-shadow: var(--card-shadow); padding: 1.3rem 1.25rem; text-align: left; }
+a.tile { text-decoration: none; color: inherit; }
 a.tile:hover { transform: translateY(-5px); box-shadow: 0 18px 38px rgba(29, 29, 31, 0.13); }
 .tile .t-ico { display: inline-flex; width: 2.7rem; height: 2.7rem; border-radius: 0.9rem; background: var(--rose-tint); color: var(--rose-dark); align-items: center; justify-content: center; margin-bottom: 0.75rem; }
 .tile .t-ico svg { width: 1.45rem; height: 1.45rem; }
@@ -79,7 +80,7 @@ a.tile:hover { transform: translateY(-5px); box-shadow: 0 18px 38px rgba(29, 29,
 <body>
 <header class="site-header">
 <div class="container header-inner">
-<a class="wordmark" href="/"><svg width="30" height="30" viewBox="0 0 48 48" fill="none" style="vertical-align:-6px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" fill="#ff4d6d"/><path d="M14 2v6h6" stroke="#fff" stroke-width="2" fill="none"/></svg><span>Agent Readiness <strong>HQ</strong></span></a>
+<a class="wordmark" href="/"><svg width="30" height="30" viewBox="0 0 48 48" fill="none" style="vertical-align:-8px;margin-right:9px" aria-hidden="true"><rect x="5" y="5" width="38" height="38" rx="10" stroke="#1d1d1f" stroke-width="5"/><path d="M15.5 25 L22 31.5 L33.5 17.5" stroke="#ff4d6d" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Agent Readiness <strong>HQ</strong></span></a>
 <a href="/#cta" class="btn btn-small"><span class="btn-full">Get your free scan</span><span class="btn-short">Free scan</span></a>
 </div>
 </header>
