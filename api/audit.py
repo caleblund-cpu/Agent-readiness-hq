@@ -1692,11 +1692,74 @@ def _scan_lead_write(email, url, business):
                     "ts": datetime.now(timezone.utc).isoformat()})
 
 
-def _order_write(session_id, name, email, tier):
-    _blob_put_json(_ORDER_PREFIX + session_id + ".json",
-                   {"name": name or "", "email": email or "",
-                    "tier": str(tier),
+def _order_write(session_id, name, email, tier, arhq_number=None):
+    record = {"name": name or "", "email": email or "",
+              "tier": str(tier),
+              "ts": datetime.now(timezone.utc).isoformat()}
+    if arhq_number:
+        record["arhq_number"] = arhq_number
+    _blob_put_json(_ORDER_PREFIX + session_id + ".json", record)
+
+
+# --- Order numbering (2026-10-22) --------------------------------------
+# ARHQ order numbers used to be assigned by hand in the order tracker
+# after payment, so the day-0 email (fired by this webhook at
+# checkout) had no number to print and carried the raw Stripe session
+# id as its order reference (ARHQ-2026-0004's confirmation did
+# exactly that). Numbering now happens here, at purchase time: a
+# sequence record in the same private Blob store holds the next
+# integer, and each checkout claims its number BEFORE the order
+# record is written, so the number rides on orders/v1/<session_id>
+# (arhq_number) where the intake-prefill join and the production
+# queue can find it. Format: ARHQ-<purchase year>-<sequence, zero-
+# padded to 4>; the sequence never resets, so a January order takes
+# the new year's prefix with the next integer in line. The seed is 5:
+# 0001 (Ten Talents), 0002 (walkthrough), 0003 (upgrade) and 0004
+# (Happy Whole Way) were assigned by hand in 20-order-tracker.md.
+# Idempotency: Stripe retries a webhook, and a retry that reaches a
+# fresh instance finds the number already on the session's order
+# record and reuses it instead of burning a second number. Failure
+# isolation, same rule as every store here: a claim is only handed
+# out once the incremented sequence has been read back as durable;
+# if that cannot be confirmed, the webhook falls back to sending the
+# day-0 email with NO order reference rather than not sending it,
+# and logs the failure. No customer email ever prints a session id
+# as an order reference.
+_ORDER_SEQ_PATHNAME = "order-sequence/v1/next.json"
+_ORDER_SEQ_SEED = 5
+
+
+def _claim_arhq_number(session_id):
+    """This order's ARHQ number, or None if numbering failed.
+
+    Reuses the number stored on the session's existing order record
+    when one is there; otherwise claims the next sequence value
+    (persist the increment first, verify by read-back, then hand the
+    number out). Never raises.
+    """
+    existing = _blob_get_json(_ORDER_PREFIX + session_id + ".json")
+    if existing and existing.get("arhq_number"):
+        return str(existing["arhq_number"])
+    seq_obj = _blob_get_json(_ORDER_SEQ_PATHNAME)
+    nxt = None
+    if isinstance(seq_obj, dict):
+        try:
+            nxt = int(seq_obj.get("next"))
+        except (TypeError, ValueError):
+            nxt = None
+    if nxt is None or nxt < _ORDER_SEQ_SEED:
+        nxt = _ORDER_SEQ_SEED
+    _blob_put_json(_ORDER_SEQ_PATHNAME,
+                   {"next": nxt + 1,
                     "ts": datetime.now(timezone.utc).isoformat()})
+    confirm = _blob_get_json(_ORDER_SEQ_PATHNAME)
+    if not isinstance(confirm, dict) or confirm.get("next") != nxt + 1:
+        print(f"order-numbering: sequence claim for session "
+              f"{session_id} could not be confirmed durable; "
+              "day-0 email will carry no order reference")
+        return None
+    year = datetime.now(timezone.utc).year
+    return f"ARHQ-{year}-{nxt:04d}"
 
 
 def _is_paid_buyer(email):
@@ -1812,7 +1875,7 @@ def _day0_email_html(heading, first_name, payment_line, blocks_html,
     }
 
 
-def compose_day0_email(first_name, email, session_id, door_link):
+def compose_day0_email(first_name, email, order_ref, door_link):
     """Template 7 ($149 purchase confirmation), automated. Shortened
     2026-10-22 (journey simplification, spec section 2): the email is
     now a recovery receipt, not a journey explainer. It carries only
@@ -1831,11 +1894,16 @@ def compose_day0_email(first_name, email, session_id, door_link):
     a "Complete your intake form" button; the text part keeps the
     raw URL on its own line under the action lead line. The wording
     lives in the shared lists below so both parts cannot drift apart.
+
+    order_ref is the order's ARHQ number (assigned by the webhook,
+    2026-10-22), or None when numbering failed; the payment line
+    then carries no order reference at all. A Stripe session id is
+    never printed here.
     """
     subject = "Payment confirmed. Now the intake form, then your report."
+    ref = f" (order {order_ref})" if order_ref else ""
     payment_line = (
-        f"Thank you. Your payment of $149 has been received "
-        f"(order {session_id}).")
+        f"Thank you. Your payment of $149 has been received{ref}.")
     action_lead = "Complete your intake form."
     action_body = (
         "It takes about 5 minutes, and most of it is already filled "
@@ -1879,11 +1947,14 @@ def compose_day0_email(first_name, email, session_id, door_link):
     return msg
 
 
-def compose_order_notice(name, email, session_id, amount_paid, day0_sent):
+def compose_order_notice(name, email, session_id, amount_paid, day0_sent,
+                         arhq_number=None):
     """Internal order record to hello@, fields per 20-order-tracker.md.
     Business name and website are not known at payment time; the intake
     supplies them (the door runs the scan), so the row completes when
-    the intake notification arrives.
+    the intake notification arrives. order_id stays the Stripe session
+    id (the operator's join key); arhq_number is the customer-facing
+    number the webhook assigned at purchase (2026-10-22).
     """
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     lines = [
@@ -1891,6 +1962,7 @@ def compose_order_notice(name, email, session_id, amount_paid, day0_sent):
         + ("sent to the customer." if day0_sent else "FAILED to send; send Template 7 by hand."),
         "",
         f"order_id: {session_id}",
+        f"arhq_number: {arhq_number or '(unassigned - numbering failed; see function logs)'}",
         f"order_date: {today}",
         f"customer_name: {name or ''}",
         "business_name: (pending intake)",
@@ -1911,7 +1983,7 @@ def compose_order_notice(name, email, session_id, amount_paid, day0_sent):
     return msg
 
 
-def compose_day0_email_449(first_name, email, session_id, door_link):
+def compose_day0_email_449(first_name, email, order_ref, door_link):
     """Template 12 ($449 purchase confirmation), automated. Shortened
     2026-10-22 (journey simplification, spec section 5): the email is
     now a recovery receipt, not a journey explainer. It carries only
@@ -1931,11 +2003,16 @@ def compose_day0_email_449(first_name, email, session_id, door_link):
     a "Complete your intake form" button; the text part keeps the
     raw URL on its own line under the action lead line. The wording
     lives in the shared lists below so both parts cannot drift apart.
+
+    order_ref is the order's ARHQ number (assigned by the webhook,
+    2026-10-22), or None when numbering failed; the payment line
+    then carries no order reference at all. A Stripe session id is
+    never printed here.
     """
     subject = "Your $449 Done-for-You is confirmed"
+    ref = f" (order {order_ref})" if order_ref else ""
     payment_line = (
-        f"Thank you. Your payment of $449 has been received "
-        f"(order {session_id}).")
+        f"Thank you. Your payment of $449 has been received{ref}.")
     action_lead = "Complete your intake form."
     action_body = (
         "It takes about 5 minutes, and most of it is already filled "
@@ -1978,11 +2055,15 @@ def compose_day0_email_449(first_name, email, session_id, door_link):
     return msg
 
 
-def compose_order_notice_449(name, email, session_id, amount_paid, day0_sent):
+def compose_order_notice_449(name, email, session_id, amount_paid, day0_sent,
+                             arhq_number=None):
     """Internal $449 order record to hello@, fields per
     20-order-tracker.md. Business name and website are not known at
     payment time; the intake supplies them (the door runs the scan),
     so the row completes when the intake notification arrives.
+    order_id stays the Stripe session id (the operator's join key);
+    arhq_number is the customer-facing number the webhook assigned
+    at purchase (2026-10-22).
     """
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     lines = [
@@ -1990,6 +2071,7 @@ def compose_order_notice_449(name, email, session_id, amount_paid, day0_sent):
         + ("sent to the customer." if day0_sent else "FAILED to send; send Template 12 by hand."),
         "",
         f"order_id: {session_id}",
+        f"arhq_number: {arhq_number or '(unassigned - numbering failed; see function logs)'}",
         f"order_date: {today}",
         f"customer_name: {name or ''}",
         "business_name: (pending intake)",
@@ -2013,7 +2095,7 @@ def compose_order_notice_449(name, email, session_id, amount_paid, day0_sent):
     return msg
 
 
-def compose_upgrade_email(first_name, email, session_id):
+def compose_upgrade_email(first_name, email, order_ref):
     """Template 20 (post-upgrade confirmation, $149 to $449),
     automated. Rewritten 2026-10-22 (journey simplification, spec
     section 14): a SHORT RECEIPT ONLY. The old version carried a
@@ -2033,11 +2115,17 @@ def compose_upgrade_email(first_name, email, session_id):
     section 14; Workstream B's documentation of the new flow in
     pre-launch-package/09 and /10 was not yet present when this was
     written (files still dated 2026-10-21).
+
+    order_ref is the upgrade order's ARHQ number (assigned by the
+    webhook, 2026-10-22), or None when numbering failed; the payment
+    line then carries no order reference at all. A Stripe session id
+    is never printed here.
     """
     subject = "Your Done For You upgrade is confirmed"
+    ref = f" (order {order_ref})" if order_ref else ""
     payment_line = (
-        f"Thank you. Your upgrade payment of $300 has been received "
-        f"(order {session_id}). Your original $149 is credited in "
+        f"Thank you. Your upgrade payment of $300 has been received"
+        f"{ref}. Your original $149 is credited in "
         f"full, and your audit and intake facts carry over.")
     paras = [
         "We'll send your approval and access step next.",
@@ -2072,7 +2160,7 @@ def compose_upgrade_email(first_name, email, session_id):
 
 
 def compose_order_notice_upgrade(name, email, session_id, amount_paid,
-                                 day0_sent):
+                                 day0_sent, arhq_number=None):
     """Internal upgrade order record to hello@, fields per
     20-order-tracker.md. Rule 4 of the tracker: an upgrade is filed
     as its own row (product 449, amount_paid 300.00) with a note
@@ -2087,6 +2175,7 @@ def compose_order_notice_upgrade(name, email, session_id, amount_paid,
         + ("sent to the customer." if day0_sent else "FAILED to send; send the Template 20 receipt by hand."),
         "",
         f"order_id: {session_id}",
+        f"arhq_number: {arhq_number or '(unassigned - numbering failed; see function logs)'}",
         f"order_date: {today}",
         f"customer_name: {name or ''}",
         "business_name: (from the original $149 order; match by email)",
@@ -2171,6 +2260,7 @@ def process_checkout_completed(session):
     details = session.get("customer_details") or {}
     email = str(details.get("email") or session.get("customer_email") or "").strip()
     name = str(details.get("name") or "").strip()
+    arhq_number = None
     if email and _EMAIL_RE.match(email):
         # Remember the buyer so a later public re-scan does not send
         # them the free-scan results (sales) email again (defect D-1).
@@ -2179,9 +2269,14 @@ def process_checkout_completed(session):
         # Durable copy in the Blob paid-buyer store, so suppression
         # survives cold instances and restarts (D-1 durability).
         _paid_store_write(email.lower(), session_id)
+        # Assign the order's ARHQ number at purchase time
+        # (2026-10-22), so the day-0 email can print it and the
+        # order record below carries it. Failure-isolated: None
+        # means the emails go out with no order reference.
+        arhq_number = _claim_arhq_number(session_id)
         # Intake prefill record, keyed by the session id the intake
         # door carries as payment_ref (intake prefill fix, 2026-10-22).
-        _order_write(session_id, name, email.lower(), tier)
+        _order_write(session_id, name, email.lower(), tier, arhq_number)
     first_name = name.split()[0] if name else "there"
     default_cents = {149: 14900, 449: 44900, "upgrade": 30000}[tier]
     try:
@@ -2192,22 +2287,22 @@ def process_checkout_completed(session):
     if tier == 149:
         door_link = _intake_door_link(name, email, session_id)
         day0_factory = lambda: compose_day0_email(  # noqa: E731
-            first_name, email, session_id, door_link)
+            first_name, email, arhq_number, door_link)
         notice_factory = lambda: compose_order_notice(  # noqa: E731
-            name, email, session_id, amount_paid, day0_sent)
+            name, email, session_id, amount_paid, day0_sent, arhq_number)
     elif tier == 449:
         door_link = _intake_door_link(
             name, email, session_id, INTAKE_DOOR_PATH_449)
         day0_factory = lambda: compose_day0_email_449(  # noqa: E731
-            first_name, email, session_id, door_link)
+            first_name, email, arhq_number, door_link)
         notice_factory = lambda: compose_order_notice_449(  # noqa: E731
-            name, email, session_id, amount_paid, day0_sent)
+            name, email, session_id, amount_paid, day0_sent, arhq_number)
     else:  # upgrade: short receipt only; approval+access follows in
         # the merged Template 18 delivery (spec section 14, 2026-10-22)
         day0_factory = lambda: compose_upgrade_email(  # noqa: E731
-            first_name, email, session_id)
+            first_name, email, arhq_number)
         notice_factory = lambda: compose_order_notice_upgrade(  # noqa: E731
-            name, email, session_id, amount_paid, day0_sent)
+            name, email, session_id, amount_paid, day0_sent, arhq_number)
 
     day0_sent = False
     if email and _EMAIL_RE.match(email):
@@ -2219,6 +2314,7 @@ def process_checkout_completed(session):
 
     record = {
         "order_id": session_id,
+        "arhq_number": arhq_number,
         "order_date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
         "customer_name": name,
         "email": email,
