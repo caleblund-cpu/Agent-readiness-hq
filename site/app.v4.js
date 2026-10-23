@@ -87,10 +87,13 @@
        score, before the technical findings. Reassurance + the two
        options, buttons only (never whole-card links), each button
        linking straight to its Stripe checkout. Eligibility comes from
-       the scan: A/unknown both buttons active; B both active with the
-       platform caveat directly underneath; C keeps the $449 card
-       visible but muted and non-clickable. No timing, fulfillment,
-       authorization, or process copy inside the box. */
+       the scan: A/unknown both buttons active; B both active (the
+       platform caveat renders below the checks, per Caleb's later
+       2026-10-22 ruling); C keeps the $449 card visible but muted
+       and non-clickable. Both cards use the same clean style (the
+       $449 card's featured rose treatment was removed by Caleb
+       ruling 2026-10-22). No timing, fulfillment, authorization,
+       or process copy inside the box. */
     var pf = report.platform || {};
     var elig = pf.eligibility || "unknown";
     var urls = report.checkout_urls || {};
@@ -113,7 +116,7 @@
       html += '<p class="offer-desc">Not available on your website platform.</p>';
       html += "</div>";
     } else {
-      html += '<div class="offer-card featured">';
+      html += '<div class="offer-card">';
       html += '<div class="offer-price">$449</div>';
       html += '<div class="offer-name">Do it for me</div>';
       html += '<p class="offer-desc">We make the approved improvements for you.</p>';
@@ -123,12 +126,15 @@
     html += "</div>";
     html += "</div>";
 
-    /* Platform caveat (2026-10-22): for B/C, a collapsed plain-language
-       warning directly under the conversion box; "See details" expands
-       (native <details>) to the full technical disclosure, preserved
+    /* Platform caveat (2026-10-22; placement re-ruled later the
+       same day): for B/C, a collapsed plain-language warning BELOW
+       the seven detailed checks - page order is score -> conversion
+       box -> checks -> caveat. "See details" expands (native
+       <details>) to the full technical disclosure, preserved
        verbatim (detected line, ceiling paragraph, offer paragraph).
        For an unidentified platform, the existing confirmation line
-       stays as a small note under the box. A: nothing. */
+       stays as a small note under the conversion box. A: nothing. */
+    var caveatHtml = "";
     if ((elig === "B" || elig === "C") && pf.short_line) {
       var dl = "";
       if (pf.detected) {
@@ -140,14 +146,14 @@
       if (pf.offer_line) {
         dl += '<p class="platform-line">' + esc(pf.offer_line) + "</p>";
       }
-      html += '<details class="platform-caveat">';
-      html += "<summary>";
-      html += '<span class="caveat-title">\u26a0 Your website platform has a limitation</span>';
-      html += '<span class="caveat-line">' + esc(pf.short_line) + "</span>";
-      html += '<span class="caveat-more">See details <span class="caveat-chev">\u203a</span></span>';
-      html += "</summary>";
-      html += '<div class="caveat-body">' + dl + "</div>";
-      html += "</details>";
+      caveatHtml += '<details class="platform-caveat">';
+      caveatHtml += "<summary>";
+      caveatHtml += '<span class="caveat-title">\u26a0 Your website platform has a limitation</span>';
+      caveatHtml += '<span class="caveat-line">' + esc(pf.short_line) + "</span>";
+      caveatHtml += '<span class="caveat-more">See details <span class="caveat-chev">\u203a</span></span>';
+      caveatHtml += "</summary>";
+      caveatHtml += '<div class="caveat-body">' + dl + "</div>";
+      caveatHtml += "</details>";
     } else if (elig === "unknown" && pf.confirm_line) {
       html += '<p class="platform-confirm-note">' + esc(pf.confirm_line) + "</p>";
     }
@@ -179,11 +185,12 @@
       html += "</li>";
     });
     html += "</ul>";
+    html += caveatHtml;
 
-    /* The platform disclosure no longer renders as a bottom box
-       (2026-10-22): it lives in the collapsed caveat directly under
-       the conversion box above; the expanded state carries the same
-       verbatim lines this block used to show. */
+    /* The platform disclosure renders as the collapsed caveat below
+       the checks (2026-10-22), not as a separate bottom box; the
+       expanded state carries the same verbatim lines the old bottom
+       box used to show. */
 
     /* Top fixes are hidden from the free audit - the specific fixes are
        what the $149 report sells. The free result shows the diagnosis
