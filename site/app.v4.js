@@ -306,13 +306,11 @@
     }
   }
 
-  /* Information packet form (homepage, under the scan results): posts
-     the visitor's email to the business inbox via FormSubmit, labeled
-     as an information packet request. On success the visitor is sent
-     straight to the hosted packet at /packet: the packet is the
-     post-capture reward (Oct 23 ruling), never a public link. The
-     packet is also emailed from the inbox; FormSubmit's _autoresponse
-     is deliberately NOT used (delivery through it is unreliable). */
+  /* Information packet form (homepage): the packet is also a public
+     Information page; this form emails the PDF packet to the visitor
+     via /api/packet (Oct 24 ruling, Option A). The endpoint sends the
+     PDF from the business inbox and logs the request there as the
+     lead record. No redirect: the visitor stays on the page. */
   if (emailForm) emailForm.addEventListener("submit", function (e) {
     e.preventDefault();
     var email = document.getElementById("email").value.trim();
@@ -326,27 +324,23 @@
 
   function sendPacketRequest(email) {
     emailNote.textContent = "Sending\u2026";
-    var params = new URLSearchParams();
-    params.append("email", email);
-    params.append("request", "Information packet request");
-    params.append("_subject", "Information packet request");
-    params.append("message", "Please send the Agent Readiness HQ "
-      + "information packet to " + email + ". Packet page: "
-      + SITE_URL + "packet");
-    params.append("_template", "table");
-    fetch(FORMSUBMIT_URL, { method: "POST", body: params })
+    fetch("/api/packet", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email })
+    })
       .then(function (resp) {
         return resp.json().catch(function () { return {}; });
       })
       .then(function (body) {
-        if (!body || body.success !== "true") throw new Error("send failed");
-        emailNote.textContent = "Got it. Opening your information packet\u2026";
+        if (!body || body.ok !== true) throw new Error("send failed");
+        emailNote.textContent = "Your packet is on its way to " + email
+          + ". Check your inbox, and your spam folder just in case.";
         emailForm.reset();
-        window.location.href = "/packet";
       })
       .catch(function (err) {
         console.error("[Agent Readiness HQ] packet request failed:", err);
-        emailNote.textContent = "Something went wrong sending your request. Please try again.";
+        emailNote.textContent = "Something went wrong sending your packet. Please try again, or email us at hello@agentreadinesshq.com.";
       });
   }
 
