@@ -2644,6 +2644,7 @@ class handler(BaseHTTPRequestHandler):
             "packet.html": "text/html; charset=utf-8",
             "ai-info.html": "text/html; charset=utf-8",
         "information.html": "text/html; charset=utf-8",
+        "information-packet.b64": "text/plain; charset=utf-8",
             "blog.html": "text/html; charset=utf-8",
             "support.html": "text/html; charset=utf-8",
             "pricing-faq.html": "text/html; charset=utf-8",
