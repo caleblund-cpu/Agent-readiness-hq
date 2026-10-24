@@ -46,6 +46,82 @@
     .scan-url-row .btn { width: 100%; }
   }
 </style>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "ProfessionalService",
+      "@id": "https://agentreadinesshq.com/#business",
+      "name": "Agent Readiness HQ",
+      "url": "https://agentreadinesshq.com/",
+      "email": "hello@agentreadinesshq.com",
+      "description": "Agent Readiness HQ scores how well a business website can be read and understood by AI agents, explains the findings in plain English, and provides or implements the fixes.",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "1500 N Grant St, Suite #12205",
+        "addressLocality": "Denver",
+        "addressRegion": "CO",
+        "postalCode": "80203",
+        "addressCountry": "US"
+      },
+      "areaServed": "United States",
+      "priceRange": "$149 - $449"
+    },
+    {
+      "@type": "Product",
+      "name": "AI Readiness Audit",
+      "description": "A full audit report of what the free AI Readiness Scan found, fixes in priority order, ready-to-use AI Information Page content built from verified business facts, and step-by-step publishing instructions. Delivered within 5 business days after we receive the information we need from you.",
+      "brand": { "@id": "https://agentreadinesshq.com/#business" },
+      "offers": {
+        "@type": "Offer",
+        "url": "https://agentreadinesshq.com/pricing-faq.html",
+        "priceCurrency": "USD",
+        "price": "149",
+        "availability": "https://schema.org/InStock"
+      }
+    },
+    {
+      "@type": "Product",
+      "name": "AI Readiness Done For You",
+      "description": "Everything in the AI Readiness Audit, plus Agent Readiness HQ publishes the AI Information Page and implements the approved, platform-supported fixes, with a before-and-after report. Completed within 10 business days after signed authorization, required information, and site access are in place.",
+      "brand": { "@id": "https://agentreadinesshq.com/#business" },
+      "offers": {
+        "@type": "Offer",
+        "url": "https://agentreadinesshq.com/pricing-faq.html",
+        "priceCurrency": "USD",
+        "price": "449",
+        "availability": "https://schema.org/InStock"
+      }
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What does the free AI Readiness Scan check?",
+          "acceptedAnswer": { "@type": "Answer", "text": "The free scan checks a website across seven technical factors: robots.txt AI-crawler posture, llms.txt, sitemap, schema.org JSON-LD, pricing in raw HTML, bot-wall, and page speed. It produces a score from 0 to 100 with a letter grade." }
+        },
+        {
+          "@type": "Question",
+          "name": "How much does Agent Readiness HQ cost?",
+          "acceptedAnswer": { "@type": "Answer", "text": "The scan is free. The AI Readiness Audit is $149. AI Readiness Done For You is $449. Optional AI Information Page monitoring is $9.99 per month or $99.99 per year." }
+        },
+        {
+          "@type": "Question",
+          "name": "How long does delivery take?",
+          "acceptedAnswer": { "@type": "Answer", "text": "The Audit is delivered within 5 business days after we receive the information we need from you. Done For You implementation is completed within 10 business days after we have your signed authorization, required information, and the site access needed to perform the approved work. If we're waiting on something from you, the delivery clock pauses until we receive it." }
+        },
+        {
+          "@type": "Question",
+          "name": "Does Agent Readiness HQ guarantee better AI rankings or more traffic?",
+          "acceptedAnswer": { "@type": "Answer", "text": "No. The readiness score is an assessment of technical machine-readability only. Agent Readiness HQ does not guarantee increased traffic, customer acquisition, revenue, AI rankings, or citations." }
+        }
+      ]
+    }
+  ]
+}
+</script>
 </head>
 <body>
 
@@ -229,7 +305,7 @@
 <footer class="site-footer">
   <div class="container">
     <p><strong>Agent Readiness HQ</strong> — helping businesses make their websites easier for AI agents to access, understand, and accurately interpret. A Colorado-based, family-run business. <a href="https://agentreadinesshq.com/">agentreadinesshq.com</a> · <a href="/blog.html">Blog</a> · <a href="/pricing-faq.html">Pricing &amp; FAQs</a> · <a href="/support.html">FAQs &amp; Support</a> · <a href="/terms.html">Terms of Service</a> · <a href="/privacy.html">Privacy Policy</a></p>
-    <p class="fine-print">Disclosures: bot-wall / CAPTCHA detection is automated and keyword-based; findings may include false positives or negatives and should be independently verified before acting on them. The readiness score is an assessment of technical machine-readability only. Scores, reports, and toolkit materials are provided for informational purposes and do not guarantee increased traffic, customer acquisition, revenue, or any business outcome. Services are offered as-is without warranties of any kind.</p>
+    <p class="fine-print">Disclosures: bot-wall detection is automated and keyword-based; findings may include false positives or negatives and should be independently verified before acting on them. The readiness score is an assessment of technical machine-readability only. Scores, reports, and toolkit materials are provided for informational purposes and do not guarantee increased traffic, customer acquisition, revenue, or any business outcome. Services are offered as-is without warranties of any kind.</p>
     <p class="footer-social" style="margin-top:10px"><a href="https://x.com/getagentready" target="_blank" rel="noopener" aria-label="Agent Readiness HQ on X" style="display:inline-flex;align-items:center;gap:7px;color:#6e6e73;text-decoration:none"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.9 2.1h3.4l-7.4 8.5 8.7 11.3h-6.8l-5.3-6.8-6.1 6.8H2l7.9-9.1L1.6 2.1H8.6l4.8 6.2 5.5-6.2zm-1.2 17.7h1.9L7.6 4H5.6l12.1 15.8z"/></svg><span>@getagentready</span></a></p>
 <style>.footer-social a:hover{color:#e63a5c}</style>
   </div>
