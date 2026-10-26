@@ -35,7 +35,9 @@
 .packet-note p { margin-bottom: 0.6rem; }
 .packet-note p:last-child { margin-bottom: 0; }
 .email-note { color: var(--muted); font-size: 0.92rem; margin: 0.9rem 0 0; }
-.packet-plans .price-card .pill-popular { background: var(--rose); color: #fff; }
+.packet-plans .price-card { position: relative; }
+.packet-plans .price-card .tagline { min-height: 2.6em; }
+.popular-ribbon { position: absolute; top: -0.95rem; left: 50%; transform: translateX(-50%); background: var(--rose); color: #fff; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; border-radius: 999px; padding: 0.35rem 1rem; margin: 0; white-space: nowrap; box-shadow: 0 4px 14px rgba(255, 77, 109, 0.35); }
 @media (max-width: 720px) {
   .packet-cards, .packet-plans { grid-template-columns: 1fr; }
 }
@@ -86,7 +88,7 @@
 <!-- STRIPE LIVE LINKS: when Stripe live payment links exist, replace the #pricing placeholder hrefs on the two plan buttons below with the live payment link URL for each plan. -->
 <div class="packet-plans">
   <article class="card price-card">
-    <p class="pill pill-popular">Most Popular</p>
+    <p class="popular-ribbon">Most Popular</p>
     <p class="pill">Do it yourself</p>
     <h3>DIY Audit</h3>
     <p class="price">$149</p>
