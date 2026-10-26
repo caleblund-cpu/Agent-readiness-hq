@@ -1250,6 +1250,7 @@ def _results_email_html(first_name, site, score, grade, checks, platform=None):
 %(conversion)s
 %(details)s
 <p style="font-size:16px; line-height:1.6; color:#333336; margin-top:26px;">Thanks,<br><br><strong>Agent Readiness HQ</strong><br><span style="color:#5c5c60;">hello@agentreadinesshq.com</span></p>
+<p style="font-size:13px; line-height:1.55; color:#8e8e93; text-align:center; margin-top:30px;">You are receiving this because you requested your results at agentreadinesshq.com.<br>Don&#8217;t want emails from us? Just reply to this email with &#8220;unsubscribe&#8221; and we will take you off our list.</p>
 </td></tr>
 </table>
 </td></tr>
@@ -1375,6 +1376,11 @@ def compose_results_email(first_name, email, report):
         "",
         "Agent Readiness HQ",
         "hello@agentreadinesshq.com",
+        "",
+        "You are receiving this because you requested your results at "
+        "agentreadinesshq.com.",
+        "Don't want emails from us? Just reply with \"unsubscribe\" "
+        "and we will take you off our list.",
     ]
     msg = EmailMessage()
     msg["From"] = f"Agent Readiness HQ <{RESULTS_FROM}>"
@@ -1472,6 +1478,8 @@ def _packet_message(email, pdf_bytes):
         "read your site:\nhttps://agentreadinesshq.com/\n\n"
         "You are receiving this because you requested the packet on our "
         "website.\n\n"
+        "Don't want emails from us? Just reply with \"unsubscribe\" "
+        "and we will take you off our list.\n\n"
         "Thanks,\n\n"
         "Agent Readiness HQ\n"
         "hello@agentreadinesshq.com")
