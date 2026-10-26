@@ -325,8 +325,15 @@ body {
   border-radius: 16px;
   box-shadow: var(--card-shadow);
   color: var(--muted);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
 .checks li strong { color: var(--ink); }
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .checks li:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 16px 36px rgba(29, 29, 31, 0.12);
+  }
+}
 .checks li::before {
   content: counter(check);
   position: absolute;
