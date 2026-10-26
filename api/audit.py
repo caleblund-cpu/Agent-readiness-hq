@@ -1593,6 +1593,7 @@ INTAKE_DOOR_PATH_449 = "/intake-449.html"
 STRIPE_149_PAYMENT_LINK = "plink_1UUtFNPwXi6zE7gEQlTrvvsU"
 STRIPE_449_PAYMENT_LINK = "plink_1UUtFXPwXi6zE7gE3k18hI47"
 STRIPE_UPGRADE_PAYMENT_LINK = "plink_1UUtFuPwXi6zE7gEzydOqNXl"
+STRIPE_MONITORING_PAYMENT_LINK = "plink_1UUtG6PwXi6zE7gEmmN7Nzpf"
 # Stripe checkout (payment link) URLs for the free-scan conversion
 # box (Caleb ruling 2026-10-22). These are the same links the pricing
 # section buttons use. Both are ACTIVE sandbox/test-mode links today;
@@ -2245,6 +2246,54 @@ def compose_upgrade_email(first_name, email, order_ref):
     return msg
 
 
+def compose_monitoring_email(first_name, email, order_ref):
+    """Monitoring subscription confirmation (added 2026-10-26):
+    the monitoring payment link previously matched NO webhook
+    branch, so subscribers received no confirmation email at all
+    (found in Caleb's live journey test). Short receipt in the
+    Template 20 pattern: payment confirmed, what the monthly
+    re-scan covers, the approval-before-any-change rule, and the
+    reply-to-manage route. order_ref is the subscription order's
+    ARHQ number, or None when numbering failed.
+    """
+    subject = "Your AI Page Monitoring is confirmed"
+    ref = f" (order {order_ref})" if order_ref else ""
+    payment_line = (
+        f"Thank you. Your monitoring payment of $9.99 has been "
+        f"received{ref}. Your AI Page Monitoring is now active at "
+        f"$9.99/month.")
+    paras = [
+        "Each month, we re-scan your AI Information Page to confirm it is still live, readable, and accurate.",
+        "If a scan suggests an update, we email you the proposed change first. Nothing is applied without your approval, and we never keep standing access to your site.",
+        "To change your payment method or cancel, just reply to this email and we'll take care of it.",
+    ]
+    lines = [
+        f"Hi {first_name},",
+        "",
+        payment_line,
+        "",
+    ]
+    for para in paras:
+        lines += [para, ""]
+    lines += [
+        "Thanks,",
+        "",
+        "Agent Readiness HQ",
+        "hello@agentreadinesshq.com",
+    ]
+    blocks_html = _day0_tail_html(paras)
+    msg = EmailMessage()
+    msg["From"] = f"Agent Readiness HQ <{RESULTS_FROM}>"
+    msg["To"] = email
+    msg["Subject"] = subject
+    msg.set_content("\n".join(lines))
+    msg.add_alternative(
+        _day0_email_html(subject, first_name, payment_line,
+                         blocks_html, show_next=False),
+        subtype="html")
+    return msg
+
+
 def compose_order_notice_upgrade(name, email, session_id, amount_paid,
                                  day0_sent, arhq_number=None):
     """Internal upgrade order record to hello@, fields per
@@ -2286,6 +2335,46 @@ def compose_order_notice_upgrade(name, email, session_id, amount_paid,
     msg["From"] = f"Agent Readiness HQ <{RESULTS_FROM}>"
     msg["To"] = RESULTS_FROM
     msg["Subject"] = f"New upgrade order (webhook): {name or email or session_id}"
+    msg.set_content("\n".join(lines))
+    return msg
+
+
+def compose_order_notice_monitoring(name, email, session_id,
+                                    amount_paid, day0_sent,
+                                    arhq_number=None,
+                                    subscription_id=None):
+    """Internal monitoring-subscription record to hello@, fields
+    per 20-order-tracker.md. Filed as its own tracker row
+    (product: monitoring). Business and website are matched by
+    the operator from the customer's earlier $149/$449 order by
+    email, as with upgrades.
+    """
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    lines = [
+        "A $9.99/month AI Page Monitoring subscription was confirmed by Stripe (webhook). Confirmation email "
+        + ("sent to the customer." if day0_sent else "FAILED to send; send the monitoring confirmation by hand."),
+        "",
+        f"order_id: {session_id}",
+        f"arhq_number: {arhq_number or '(unassigned - numbering failed; see function logs)'}",
+        f"order_date: {today}",
+        f"customer_name: {name or ''}",
+        "business_name: (from the customer's earlier order; match by email)",
+        "website: (from the customer's earlier order; match by email)",
+        f"email: {email or ''}",
+        "product: monitoring",
+        f"amount_paid: {amount_paid}",
+        "payment_status: paid",
+        f"subscription_id: {subscription_id or ''}",
+        "status: ACTIVE",
+        "notes: Monthly re-scan of the customer's AI Information Page only. "
+        "Proposed updates are emailed to the customer for approval before "
+        "anything is applied; no standing site access is kept. Cancellation "
+        "arrives by customer reply or the Stripe customer portal and is "
+        "actioned by the operator.",]
+    msg = EmailMessage()
+    msg["From"] = f"Agent Readiness HQ <{RESULTS_FROM}>"
+    msg["To"] = RESULTS_FROM
+    msg["Subject"] = f"New monitoring subscription (webhook): {name or email or session_id}"
     msg.set_content("\n".join(lines))
     return msg
 
@@ -2334,6 +2423,8 @@ def process_checkout_completed(session):
         tier = 449
     elif link == STRIPE_UPGRADE_PAYMENT_LINK:
         tier = "upgrade"
+    elif link == STRIPE_MONITORING_PAYMENT_LINK:
+        tier = "monitoring"
     else:
         print(f"stripe webhook: session {session_id} is for payment link "
               f"{link}, not a known product link; recorded only")
@@ -2364,12 +2455,12 @@ def process_checkout_completed(session):
         # door carries as payment_ref (intake prefill fix, 2026-10-22).
         _order_write(session_id, name, email.lower(), tier, arhq_number)
     first_name = name.split()[0] if name else "there"
-    default_cents = {149: 14900, 449: 44900, "upgrade": 30000}[tier]
+    default_cents = {149: 14900, 449: 44900, "upgrade": 30000, "monitoring": 999}[tier]
     try:
         amount_paid = f"{(session.get('amount_total') or default_cents) / 100:.2f}"
     except (TypeError, ValueError):
         amount_paid = {149: "149.00", 449: "449.00",
-                       "upgrade": "300.00"}[tier]
+                       "upgrade": "300.00", "monitoring": "9.99"}[tier]
     if tier == 149:
         door_link = _intake_door_link(name, email, session_id)
         day0_factory = lambda: compose_day0_email(  # noqa: E731
@@ -2383,12 +2474,19 @@ def process_checkout_completed(session):
             first_name, email, arhq_number, door_link)
         notice_factory = lambda: compose_order_notice_449(  # noqa: E731
             name, email, session_id, amount_paid, day0_sent, arhq_number)
-    else:  # upgrade: short receipt only; approval+access follows in
-        # the merged Template 18 delivery (spec section 14, 2026-10-22)
+    elif tier == "upgrade":  # short receipt only; approval+access
+        # follows in the merged Template 18 delivery (spec 14)
         day0_factory = lambda: compose_upgrade_email(  # noqa: E731
             first_name, email, arhq_number)
         notice_factory = lambda: compose_order_notice_upgrade(  # noqa: E731
             name, email, session_id, amount_paid, day0_sent, arhq_number)
+    else:  # monitoring: confirmation receipt + internal notice
+        sub_id = str(session.get("subscription") or "")
+        day0_factory = lambda: compose_monitoring_email(  # noqa: E731
+            first_name, email, arhq_number)
+        notice_factory = lambda: compose_order_notice_monitoring(  # noqa: E731
+            name, email, session_id, amount_paid, day0_sent,
+            arhq_number, sub_id)
 
     day0_sent = False
     if email and _EMAIL_RE.match(email):
@@ -2408,7 +2506,7 @@ def process_checkout_completed(session):
         "tier": tier,
         "amount_paid": amount_paid,
         "payment_status": "paid",
-        "status": "NEW" if tier == "upgrade" else "INTAKE_PENDING",
+        "status": "NEW" if tier in ("upgrade", "monitoring") else "INTAKE_PENDING",
         "day0_email_sent": day0_sent,
         "order_notice_sent": notice_sent,
     }
