@@ -1584,9 +1584,9 @@ def send_business_email(msg_factory, label):
 SITE_BASE = "https://agentreadinesshq.com"
 INTAKE_DOOR_PATH = "/intake-149.html"
 INTAKE_DOOR_PATH_449 = "/intake-449.html"
-STRIPE_149_PAYMENT_LINK = "plink_1UQtKCLHicydTGP1aeNJjxNF"
-STRIPE_449_PAYMENT_LINK = "plink_1UQtKaLHicydTGP1LHr3CtWE"
-STRIPE_UPGRADE_PAYMENT_LINK = "plink_1UQtKiLHicydTGP1gOmF4Rjd"
+STRIPE_149_PAYMENT_LINK = "plink_1UUtFNPwXi6zE7gEQlTrvvsU"
+STRIPE_449_PAYMENT_LINK = "plink_1UUtFXPwXi6zE7gE3k18hI47"
+STRIPE_UPGRADE_PAYMENT_LINK = "plink_1UUtFuPwXi6zE7gEzydOqNXl"
 # Stripe checkout (payment link) URLs for the free-scan conversion
 # box (Caleb ruling 2026-10-22). These are the same links the pricing
 # section buttons use. Both are ACTIVE sandbox/test-mode links today;
@@ -1595,8 +1595,8 @@ STRIPE_UPGRADE_PAYMENT_LINK = "plink_1UQtKiLHicydTGP1gOmF4Rjd"
 # surfaces: the results page reads them from the scan JSON
 # (checkout_urls, built from these constants) and the results email
 # uses them directly.
-STRIPE_149_CHECKOUT_URL = "https://buy.stripe.com/test_aFadRa9aIe4adNv2uxeAg00"
-STRIPE_449_CHECKOUT_URL = "https://buy.stripe.com/test_bJe4gA86EaRYfVDd9beAg01"
+STRIPE_149_CHECKOUT_URL = "https://buy.stripe.com/5kQ14p9WhbAR4zd66e5AQ00"
+STRIPE_449_CHECKOUT_URL = "https://buy.stripe.com/5kQ14p8Sd9sJe9NeCK5AQ01"
 _WEBHOOK_TOLERANCE_S = 300
 _PROCESSED_SESSIONS = set()  # per-instance idempotency; Stripe also dedupes
 _PAID_EMAILS = set()  # buyer emails (lowercased) from processed checkouts;
