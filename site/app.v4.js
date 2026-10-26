@@ -198,7 +198,7 @@
     if ((report.errors || []).length) {
       html += '<p class="result-errors">Note: ' + esc(report.errors.join("; ")) + "</p>";
     }
-    html += '<p class="result-correction">See something we missed or got wrong? <a href="mailto:hello@agentreadinesshq.com?subject=Audit%20correction">Let us know.</a></p>';
+    html += '<p class="result-correction">See something we missed or got wrong? Email us at <a href="mailto:hello@agentreadinesshq.com?subject=Audit%20correction">hello@agentreadinesshq.com</a></p>';
     resultsEl.innerHTML = html;
     resultsEl.hidden = false;
   }
