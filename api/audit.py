@@ -2725,13 +2725,12 @@ class handler(BaseHTTPRequestHandler):
         first_name, lead_email = _clean_lead(data)
         suppress_email = isinstance(data, dict) and bool(
             data.get("suppress_email"))
-        if lead_email and _is_paid_buyer(lead_email):
-            # Paid buyer re-running the public scan (defect D-1,
-            # 2026-10-22): the full report still returns and renders
-            # on-page, but the results email is a sales copy and a
-            # buyer never gets it twice. Same skip as the flag above.
-            suppress_email = True
-            report["email_suppressed"] = "paid_buyer"
+        # Paid buyers re-running the public scan DO get the results
+        # email (Caleb ruling 2026-10-26, reversing D-1): re-scanning
+        # after implementing fixes is the natural verification loop,
+        # and a silently missing email reads as a malfunction. Only
+        # the explicit suppress_email flag (the post-payment intake
+        # step re-running the audit internally) still skips the send.
         if first_name and lead_email:
             # Intake prefill record (2026-10-22): remember which site
             # this email scanned, so a later checkout's intake door
