@@ -35,8 +35,8 @@
      to the live URLs. renderResults prefers the pair returned in the
      scan JSON (checkout_urls, whose single config spot is audit.py);
      these constants are the fallback if a response lacks them. */
-  var CHECKOUT_URL_149 = "https://buy.stripe.com/test_aFadRa9aIe4adNv2uxeAg00";
-  var CHECKOUT_URL_449 = "https://buy.stripe.com/test_bJe4gA86EaRYfVDd9beAg01";
+  var CHECKOUT_URL_149 = "https://buy.stripe.com/5kQ14p9WhbAR4zd66e5AQ00";
+  var CHECKOUT_URL_449 = "https://buy.stripe.com/5kQ14p8Sd9sJe9NeCK5AQ01";
 
   var auditForm = document.getElementById("audit-form");
   var urlInput = document.getElementById("site-url");
