@@ -1468,8 +1468,6 @@ def _packet_message(email, pdf_bytes):
         "Thanks for your interest in Agent Readiness HQ.\n\n"
         "Your information packet is attached as a PDF: how the free scan "
         "works, what each plan includes, and what everything costs.\n\n"
-        "You can also read it online here:\n"
-        "https://agentreadinesshq.com/information.html\n\n"
         "When you are ready, run the free scan and see how AI systems "
         "read your site:\nhttps://agentreadinesshq.com/\n\n"
         "You are receiving this because you requested the packet on our "
