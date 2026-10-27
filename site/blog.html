@@ -47,6 +47,11 @@
 .pc-date { color: var(--muted); font-size: 0.88rem; }
 .pc-title { display: block; color: var(--ink); font-weight: 800; font-size: 1.18rem; line-height: 1.35; margin-top: 0.85rem; }
 .pc-excerpt { display: block; color: var(--muted); font-size: 0.95rem; line-height: 1.55; margin-top: 0.35rem; }
+.blog-search { margin: 0 0 1.6rem; }
+.blog-search input { width: 100%; box-sizing: border-box; padding: 0.85rem 1.1rem; font: inherit; font-size: 1rem; color: var(--ink); background: #fff; border: 1px solid var(--border); border-radius: 14px; }
+.blog-search input:focus { outline: none; border-color: var(--rose-dark); box-shadow: 0 0 0 3px var(--rose-soft); }
+.blog-no-results { display: none; color: var(--muted); font-size: 1rem; margin: 0.25rem 0 1rem; }
+.blog-no-results.show { display: block; }
 @media (max-width: 720px) {
   .post-grid { grid-template-columns: 1fr; }
   .featured-card { flex-direction: column; align-items: flex-start; padding: 1.5rem; }
@@ -75,6 +80,9 @@
 <main class="blog-wrap">
 <h1>Blog</h1>
 <p class="blog-date">Short, practical guides to the agent economy.</p>
+<div class="blog-search">
+<input id="blog-search-input" type="search" placeholder="Search articles by keyword" aria-label="Search articles by keyword" autocomplete="off">
+</div>
 <a class="featured-card" href="/blog-captcha.html">
 <span class="fc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 11.5 11 13.5 15 9.5"/></svg></span>
 <span class="fc-body"><span class="fc-date">October 26, 2026 &middot; Latest</span>
@@ -148,6 +156,7 @@
 <span class="pc-excerpt">Your robots.txt may be blocking AI crawlers without you knowing. Here is the 5-minute check.</span>
 </a>
 </div>
+<p class="blog-no-results" id="blog-no-results">No articles match your search. Try a different keyword.</p>
 <div class="blog-cta">
 <h3>Is your site ready for AI agents?</h3>
 <p>Run the free 7-check scan. Takes under a minute.</p>
@@ -162,5 +171,23 @@
 <style>.footer-social a:hover{color:#e63a5c}</style>
   </div>
 </footer>
+<script>
+(function () {
+  var input = document.getElementById('blog-search-input');
+  if (!input) return;
+  var items = Array.prototype.slice.call(document.querySelectorAll('.featured-card, .post-card'));
+  var note = document.getElementById('blog-no-results');
+  input.addEventListener('input', function () {
+    var q = input.value.trim().toLowerCase();
+    var visible = 0;
+    items.forEach(function (el) {
+      var match = !q || el.textContent.toLowerCase().indexOf(q) !== -1;
+      el.style.display = match ? '' : 'none';
+      if (match) visible++;
+    });
+    if (note) note.classList.toggle('show', q !== '' && visible === 0);
+  });
+})();
+</script>
 </body>
 </html>
