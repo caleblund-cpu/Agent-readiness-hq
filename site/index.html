@@ -129,8 +129,8 @@
 }
 </script>
 
-<style id="title-reveal-css">
-  /* Hero title fill-in only. Applies solely when JS is running; the
+<style id="heading-reveal-css">
+  /* Heading fill-in only. Applies solely when JS is running; the
      headline text itself is unchanged and fully present in the page. */
   .js-reveal .wrv { display: inline-block; opacity: 0; transform: translateY(.45em); filter: blur(5px);
     transition: opacity .9s cubic-bezier(.22,.61,.21,1), transform .9s cubic-bezier(.22,.61,.21,1), filter .9s cubic-bezier(.22,.61,.21,1); }
@@ -363,32 +363,65 @@
 })();
 </script>
 
-<script id="title-reveal-js">
+<script id="heading-reveal-js">
 (function () {
-  var h1 = document.querySelector('.hero h1');
-  if (!h1) return;
-  var walk = function (node) {
-    Array.prototype.slice.call(node.childNodes).forEach(function (n) {
-      if (n.nodeType === 3) {
-        var frag = document.createDocumentFragment();
-        n.textContent.split(/(\s+)/).forEach(function (part) {
-          if (!part) return;
-          if (/^\s+$/.test(part)) { frag.appendChild(document.createTextNode(' ')); return; }
-          var s = document.createElement('span');
-          s.className = 'wrv'; s.textContent = part;
-          frag.appendChild(s);
-        });
-        node.replaceChild(frag, n);
-      } else if (n.nodeType === 1) { walk(n); }
-    });
-  };
-  walk(h1);
-  var words = h1.querySelectorAll('.wrv');
-  words.forEach(function (w, i) { w.style.transitionDelay = (150 + i * 80) + 'ms'; });
-  requestAnimationFrame(function () { requestAnimationFrame(function () {
-    words.forEach(function (w) { w.classList.add('in'); });
-  }); });
-  setTimeout(function () { words.forEach(function (w) { w.classList.add('in'); }); }, 3000);
+  // Headings fill in word by word: the hero title on load, every other
+  // heading as it scrolls into view. Heading text is unchanged and fully
+  // present in the page; the hidden state exists only while JS runs.
+  function splitWords(h) {
+    var walk = function (node) {
+      Array.prototype.slice.call(node.childNodes).forEach(function (n) {
+        if (n.nodeType === 3) {
+          var frag = document.createDocumentFragment();
+          n.textContent.split(/(\s+)/).forEach(function (part) {
+            if (!part) return;
+            if (/^\s+$/.test(part)) { frag.appendChild(document.createTextNode(' ')); return; }
+            var s = document.createElement('span');
+            s.className = 'wrv'; s.textContent = part;
+            frag.appendChild(s);
+          });
+          node.replaceChild(frag, n);
+        } else if (n.nodeType === 1) { walk(n); }
+      });
+    };
+    walk(h);
+    return h.querySelectorAll('.wrv');
+  }
+  function fill(words, base) {
+    words.forEach(function (w, i) { w.style.transitionDelay = ((base || 0) + i * 80) + 'ms'; w.classList.add('in'); });
+  }
+  var hero = document.querySelector('.hero h1');
+  if (hero) {
+    var hw = splitWords(hero);
+    hw.forEach(function (w, i) { w.style.transitionDelay = (150 + i * 80) + 'ms'; });
+    requestAnimationFrame(function () { requestAnimationFrame(function () {
+      hw.forEach(function (w) { w.classList.add('in'); });
+    }); });
+    setTimeout(function () { hw.forEach(function (w) { w.classList.add('in'); }); }, 3000);
+  }
+  var rest = Array.prototype.slice.call(document.querySelectorAll('main h2, main h3, .site-footer h2, .site-footer h3'))
+    .filter(function (h) { return h !== hero; });
+  var prepared = rest.map(function (h) { return { h: h, words: splitWords(h), done: false }; });
+  function fillItem(p) { if (!p.done) { p.done = true; fill(p.words, 0); } }
+  if (!('IntersectionObserver' in window)) { prepared.forEach(fillItem); }
+  else {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) {
+          var p = prepared.filter(function (x) { return x.h === e.target; })[0];
+          if (p) fillItem(p);
+          io.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.4, rootMargin: '0px 0px -8% 0px' });
+    prepared.forEach(function (p) { io.observe(p.h); });
+    setTimeout(function () {
+      prepared.forEach(function (p) {
+        var r = p.h.getBoundingClientRect();
+        if (r.top < window.innerHeight && r.bottom > 0) fillItem(p);
+      });
+    }, 2500);
+  }
 })();
 </script>
 </body>
