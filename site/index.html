@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script>document.documentElement.classList.add('js-reveal');</script>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -127,6 +128,22 @@
   ]
 }
 </script>
+
+<style id="scroll-reveal-css">
+  /* Scroll-reveal: behavior layer only. Content and layout unchanged.
+     Hidden state applies only when JS is running (js-reveal on <html>);
+     with JS off, or for crawlers and AI agents reading the page, all
+     content is simply visible. */
+  .js-reveal .rv { opacity: 0; transform: translateY(26px); filter: blur(6px);
+    transition: opacity .9s cubic-bezier(.22,.61,.21,1), transform .9s cubic-bezier(.22,.61,.21,1), filter .9s cubic-bezier(.22,.61,.21,1); }
+  .js-reveal .rv.in { opacity: 1; transform: none; filter: none; }
+  .js-reveal .wrv { display: inline-block; opacity: 0; transform: translateY(.45em); filter: blur(5px);
+    transition: opacity .7s cubic-bezier(.22,.61,.21,1), transform .7s cubic-bezier(.22,.61,.21,1), filter .7s cubic-bezier(.22,.61,.21,1); }
+  .js-reveal .wrv.in { opacity: 1; transform: none; filter: none; }
+  @media (prefers-reduced-motion: reduce) {
+    .js-reveal .rv, .js-reveal .wrv { opacity: 1 !important; transform: none !important; filter: none !important; transition: none !important; }
+  }
+</style>
 </head>
 <body>
 
@@ -348,6 +365,65 @@
       }, 700);
     }
   });
+})();
+</script>
+
+<script id="scroll-reveal-js">
+(function () {
+  var STEP = 90;
+  function tag(el, delay) {
+    el.classList.add('rv');
+    el.style.transitionDelay = Math.min(delay || 0, 720) + 'ms';
+  }
+  var h1 = document.querySelector('.hero h1');
+  if (h1) {
+    var walk = function (node) {
+      Array.prototype.slice.call(node.childNodes).forEach(function (n) {
+        if (n.nodeType === 3) {
+          var frag = document.createDocumentFragment();
+          n.textContent.split(/(\s+)/).forEach(function (part) {
+            if (!part) return;
+            if (/^\s+$/.test(part)) { frag.appendChild(document.createTextNode(' ')); return; }
+            var s = document.createElement('span');
+            s.className = 'wrv'; s.textContent = part;
+            frag.appendChild(s);
+          });
+          node.replaceChild(frag, n);
+        } else if (n.nodeType === 1) { walk(n); }
+      });
+    };
+    walk(h1);
+    var words = h1.querySelectorAll('.wrv');
+    words.forEach(function (w, i) { w.style.transitionDelay = (120 + i * 55) + 'ms'; });
+    requestAnimationFrame(function () { requestAnimationFrame(function () {
+      words.forEach(function (w) { w.classList.add('in'); });
+    }); });
+  }
+  var observed = [];
+  document.querySelectorAll('.hero .hero-sub, .hero .hero-audit-form, .hero .hero-panel, .hero .scan-lead')
+    .forEach(function (el, i) { tag(el, 350 + i * STEP); observed.push(el); });
+  document.querySelectorAll('main > section:not(.hero), .site-footer').forEach(function (sec) {
+    var kids = sec.querySelectorAll(':scope > *, :scope .card, :scope .step, :scope .tier, :scope li');
+    var list = Array.prototype.slice.call(kids).filter(function (el, idx, arr) {
+      return arr.indexOf(el) === idx && !el.closest('.rv');
+    }).slice(0, 14);
+    if (!list.length) list = [sec];
+    list.forEach(function (el, i) { tag(el, i * STEP); observed.push(el); });
+  });
+  function showAll() { observed.forEach(function (el) { el.classList.add('in'); }); }
+  if (!('IntersectionObserver' in window)) { showAll(); }
+  else {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+    }, { threshold: 0.12, rootMargin: '0px 0px -6% 0px' });
+    observed.forEach(function (el) { io.observe(el); });
+    setTimeout(function () { // failsafe: nothing stays hidden
+      observed.forEach(function (el) {
+        var r = el.getBoundingClientRect();
+        if (r.top < window.innerHeight) el.classList.add('in');
+      });
+    }, 2500);
+  }
 })();
 </script>
 </body>
