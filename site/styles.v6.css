@@ -708,3 +708,16 @@ body {
   .hero { padding-bottom: 2.25rem; }
   .hero + .section { padding-top: 2.25rem; }
 }
+
+/* Site menu (hamburger) — replaced the header CTA button 2026-10-26 */
+.nav-menu { position: relative; }
+.nav-toggle { position: absolute; opacity: 0; pointer-events: none; }
+.nav-burger { display: flex; flex-direction: column; justify-content: center; gap: 5px; width: 44px; height: 44px; padding: 11px; cursor: pointer; border-radius: 12px; }
+.nav-burger span { display: block; height: 2.5px; border-radius: 2px; background: #1d1d1f; }
+.nav-burger:hover { background: rgba(255, 77, 109, 0.08); }
+.nav-panel { display: none; position: absolute; right: 0; top: calc(100% + 8px); min-width: 232px; background: #fff; border: 1px solid #f0dfe3; border-radius: 14px; box-shadow: 0 18px 40px rgba(29, 29, 31, 0.16); padding: 8px; z-index: 80; flex-direction: column; }
+.nav-toggle:checked ~ .nav-panel { display: flex; }
+.nav-panel a { padding: 11px 14px; border-radius: 9px; color: #1d1d1f; text-decoration: none; font-weight: 600; font-size: 15.5px; }
+.nav-panel a:hover { background: #fff7f8; color: #c21847; }
+.nav-panel a.nav-cta { background: #ff4d6d; color: #fff; text-align: center; margin-top: 6px; }
+.nav-panel a.nav-cta:hover { background: #e63e5c; color: #fff; }
