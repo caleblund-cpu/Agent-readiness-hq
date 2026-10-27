@@ -1796,8 +1796,71 @@ def _order_write(session_id, name, email, tier, arhq_number=None):
 # day-0 email with NO order reference rather than not sending it,
 # and logs the failure. No customer email ever prints a session id
 # as an order reference.
+# 2026-10-27 fail-closed revision: on 2026-10-26 all three live
+# journey-test checkouts were stamped ARHQ-2026-0005, colliding with
+# the real 0005. Given this code, the only path to that outcome was
+# a sequence read that came back missing or unreadable at claim
+# time, and the claim then treated the unreadable sequence as a
+# first claim and re-seeded at 5. The seed now applies ONLY to the
+# store's first-ever claim, proven by a one-time marker record
+# (order-sequence/v1/initialized.json); every other read failure,
+# and any write whose read-back never confirms, fails closed to NO
+# number. A burned number leaves a harmless gap in the sequence; a
+# re-issued number corrupts the ledger.
 _ORDER_SEQ_PATHNAME = "order-sequence/v1/next.json"
+_ORDER_SEQ_MARKER = "order-sequence/v1/initialized.json"
 _ORDER_SEQ_SEED = 5
+
+
+def _blob_get_json_status(pathname):
+    """Status-aware sibling of _blob_get_json, for order numbering.
+
+    Returns (obj, "ok") for a parsed JSON object, (None, "missing")
+    on a 404, and (None, "error") on anything else: no token,
+    transport error, non-200 status, unparseable body. _blob_get_json
+    deliberately folds all of those into None, which suits its other
+    stores; numbering must tell "never existed" apart from "could
+    not be read", so it uses this. Never raises.
+    """
+    token = _blob_token()
+    if not token:
+        return None, "error"
+    try:
+        resp = requests.get(
+            _BLOB_API + "/",
+            params={"url": pathname},
+            headers={"Authorization": f"Bearer {token}",
+                     "x-api-version": "12"},
+            timeout=3)
+    except Exception as exc:  # store trouble must never break checkout
+        print(f"order-numbering: read of {pathname} failed ({exc!r})")
+        return None, "error"
+    if resp.status_code == 404:
+        return None, "missing"
+    if resp.status_code != 200:
+        print(f"order-numbering: read of {pathname} returned "
+              f"HTTP {resp.status_code}")
+        return None, "error"
+    try:
+        obj = resp.json()
+    except ValueError:
+        print(f"order-numbering: read of {pathname} was not JSON")
+        return None, "error"
+    if not isinstance(obj, dict):
+        return None, "error"
+    return obj, "ok"
+
+
+def _seq_readback_confirms(pathname, key, value):
+    """Read pathname back until it shows key == value, retrying
+    briefly: a just-written blob can read back stale for a moment."""
+    for delay in (0.0, 0.5, 1.0, 2.0):
+        if delay:
+            time.sleep(delay)
+        obj, status = _blob_get_json_status(pathname)
+        if status == "ok" and obj.get(key) == value:
+            return True
+    return False
 
 
 def _claim_arhq_number(session_id):
@@ -1806,20 +1869,53 @@ def _claim_arhq_number(session_id):
     Reuses the number stored on the session's existing order record
     when one is there; otherwise claims the next sequence value
     (persist the increment first, verify by read-back, then hand the
-    number out). Never raises.
+    number out). Fail-closed since 2026-10-27: a sequence read that
+    fails, a sequence record that is missing after the store's first
+    claim, or a write whose read-back never confirms all return None
+    (the day-0 email goes out with no order reference) rather than
+    re-seeding. Never raises.
     """
     existing = _blob_get_json(_ORDER_PREFIX + session_id + ".json")
     if existing and existing.get("arhq_number"):
         return str(existing["arhq_number"])
-    seq_obj = _blob_get_json(_ORDER_SEQ_PATHNAME)
-    nxt = None
-    if isinstance(seq_obj, dict):
-        try:
-            nxt = int(seq_obj.get("next"))
-        except (TypeError, ValueError):
-            nxt = None
+    seq_obj, seq_status = _blob_get_json_status(_ORDER_SEQ_PATHNAME)
+    if seq_status == "error":
+        print(f"order-numbering: sequence unreadable for session "
+              f"{session_id}; day-0 email will carry no order "
+              "reference")
+        return None
+    year = datetime.now(timezone.utc).year
+    if seq_status == "missing":
+        return _claim_seed_number(session_id, year)
+    try:
+        nxt = int(seq_obj.get("next"))
+    except (TypeError, ValueError):
+        nxt = None
     if nxt is None or nxt < _ORDER_SEQ_SEED:
-        nxt = _ORDER_SEQ_SEED
+        print(f"order-numbering: sequence record for session "
+              f"{session_id} holds an unusable value; day-0 email "
+              "will carry no order reference")
+        return None
+    # The one-time marker is what licenses the seed path in
+    # _claim_seed_number; keep it alongside any live sequence record
+    # (records claimed before 2026-10-27 predate it). If it cannot
+    # be read or written, fail closed: without it, a later missing
+    # read of the sequence could be mistaken for a first claim.
+    _marker, marker_status = _blob_get_json_status(_ORDER_SEQ_MARKER)
+    if marker_status == "error":
+        print(f"order-numbering: marker unreadable for session "
+              f"{session_id}; day-0 email will carry no order "
+              "reference")
+        return None
+    if marker_status == "missing":
+        if not _blob_put_json(
+                _ORDER_SEQ_MARKER,
+                {"initialized": True,
+                 "ts": datetime.now(timezone.utc).isoformat()}):
+            print(f"order-numbering: marker write for session "
+                  f"{session_id} was not accepted; day-0 email will "
+                  "carry no order reference")
+            return None
     if not _blob_put_json(_ORDER_SEQ_PATHNAME,
                           {"next": nxt + 1,
                            "ts": datetime.now(timezone.utc).isoformat()}):
@@ -1827,26 +1923,54 @@ def _claim_arhq_number(session_id):
               f"{session_id} was not accepted; day-0 email will "
               "carry no order reference")
         return None
-    # Confirm by read-back, retrying briefly: a just-written blob can
-    # read back stale for a moment (the 2026-10-23 live failure, where
-    # the first real claim's instant read-back missed and the order
-    # went out numberless). If no read-back confirms but the store
-    # accepted the write (HTTP 200 above), hand the number out anyway
-    # and log it: an accepted write is durable, and a numberless
-    # order email is the worse failure.
-    confirmed = False
-    for delay in (0.5, 1.0, 2.0):
-        confirm = _blob_get_json(_ORDER_SEQ_PATHNAME)
-        if isinstance(confirm, dict) and confirm.get("next") == nxt + 1:
-            confirmed = True
-            break
-        time.sleep(delay)
-    if not confirmed:
+    if not _seq_readback_confirms(_ORDER_SEQ_PATHNAME, "next", nxt + 1):
         print(f"order-numbering: read-back for session {session_id} "
-              "never confirmed the increment; handing out the number "
-              "on the accepted write")
-    year = datetime.now(timezone.utc).year
+              "never confirmed the increment; day-0 email will carry "
+              "no order reference")
+        return None
     return f"ARHQ-{year}-{nxt:04d}"
+
+
+def _claim_seed_number(session_id, year):
+    """The store's first-ever claim: the ONLY path that may hand out
+    the seed. Reached when the sequence record reads as missing; the
+    seed is issued only when the one-time marker also reads as
+    missing (the sequence has never existed). A marker that is
+    present or unreadable fails closed, because the sequence existed
+    before and its absence now is a store problem, not a first
+    claim. Writes the marker first, then the sequence at seed + 1,
+    and hands the seed out only once both have read back."""
+    _marker, marker_status = _blob_get_json_status(_ORDER_SEQ_MARKER)
+    if marker_status != "missing":
+        print(f"order-numbering: sequence missing but marker state "
+              f"is {marker_status} for session {session_id}; day-0 "
+              "email will carry no order reference")
+        return None
+    ts = datetime.now(timezone.utc).isoformat()
+    if not _blob_put_json(_ORDER_SEQ_MARKER,
+                          {"initialized": True, "ts": ts}):
+        print(f"order-numbering: seed marker write for session "
+              f"{session_id} was not accepted; day-0 email will "
+              "carry no order reference")
+        return None
+    if not _blob_put_json(_ORDER_SEQ_PATHNAME,
+                          {"next": _ORDER_SEQ_SEED + 1, "ts": ts}):
+        print(f"order-numbering: seed sequence write for session "
+              f"{session_id} was not accepted; day-0 email will "
+              "carry no order reference")
+        return None
+    if not _seq_readback_confirms(_ORDER_SEQ_MARKER, "initialized", True):
+        print(f"order-numbering: seed marker for session {session_id} "
+              "never confirmed by read-back; day-0 email will carry "
+              "no order reference")
+        return None
+    if not _seq_readback_confirms(_ORDER_SEQ_PATHNAME, "next",
+                                  _ORDER_SEQ_SEED + 1):
+        print(f"order-numbering: seed sequence for session "
+              f"{session_id} never confirmed by read-back; day-0 "
+              "email will carry no order reference")
+        return None
+    return f"ARHQ-{year}-{_ORDER_SEQ_SEED:04d}"
 
 
 def _is_paid_buyer(email):
