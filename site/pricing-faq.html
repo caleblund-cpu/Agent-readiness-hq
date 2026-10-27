@@ -328,7 +328,7 @@ document.querySelectorAll(".packet-form").forEach(function (form) {
     params.append("email", email);
     params.append("request", "Information packet request");
     params.append("_subject", "Information packet request");
-    params.append("message", "Please send the Agent Readiness HQ information packet to " + email + ". Information page: https://agentreadinesshq.com/information.html");
+    params.append("message", "Please send the Agent Readiness HQ information packet to " + email);
     params.append("_template", "table");
     fetch("/api/packet", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: email }) })
       .then(function (r) { return r.json().catch(function () { return {}; }); })
