@@ -1593,7 +1593,12 @@ INTAKE_DOOR_PATH_449 = "/intake-449.html"
 STRIPE_149_PAYMENT_LINK = "plink_1UUtFNPwXi6zE7gEQlTrvvsU"
 STRIPE_449_PAYMENT_LINK = "plink_1UUtFXPwXi6zE7gE3k18hI47"
 STRIPE_UPGRADE_PAYMENT_LINK = "plink_1UUtFuPwXi6zE7gEzydOqNXl"
-STRIPE_MONITORING_PAYMENT_LINK = "plink_1UUtG6PwXi6zE7gEmmN7Nzpf"
+STRIPE_MONITORING_PAYMENT_LINK = "plink_1UVICVPwXi6zE7gEu9icxIad"
+# Legacy monitoring link (the pre-change price; deactivated 2026-10-27
+# when the price changed to $19.99, Caleb ruling): kept in the webhook
+# match below so a
+# straggler checkout on the old link still records correctly.
+STRIPE_MONITORING_PAYMENT_LINK_LEGACY = "plink_1UUtG6PwXi6zE7gEmmN7Nzpf"
 # Stripe checkout (payment link) URLs for the free-scan conversion
 # box (Caleb ruling 2026-10-22). These are the same links the pricing
 # section buttons use. Both are ACTIVE sandbox/test-mode links today;
@@ -2383,9 +2388,9 @@ def compose_monitoring_email(first_name, email, order_ref):
     subject = "Your AI Page Monitoring is confirmed"
     ref = f" (order {order_ref})" if order_ref else ""
     payment_line = (
-        f"Thank you. Your monitoring payment of $9.99 has been "
+        f"Thank you. Your monitoring payment of $19.99 has been "
         f"received{ref}. Your AI Page Monitoring is now active at "
-        f"$9.99/month.")
+        f"$19.99/month.")
     paras = [
         "Each month, we re-scan your AI Information Page to confirm it is still live, readable, and accurate.",
         "If a scan suggests an update, we email you the proposed change first. Nothing is applied without your approval, and we never keep standing access to your site.",
@@ -2475,7 +2480,7 @@ def compose_order_notice_monitoring(name, email, session_id,
     """
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     lines = [
-        "A $9.99/month AI Page Monitoring subscription was confirmed by Stripe (webhook). Confirmation email "
+        "A $19.99/month AI Page Monitoring subscription was confirmed by Stripe (webhook). Confirmation email "
         + ("sent to the customer." if day0_sent else "FAILED to send; send the monitoring confirmation by hand."),
         "",
         f"order_id: {session_id}",
@@ -2547,7 +2552,8 @@ def process_checkout_completed(session):
         tier = 449
     elif link == STRIPE_UPGRADE_PAYMENT_LINK:
         tier = "upgrade"
-    elif link == STRIPE_MONITORING_PAYMENT_LINK:
+    elif link in (STRIPE_MONITORING_PAYMENT_LINK,
+                      STRIPE_MONITORING_PAYMENT_LINK_LEGACY):
         tier = "monitoring"
     else:
         print(f"stripe webhook: session {session_id} is for payment link "
@@ -2579,12 +2585,12 @@ def process_checkout_completed(session):
         # door carries as payment_ref (intake prefill fix, 2026-10-22).
         _order_write(session_id, name, email.lower(), tier, arhq_number)
     first_name = name.split()[0] if name else "there"
-    default_cents = {149: 14900, 449: 44900, "upgrade": 30000, "monitoring": 999}[tier]
+    default_cents = {149: 14900, 449: 44900, "upgrade": 30000, "monitoring": 1999}[tier]
     try:
         amount_paid = f"{(session.get('amount_total') or default_cents) / 100:.2f}"
     except (TypeError, ValueError):
         amount_paid = {149: "149.00", 449: "449.00",
-                       "upgrade": "300.00", "monitoring": "9.99"}[tier]
+                       "upgrade": "300.00", "monitoring": "19.99"}[tier]
     if tier == 149:
         door_link = _intake_door_link(name, email, session_id)
         day0_factory = lambda: compose_day0_email(  # noqa: E731
