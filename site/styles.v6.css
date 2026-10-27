@@ -721,3 +721,16 @@ body {
 .nav-panel a:hover { background: #fff7f8; color: #c21847; }
 .nav-panel a.nav-cta { background: #ff4d6d; color: #fff; text-align: center; margin-top: 6px; }
 .nav-panel a.nav-cta:hover { background: #e63e5c; color: #fff; }
+
+/* ---------- Packet band (light, secondary to the scan CTA) ---------- */
+.packet-band { background: #fff7f1; text-align: center; }
+.or-divider { display: flex; align-items: center; gap: 1rem; max-width: 26rem; margin: 0 auto 1.25rem; color: #8a7f78; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; }
+.or-divider::before, .or-divider::after { content: ""; flex: 1; border-top: 1px solid #ecd9cf; }
+.packet-band .email-capture { margin-top: 0; padding-top: 0; border-top: none; }
+.packet-band .email-capture h3 { color: var(--ink); }
+.packet-band .section-intro { color: #57534e; }
+.packet-band .email-capture .form-note { color: #78716c; }
+.packet-band .email-form input[type="email"] { background: #fff; border-color: #d8c7bc; color: var(--ink); }
+.packet-band .email-form input[type="email"]::placeholder { color: #a8a29e; }
+.btn-dark { background: var(--ink); box-shadow: 0 10px 24px rgba(29, 29, 31, 0.25); }
+.btn-dark:hover { background: #000; }
