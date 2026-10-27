@@ -399,7 +399,7 @@
     }); });
     setTimeout(function () { hw.forEach(function (w) { w.classList.add('in'); }); }, 3000);
   }
-  var rest = Array.prototype.slice.call(document.querySelectorAll('main h2, main h3, .site-footer h2, .site-footer h3'))
+  var rest = Array.prototype.slice.call(document.querySelectorAll('main h2'))
     .filter(function (h) { return h !== hero; });
   var prepared = rest.map(function (h) { return { h: h, words: splitWords(h), done: false }; });
   function fillItem(p) { if (!p.done) { p.done = true; fill(p.words, 0); } }
