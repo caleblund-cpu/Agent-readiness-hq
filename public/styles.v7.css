@@ -176,6 +176,7 @@ body {
 .section-alt { background: var(--bg-warm); }
 .section h2 {
   font-size: 2rem;
+  line-height: 1.08;
   letter-spacing: -0.025em;
   margin: 0 0 0.8rem;
   font-weight: 800;
