@@ -1609,6 +1609,14 @@ STRIPE_MONITORING_PAYMENT_LINK_LEGACY = "plink_1UUtG6PwXi6zE7gEmmN7Nzpf"
 # uses them directly.
 STRIPE_149_CHECKOUT_URL = "https://buy.stripe.com/5kQ14p9WhbAR4zd66e5AQ00"
 STRIPE_449_CHECKOUT_URL = "https://buy.stripe.com/5kQ14p8Sd9sJe9NeCK5AQ01"
+# Permanent Stripe customer-portal login link (Caleb retrieved it
+# from the Stripe Dashboard 2026-10-27): a customer enters their
+# email at this link to manage or cancel their monitoring
+# subscription. Wired into the monitoring confirmation email as
+# the manage/cancel route, replacing the original reply-to-manage
+# line; the Oct 26 journey-test cancellation used a one-off portal
+# session link because no permanent link existed yet.
+STRIPE_CUSTOMER_PORTAL_LOGIN_LINK = "https://billing.stripe.com/p/login/5kQ14p9WhbAR4zd66e5AQ00"
 _WEBHOOK_TOLERANCE_S = 300
 _PROCESSED_SESSIONS = set()  # per-instance idempotency; Stripe also dedupes
 _PAID_EMAILS = set()  # buyer emails (lowercased) from processed checkouts;
@@ -2382,8 +2390,11 @@ def compose_monitoring_email(first_name, email, order_ref):
     (found in Caleb's live journey test). Short receipt in the
     Template 20 pattern: payment confirmed, what the monthly
     re-scan covers, the approval-before-any-change rule, and the
-    reply-to-manage route. order_ref is the subscription order's
-    ARHQ number, or None when numbering failed.
+    Stripe customer-portal manage/cancel link (the permanent
+    portal login link, wired in 2026-10-27, replacing the
+    original reply-to-manage route). order_ref is the
+    subscription order's ARHQ number, or None when numbering
+    failed.
     """
     subject = "Your AI Page Monitoring is confirmed"
     ref = f" (order {order_ref})" if order_ref else ""
@@ -2394,7 +2405,8 @@ def compose_monitoring_email(first_name, email, order_ref):
     paras = [
         "Each month, we re-scan your AI Information Page to confirm it is still live, readable, and accurate.",
         "If a scan suggests an update, we email you the proposed change first. Nothing is applied without your approval, and we never keep standing access to your site.",
-        "To change your payment method or cancel, just reply to this email and we'll take care of it.",
+        "To change your payment method or cancel, use your subscription portal: "
+        + STRIPE_CUSTOMER_PORTAL_LOGIN_LINK,
     ]
     lines = [
         f"Hi {first_name},",
@@ -2410,7 +2422,12 @@ def compose_monitoring_email(first_name, email, order_ref):
         "Agent Readiness HQ",
         "hello@agentreadinesshq.com",
     ]
-    blocks_html = _day0_tail_html(paras)
+    blocks_html = (
+        _day0_tail_html(paras[:2])
+        + _day0_p("To change your payment method or cancel, use your "
+                  "subscription portal:")
+        + _email_button_html(STRIPE_CUSTOMER_PORTAL_LOGIN_LINK,
+                             "Manage or cancel your subscription"))
     msg = EmailMessage()
     msg["From"] = f"Agent Readiness HQ <{RESULTS_FROM}>"
     msg["To"] = email
