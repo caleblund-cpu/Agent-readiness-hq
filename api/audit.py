@@ -3051,7 +3051,6 @@ class handler(BaseHTTPRequestHandler):
             "blog.html": "text/html; charset=utf-8",
             "support.html": "text/html; charset=utf-8",
             "pricing-faq.html": "text/html; charset=utf-8",
-            "faqs.html": "text/html; charset=utf-8",
             "blog-captcha.html": "text/html; charset=utf-8",
             "blog-agent-economy.html": "text/html; charset=utf-8",
             "blog-servicetitan-website-ai-agent-readiness.html": "text/html; charset=utf-8",
