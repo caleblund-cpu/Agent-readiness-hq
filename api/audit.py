@@ -1469,6 +1469,35 @@ def _packet_pdf_bytes():
     return pdf
 
 
+def _packet_html(email):
+    """HTML part for the packet email (added 2026-10-28): mirrors
+    the plain-text body in the shared shell, with the standard
+    footer in its hyperlink form. The text part stays as the
+    fallback and keeps the raw unsubscribe URL on its own line,
+    as plain text must."""
+    return """<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Your Agent Readiness HQ information packet</title></head>
+<body style="margin:0; padding:0; background-color:#f7f2f0; font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; color:#1d1d1f;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f7f2f0;">
+<tr><td align="center" style="padding:28px 12px 36px 12px;">
+<table role="presentation" width="640" cellpadding="0" cellspacing="0" style="width:640px; max-width:640px; background-color:#ffffff; border:1px solid #f0dfe3; border-radius:16px;">
+<tr><td style="padding:36px 44px 40px 44px;">
+<span style="font-size:20px; font-weight:800; letter-spacing:-0.02em; color:#1d1d1f;">Agent Readiness <span style="color:#ff4d6d;">HQ</span></span>
+<div style="border-bottom:2px solid #ff4d6d; margin:20px 0 26px 0; font-size:0; line-height:0;">&nbsp;</div>
+<p style="font-size:15.5px; line-height:1.6; color:#333336; margin:0;">Thanks for your interest in Agent Readiness HQ.</p>
+<p style="font-size:15.5px; line-height:1.6; color:#333336; margin-top:14px;">Your information packet is attached as a PDF: how the free scan works, what each plan includes, and what everything costs.</p>
+<p style="font-size:15.5px; line-height:1.6; color:#333336; margin-top:14px;">When you are ready, run the free scan and see how AI systems read your site:<br><a href="https://agentreadinesshq.com/" style="color:#c21847;">https://agentreadinesshq.com/</a></p>
+<p style="font-size:15.5px; line-height:1.6; color:#333336; margin-top:14px;">You are receiving this because you requested the packet on our website.</p>
+<p style="font-size:15.5px; line-height:1.6; color:#333336; margin-top:24px;">Thanks,<br><br>Agent Readiness HQ<br>hello@agentreadinesshq.com</p>
+""" + _footer_html(email) + """</td></tr>
+</table>
+</td></tr>
+</table>
+</body></html>"""
+
+
 def _packet_message(email, pdf_bytes):
     msg = EmailMessage()
     msg["From"] = RESULTS_FROM
@@ -1487,6 +1516,7 @@ def _packet_message(email, pdf_bytes):
         "Agent Readiness HQ\n"
         "hello@agentreadinesshq.com\n\n"
         + "\n".join(_footer_text_lines(email)))
+    msg.add_alternative(_packet_html(email), subtype="html")
     msg.add_attachment(pdf_bytes, maintype="application", subtype="pdf",
                        filename="Agent-Readiness-HQ-Information-Packet.pdf")
     return msg
@@ -1882,14 +1912,17 @@ def _footer_text_lines(email):
 def _footer_html(email):
     """The standard footer, HTML part: the ruled-off centered block
     from the 2026-10-28 approved mock-up, with the word Unsubscribe
-    carrying the per-recipient link. Without a mintable token the
-    click line is omitted, exactly as in the text part."""
+    carrying the per-recipient link as a plain hyperlink (Caleb
+    correction 2026-10-28: a simple underlined link, not a styled
+    element; the raw token URL never prints in the HTML part).
+    Without a mintable token the click line is omitted, exactly as
+    in the text part."""
     click = ""
     if _unsubscribe_token(email):
         click = (
             '<p style="font-size:14.5px; line-height:1.55; '
             'color:#6e6e73; margin:0;">Don&#8217;t want emails from '
-            'us? <a href="%s" style="color:#c21847; font-weight:700; '
+            'us? <a href="%s" style="color:#c21847; '
             'text-decoration:underline;">Unsubscribe</a> with one '
             'click, and you are off the list.</p>'
             % _esc_html(_unsubscribe_url(email)))
