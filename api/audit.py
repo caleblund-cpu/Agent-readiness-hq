@@ -1039,7 +1039,8 @@ def _email_button_html(url, label):
         % (_esc_html(url), _esc_html(label)))
 
 
-def _results_email_html(first_name, site, score, grade, checks, platform=None):
+def _results_email_html(first_name, site, score, grade, checks, platform=None,
+                        email=None):
     """HTML version of the results email, mirroring the on-page results:
     score/grade header, then per check the technical name + score pill,
     the finding line, and the plain-English meaning line. (Per-check
@@ -1250,7 +1251,8 @@ def _results_email_html(first_name, site, score, grade, checks, platform=None):
 %(conversion)s
 %(details)s
 <p style="font-size:16px; line-height:1.6; color:#333336; margin-top:26px;">Thanks,<br><br><strong>Agent Readiness HQ</strong><br><span style="color:#5c5c60;">hello@agentreadinesshq.com</span></p>
-<p style="font-size:13px; line-height:1.55; color:#8e8e93; text-align:center; margin-top:30px;">You are receiving this because you requested your results at agentreadinesshq.com.<br>Don&#8217;t want emails from us? Just reply to this email with &#8220;unsubscribe&#8221; and we will take you off our list.</p>
+<p style="font-size:13px; line-height:1.55; color:#8e8e93; text-align:center; margin-top:30px;">You are receiving this because you requested your results at agentreadinesshq.com.</p>
+%(footer)s
 </td></tr>
 </table>
 </td></tr>
@@ -1266,6 +1268,7 @@ def _results_email_html(first_name, site, score, grade, checks, platform=None):
         "checks": "".join(blocks),
         "conversion": conversion_html,
         "details": details_html,
+        "footer": _footer_html(email) if email else "",
     }
 
 
@@ -1379,16 +1382,17 @@ def compose_results_email(first_name, email, report):
         "",
         "You are receiving this because you requested your results at "
         "agentreadinesshq.com.",
-        "Don't want emails from us? Just reply with \"unsubscribe\" "
-        "and we will take you off our list.",
-    ]
+        "",
+    ] + _footer_text_lines(email)
     msg = EmailMessage()
     msg["From"] = f"Agent Readiness HQ <{RESULTS_FROM}>"
     msg["To"] = email
     msg["Subject"] = f"Your free scan results for {site}: {score}/100 (grade {grade})"
     msg.set_content("\n".join(lines))
+    _set_unsubscribe_headers(msg, email)
     msg.add_alternative(
-        _results_email_html(first_name, site, score, grade, checks, platform),
+        _results_email_html(first_name, site, score, grade, checks,
+                            platform, email=email),
         subtype="html")
     return msg
 
@@ -1470,6 +1474,7 @@ def _packet_message(email, pdf_bytes):
     msg["From"] = RESULTS_FROM
     msg["To"] = email
     msg["Subject"] = "Your Agent Readiness HQ information packet"
+    _set_unsubscribe_headers(msg, email)
     msg.set_content(
         "Thanks for your interest in Agent Readiness HQ.\n\n"
         "Your information packet is attached as a PDF: how the free scan "
@@ -1478,11 +1483,10 @@ def _packet_message(email, pdf_bytes):
         "read your site:\nhttps://agentreadinesshq.com/\n\n"
         "You are receiving this because you requested the packet on our "
         "website.\n\n"
-        "Don't want emails from us? Just reply with \"unsubscribe\" "
-        "and we will take you off our list.\n\n"
         "Thanks,\n\n"
         "Agent Readiness HQ\n"
-        "hello@agentreadinesshq.com")
+        "hello@agentreadinesshq.com\n\n"
+        + "\n".join(_footer_text_lines(email)))
     msg.add_attachment(pdf_bytes, maintype="application", subtype="pdf",
                        filename="Agent-Readiness-HQ-Information-Packet.pdf")
     return msg
@@ -1783,6 +1787,154 @@ def _order_write(session_id, name, email, tier, arhq_number=None):
     if arhq_number:
         record["arhq_number"] = arhq_number
     _blob_put_json(_ORDER_PREFIX + session_id + ".json", record)
+
+
+# --- One-click unsubscribe (2026-10-28) --------------------------------
+# Every customer-facing email this function sends carries the same
+# footer: a one-click Unsubscribe link, the reply option, and the
+# business postal address (footer mock-up approved by Caleb
+# 2026-10-28). The link is per-recipient: /api/unsubscribe?e=<email>
+# &t=<token>, the token an HMAC of the normalized email. Following
+# it records the opt-out in the same private Blob store as every
+# other durable record here, under unsubscribed/v1/<email>.json,
+# reusing _blob_put_json / _blob_get_json. Recording is the
+# mechanism: any future campaign send must check _is_unsubscribed
+# before mailing. The per-request sends in this file (a scan result
+# or packet the visitor just asked for, an order receipt) are the
+# request itself and are not gated on the store.
+#
+# Token secret: UNSUBSCRIBE_SECRET when configured, else the
+# Stripe webhook secret (already provisioned wherever the webhook
+# processes payments), domain-separated by the "unsubscribe:"
+# message prefix so a token can never be mistaken for a Stripe
+# signature input. With NO secret configured the footer renders
+# WITHOUT the one-click line (reply + address only) rather than
+# printing a link the endpoint would reject, and the endpoint
+# fails closed.
+BUSINESS_POSTAL_ADDRESS = (
+    "Agent Readiness HQ, 1500 N Grant St, Suite #12205, "
+    "Denver, CO 80203")
+_UNSUB_PREFIX = "unsubscribed/v1/"
+
+
+def _unsubscribe_secret():
+    return (os.environ.get("UNSUBSCRIBE_SECRET")
+            or os.environ.get("STRIPE_WEBHOOK_SECRET") or "").strip()
+
+
+def _unsubscribe_token(email):
+    """HMAC token binding an unsubscribe link to one email address.
+    Empty string when no secret is configured (links are then not
+    minted at all; see _footer_text_lines)."""
+    secret = _unsubscribe_secret()
+    if not secret:
+        return ""
+    mac = hmac.new(secret.encode("utf-8"),
+                   ("unsubscribe:" + email).encode("utf-8"),
+                   hashlib.sha256)
+    return mac.hexdigest()[:32]
+
+
+def _unsubscribe_url(email):
+    return (SITE_BASE + "/api/unsubscribe?" + urlencode(
+        {"e": email, "t": _unsubscribe_token(email)}))
+
+
+def _unsubscribe_record(email):
+    """Persist one opt-out. True only when the store accepted it."""
+    return _blob_put_json(
+        _UNSUB_PREFIX + email + ".json",
+        {"email": email,
+         "ts": datetime.now(timezone.utc).isoformat(),
+         "source": "unsubscribe-link"})
+
+
+def _is_unsubscribed(email):
+    """True only on a confirmed durable opt-out record. Any store
+    trouble reads as not-unsubscribed (fail open, the rule for
+    every store in this file); the write is the step the endpoint
+    confirms to the visitor."""
+    if not email:
+        return False
+    return _blob_get_json(_UNSUB_PREFIX + email + ".json") is not None
+
+
+def _footer_text_lines(email):
+    """The standard footer, plain-text part: the one-click line
+    (present only when a token can be minted; the link itself
+    rides on its own line because plain text has no anchors), the
+    reply option, and the postal address."""
+    lines = []
+    if _unsubscribe_token(email):
+        lines += [
+            "Don't want emails from us? Unsubscribe with one click, "
+            "and you are off the list:",
+            _unsubscribe_url(email),
+        ]
+    lines += [
+        "Or just reply to this email with \"unsubscribe\" and we "
+        "will take you off our list.",
+        BUSINESS_POSTAL_ADDRESS,
+    ]
+    return lines
+
+
+def _footer_html(email):
+    """The standard footer, HTML part: the ruled-off centered block
+    from the 2026-10-28 approved mock-up, with the word Unsubscribe
+    carrying the per-recipient link. Without a mintable token the
+    click line is omitted, exactly as in the text part."""
+    click = ""
+    if _unsubscribe_token(email):
+        click = (
+            '<p style="font-size:14.5px; line-height:1.55; '
+            'color:#6e6e73; margin:0;">Don&#8217;t want emails from '
+            'us? <a href="%s" style="color:#c21847; font-weight:700; '
+            'text-decoration:underline;">Unsubscribe</a> with one '
+            'click, and you are off the list.</p>'
+            % _esc_html(_unsubscribe_url(email)))
+    return (
+        '<div style="border-top:1px solid #f0e6e8; margin-top:22px; '
+        'padding-top:20px; text-align:center;">' + click +
+        '<p style="font-size:13px; line-height:1.55; color:#8e8e93; '
+        'margin-top:9px;">Or just reply to this email with '
+        '&#8220;unsubscribe&#8221; and we will take you off our '
+        'list.</p>'
+        '<p style="font-size:13px; line-height:1.55; color:#8e8e93; '
+        'margin-top:9px;">' + BUSINESS_POSTAL_ADDRESS + "</p></div>")
+
+
+def _set_unsubscribe_headers(msg, email):
+    """RFC 2369 List-Unsubscribe + RFC 8058 one-click POST headers.
+    The send path is smtplib send_message over EmailMessage, which
+    serializes every header set on the message, so no transport
+    change is needed. Set only when a token can be minted."""
+    if _unsubscribe_token(email):
+        msg["List-Unsubscribe"] = "<%s>" % _unsubscribe_url(email)
+        msg["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
+
+
+def _unsubscribe_page(heading, body_text):
+    """The plain confirmation page behind /api/unsubscribe."""
+    return """<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>%s</title></head>
+<body style="margin:0; padding:0; background-color:#f7f2f0; font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; color:#1d1d1f;">
+<table role="presentation" width="100%%" cellpadding="0" cellspacing="0" style="background-color:#f7f2f0;">
+<tr><td align="center" style="padding:40px 12px;">
+<table role="presentation" width="560" cellpadding="0" cellspacing="0" style="width:560px; max-width:560px; background-color:#ffffff; border:1px solid #f0dfe3; border-radius:16px;">
+<tr><td style="padding:36px 40px 40px 40px;">
+<span style="font-size:20px; font-weight:800; letter-spacing:-0.02em; color:#1d1d1f;">Agent Readiness <span style="color:#ff4d6d;">HQ</span></span>
+<div style="border-bottom:2px solid #ff4d6d; margin:20px 0 26px 0; font-size:0; line-height:0;">&nbsp;</div>
+<h1 style="font-size:24px; line-height:1.3; font-weight:800; color:#1d1d1f; margin:0;">%s</h1>
+<p style="font-size:15.5px; line-height:1.65; color:#333336; margin-top:16px;">%s</p>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body></html>""" % (_esc_html(heading), _esc_html(heading),
+                     _esc_html(body_text))
 
 
 # --- Order numbering (2026-10-22) --------------------------------------
@@ -2159,7 +2311,7 @@ def _day0_tail_html(paras):
 
 
 def _day0_email_html(heading, first_name, payment_line, blocks_html,
-                     show_next=True):
+                     show_next=True, footer_html=""):
     """HTML part for the day-0 purchase confirmations (Templates 7
     and 12), added 2026-10-21 so the personalized intake link renders
     as a hyperlink instead of a giant raw URL. Same shell as the
@@ -2189,7 +2341,7 @@ def _day0_email_html(heading, first_name, payment_line, blocks_html,
 <p style="font-size:15.5px; line-height:1.6; color:#333336; margin-top:14px;">%(payment)s</p>
 %(next)s%(blocks)s
 <p style="font-size:15.5px; line-height:1.6; color:#333336; margin-top:24px;">Thanks,<br><br>Agent Readiness HQ<br>hello@agentreadinesshq.com</p>
-</td></tr>
+%(footer)s</td></tr>
 </table>
 </td></tr>
 </table>
@@ -2199,6 +2351,7 @@ def _day0_email_html(heading, first_name, payment_line, blocks_html,
         "payment": _esc_html(payment_line),
         "next": next_html,
         "blocks": blocks_html,
+        "footer": footer_html,
     }
 
 
@@ -2258,7 +2411,8 @@ def compose_day0_email(first_name, email, order_ref, door_link):
         "",
         "Agent Readiness HQ",
         "hello@agentreadinesshq.com",
-    ]
+        "",
+    ] + _footer_text_lines(email)
     blocks_html = "".join(
         [_day0_intake_step_html(action_lead, action_body, door_link)]
         + [_day0_tail_html(tail)])
@@ -2266,10 +2420,12 @@ def compose_day0_email(first_name, email, order_ref, door_link):
     msg["From"] = f"Agent Readiness HQ <{RESULTS_FROM}>"
     msg["To"] = email
     msg["Subject"] = subject
+    _set_unsubscribe_headers(msg, email)
     msg.set_content("\n".join(lines))
     msg.add_alternative(
         _day0_email_html(subject, first_name, payment_line,
-                         blocks_html, show_next=False),
+                         blocks_html, show_next=False,
+                         footer_html=_footer_html(email)),
         subtype="html")
     return msg
 
@@ -2366,7 +2522,8 @@ def compose_day0_email_449(first_name, email, order_ref, door_link):
         "",
         "Agent Readiness HQ",
         "hello@agentreadinesshq.com",
-    ]
+        "",
+    ] + _footer_text_lines(email)
     blocks_html = "".join(
         [_day0_intake_step_html(action_lead, action_body, door_link)]
         + [_day0_tail_html(tail)])
@@ -2374,10 +2531,12 @@ def compose_day0_email_449(first_name, email, order_ref, door_link):
     msg["From"] = f"Agent Readiness HQ <{RESULTS_FROM}>"
     msg["To"] = email
     msg["Subject"] = subject
+    _set_unsubscribe_headers(msg, email)
     msg.set_content("\n".join(lines))
     msg.add_alternative(
         _day0_email_html(subject, first_name, payment_line,
-                         blocks_html, show_next=False),
+                         blocks_html, show_next=False,
+                         footer_html=_footer_html(email)),
         subtype="html")
     return msg
 
@@ -2472,16 +2631,19 @@ def compose_upgrade_email(first_name, email, order_ref):
         "",
         "Agent Readiness HQ",
         "hello@agentreadinesshq.com",
-    ]
+        "",
+    ] + _footer_text_lines(email)
     blocks_html = _day0_tail_html(paras)
     msg = EmailMessage()
     msg["From"] = f"Agent Readiness HQ <{RESULTS_FROM}>"
     msg["To"] = email
     msg["Subject"] = subject
+    _set_unsubscribe_headers(msg, email)
     msg.set_content("\n".join(lines))
     msg.add_alternative(
         _day0_email_html(subject, first_name, payment_line,
-                         blocks_html, show_next=False),
+                         blocks_html, show_next=False,
+                         footer_html=_footer_html(email)),
         subtype="html")
     return msg
 
@@ -2536,7 +2698,8 @@ def compose_monitoring_email(first_name, email, order_ref,
         "",
         "Agent Readiness HQ",
         "hello@agentreadinesshq.com",
-    ]
+        "",
+    ] + _footer_text_lines(email)
     blocks_html = (
         (_day0_p(_esc_html(no_audit_note))
          if prior_audit == "no" else "")
@@ -2549,10 +2712,12 @@ def compose_monitoring_email(first_name, email, order_ref,
     msg["From"] = f"Agent Readiness HQ <{RESULTS_FROM}>"
     msg["To"] = email
     msg["Subject"] = subject
+    _set_unsubscribe_headers(msg, email)
     msg.set_content("\n".join(lines))
     msg.add_alternative(
         _day0_email_html(subject, first_name, payment_line,
-                         blocks_html, show_next=False),
+                         blocks_html, show_next=False,
+                         footer_html=_footer_html(email)),
         subtype="html")
     return msg
 
@@ -2830,6 +2995,58 @@ def _clean_lead(data):
 class handler(BaseHTTPRequestHandler):
     server_version = "AgentReadinessAudit/1.0"
 
+    def _send_html(self, code, html):
+        body = html.encode("utf-8")
+        self.send_response(code)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _handle_unsubscribe(self):
+        """GET or POST /api/unsubscribe?e=<email>&t=<token>: the
+        one-click opt-out behind every customer email's footer.
+        The HMAC token is the only credential, so a link works
+        only for the address it was minted for. A valid request
+        records the opt-out in the Blob store and answers with a
+        plain confirmation page; an invalid one changes nothing
+        and says so, with the reply route as the fallback. Mail
+        clients performing an RFC 8058 one-click POST land here
+        too and get the same handling."""
+        qs = parse_qs(urlparse(self.path).query)
+        email = (qs.get("e") or [""])[0].strip().lower()[:254]
+        token = (qs.get("t") or [""])[0].strip()
+        ok = (bool(email) and bool(_EMAIL_RE.match(email))
+              and bool(token)
+              and hmac.compare_digest(token,
+                                      _unsubscribe_token(email)))
+        if not ok:
+            self._send_html(400, _unsubscribe_page(
+                "That link did not check out",
+                "The unsubscribe link was not valid for this "
+                "address, so nothing was changed. To stop these "
+                "emails, just reply to any of them with "
+                "\"unsubscribe\" and we will take you off our list."))
+            return
+        if not _unsubscribe_record(email):
+            self._send_html(503, _unsubscribe_page(
+                "We could not record that just now",
+                "Something on our side kept the opt-out from being "
+                "saved. Please reply to any of our emails with "
+                "\"unsubscribe\" and we will take you off our list "
+                "by hand."))
+            return
+        print(f"unsubscribe: recorded opt-out for {email}")
+        self._send_html(200, _unsubscribe_page(
+            "You are unsubscribed",
+            "Your opt-out is recorded, and you will not receive "
+            "marketing emails from Agent Readiness HQ at this "
+            "address. Receipts and anything you specifically "
+            "request from us can still be emailed to you. This "
+            "does not cancel a paid subscription; the portal link "
+            "in your confirmation email manages that."))
+
     def _send(self, code, obj):
         body = json.dumps(obj).encode()
         self.send_response(code)
@@ -3021,6 +3238,9 @@ class handler(BaseHTTPRequestHandler):
         if path == "/api/intake-prefill":
             self._handle_intake_prefill()
             return
+        if path == "/api/unsubscribe":
+            self._handle_unsubscribe()
+            return
         if path == "/":
             path = "/index.html"
         if path == "/packet":
@@ -3089,6 +3309,9 @@ class handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = self.path.split("?", 1)[0]
+        if path == "/api/unsubscribe":
+            self._handle_unsubscribe()
+            return
         if path == "/api/subscribe":
             self._handle_subscribe()
             return
