@@ -1986,6 +1986,109 @@ def _claim_seed_number(session_id, year):
     return f"ARHQ-{year}-{_ORDER_SEQ_SEED:04d}"
 
 
+# --- Prior-audit safeguard for monitoring (2026-10-27) ----------------
+# Monitoring maintains the AI Information Page an audit created, so
+# it can only run for a business with a paid $149/$449 audit behind
+# it. The monitoring payment link is public, though, and nothing in
+# Stripe checks for a prior purchase: a stranger could subscribe and
+# be owed a service that cannot start (found by Caleb reviewing the
+# new pricing-page add-on section). When a monitoring checkout
+# completes, the webhook therefore looks the buyer up in the order
+# records (orders/v1/, the same store the numbering claim and the
+# intake-prefill join read) and matches by email, the same key the
+# operator uses to file the monitoring notice by hand. Tri-state:
+#   "yes"   a paid audit order (tier 149, 449, or upgrade; an
+#           upgrade record is itself proof of a $149 order) matches
+#           the buyer's email. Both emails go out exactly as before.
+#   "no"    the store read cleanly and no audit order matches. The
+#           customer confirmation gains one sentence (activation
+#           waits for the audit; this payment counts as the first
+#           month) and the internal notice is flagged NO PRIOR
+#           AUDIT so the operator contacts the customer.
+#   "error" the lookup could not be completed. The customer still
+#           gets the standard confirmation (fail open, the rule
+#           everywhere in this file) and the internal notice is
+#           flagged PRIOR-AUDIT CHECK FAILED for a manual check.
+# The subscription record itself is never blocked by this lookup.
+_AUDIT_TIERS = ("149", "449", "upgrade")
+
+
+def _blob_list_pathnames(prefix):
+    """List every pathname under prefix in the private Blob store,
+    following cursors. Returns (pathnames, "ok") or (None, "error")
+    on anything else: no token, transport error, non-200 status,
+    unparseable body. Never raises."""
+    token = _blob_token()
+    if not token:
+        return None, "error"
+    pathnames = []
+    cursor = None
+    for _page in range(50):  # defensive bound; the store is small
+        params = {"prefix": prefix, "limit": 1000}
+        if cursor:
+            params["cursor"] = cursor
+        try:
+            resp = requests.get(
+                _BLOB_API + "/",
+                params=params,
+                headers={"Authorization": f"Bearer {token}",
+                         "x-api-version": "12"},
+                timeout=5)
+        except Exception as exc:  # store trouble must never break checkout
+            print(f"prior-audit: list of {prefix} failed ({exc!r})")
+            return None, "error"
+        if resp.status_code != 200:
+            print(f"prior-audit: list of {prefix} returned "
+                  f"HTTP {resp.status_code}")
+            return None, "error"
+        try:
+            payload = resp.json()
+        except ValueError:
+            print(f"prior-audit: list of {prefix} was not JSON")
+            return None, "error"
+        blobs = payload.get("blobs") if isinstance(payload, dict) else None
+        if not isinstance(blobs, list):
+            print(f"prior-audit: list of {prefix} had no blob list")
+            return None, "error"
+        for blob in blobs:
+            if isinstance(blob, dict) and blob.get("pathname"):
+                pathnames.append(str(blob["pathname"]))
+        cursor = payload.get("cursor")
+        if not payload.get("hasMore") or not cursor:
+            return pathnames, "ok"
+    print(f"prior-audit: list of {prefix} never finished paging")
+    return None, "error"
+
+
+def _prior_audit_status(email, exclude_session_id=None):
+    """Tri-state prior-audit lookup for a monitoring buyer: "yes"
+    when a paid audit order record carries this email, "no" when the
+    order store read cleanly with no match, "error" when the lookup
+    could not be completed. email arrives lowercased from the
+    webhook; record emails are compared case-insensitively anyway.
+    The buyer's own just-written order record is skipped (its tier
+    is "monitoring", so the tier filter alone would exclude it too).
+    Never raises."""
+    pathnames, status = _blob_list_pathnames(_ORDER_PREFIX)
+    if status != "ok":
+        return "error"
+    own = (_ORDER_PREFIX + exclude_session_id + ".json"
+           if exclude_session_id else None)
+    for pathname in pathnames:
+        if pathname == own or not pathname.endswith(".json"):
+            continue
+        record, rec_status = _blob_get_json_status(pathname)
+        if rec_status == "error":
+            return "error"
+        if rec_status != "ok" or record is None:
+            continue  # listed a moment ago, gone now: no evidence
+        if str(record.get("tier") or "") not in _AUDIT_TIERS:
+            continue
+        if str(record.get("email") or "").strip().lower() == email:
+            return "yes"
+    return "no"
+
+
 def _is_paid_buyer(email):
     """Suppression lookup: in-memory cache first, durable store second;
     a durable hit warms the cache for the rest of this instance's life."""
@@ -2383,7 +2486,8 @@ def compose_upgrade_email(first_name, email, order_ref):
     return msg
 
 
-def compose_monitoring_email(first_name, email, order_ref):
+def compose_monitoring_email(first_name, email, order_ref,
+                             prior_audit="yes"):
     """Monitoring subscription confirmation (added 2026-10-26):
     the monitoring payment link previously matched NO webhook
     branch, so subscribers received no confirmation email at all
@@ -2394,7 +2498,11 @@ def compose_monitoring_email(first_name, email, order_ref):
     portal login link, wired in 2026-10-27, replacing the
     original reply-to-manage route). order_ref is the
     subscription order's ARHQ number, or None when numbering
-    failed.
+    failed. prior_audit is the safeguard lookup (2026-10-27,
+    _prior_audit_status): only the definitive "no" changes this
+    email, adding one sentence after the payment line (activation
+    waits for the audit; this payment counts as the first month).
+    "yes" and "error" both render exactly the pre-safeguard email.
     """
     subject = "Your AI Page Monitoring is confirmed"
     ref = f" (order {order_ref})" if order_ref else ""
@@ -2402,6 +2510,11 @@ def compose_monitoring_email(first_name, email, order_ref):
         f"Thank you. Your monitoring payment of $19.99 has been "
         f"received{ref}. Your AI Page Monitoring is now active at "
         f"$19.99/month.")
+    no_audit_note = (
+        "One note: monitoring runs on the AI Information Page "
+        "created by your audit, so yours will activate as soon as "
+        "your audit is complete, and this payment counts as your "
+        "first month.")
     paras = [
         "Each month, we re-scan your AI Information Page to confirm it is still live, readable, and accurate.",
         "If a scan suggests an update, we email you the proposed change first. Nothing is applied without your approval, and we never keep standing access to your site.",
@@ -2414,6 +2527,8 @@ def compose_monitoring_email(first_name, email, order_ref):
         payment_line,
         "",
     ]
+    if prior_audit == "no":
+        lines += [no_audit_note, ""]
     for para in paras:
         lines += [para, ""]
     lines += [
@@ -2423,7 +2538,9 @@ def compose_monitoring_email(first_name, email, order_ref):
         "hello@agentreadinesshq.com",
     ]
     blocks_html = (
-        _day0_tail_html(paras[:2])
+        (_day0_p(_esc_html(no_audit_note))
+         if prior_audit == "no" else "")
+        + _day0_tail_html(paras[:2])
         + _day0_p("To change your payment method or cancel, use your "
                   "subscription portal:")
         + _email_button_html(STRIPE_CUSTOMER_PORTAL_LOGIN_LINK,
@@ -2488,14 +2605,34 @@ def compose_order_notice_upgrade(name, email, session_id, amount_paid,
 def compose_order_notice_monitoring(name, email, session_id,
                                     amount_paid, day0_sent,
                                     arhq_number=None,
-                                    subscription_id=None):
+                                    subscription_id=None,
+                                    prior_audit="yes"):
     """Internal monitoring-subscription record to hello@, fields
     per 20-order-tracker.md. Filed as its own tracker row
     (product: monitoring). Business and website are matched by
     the operator from the customer's earlier $149/$449 order by
-    email, as with upgrades.
+    email, as with upgrades. prior_audit is the safeguard lookup
+    (2026-10-27, _prior_audit_status): the definitive "no" flags
+    this notice NO PRIOR AUDIT in the subject and in a first body
+    line (monitoring cannot start; contact the customer), and an
+    "error" flags it PRIOR-AUDIT CHECK FAILED for a manual check.
+    "yes" renders exactly the pre-safeguard notice.
     """
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    flag_line = None
+    if prior_audit == "no":
+        flag_line = (
+            "NO PRIOR AUDIT: no paid $149/$449 audit order is on "
+            "record for this email, so monitoring cannot start "
+            "(there is no AI Information Page to monitor). Contact "
+            "the customer: hold this payment as their first month "
+            "once an audit is completed, or refund it on request.")
+    elif prior_audit == "error":
+        flag_line = (
+            "PRIOR-AUDIT CHECK FAILED: the order store could not "
+            "be read, so a prior audit could neither be confirmed "
+            "nor ruled out. Check for the customer's earlier "
+            "$149/$449 order by hand before starting monitoring.")
     lines = [
         "A $19.99/month AI Page Monitoring subscription was confirmed by Stripe (webhook). Confirmation email "
         + ("sent to the customer." if day0_sent else "FAILED to send; send the monitoring confirmation by hand."),
@@ -2517,10 +2654,18 @@ def compose_order_notice_monitoring(name, email, session_id,
         "anything is applied; no standing site access is kept. Cancellation "
         "arrives by customer reply or the Stripe customer portal and is "
         "actioned by the operator.",]
+    if flag_line is not None:
+        lines = [flag_line, ""] + lines
+    subject = (f"New monitoring subscription (webhook): "
+               f"{name or email or session_id}")
+    if prior_audit == "no":
+        subject += " — NO PRIOR AUDIT"
+    elif prior_audit == "error":
+        subject += " — PRIOR-AUDIT CHECK FAILED"
     msg = EmailMessage()
     msg["From"] = f"Agent Readiness HQ <{RESULTS_FROM}>"
     msg["To"] = RESULTS_FROM
-    msg["Subject"] = f"New monitoring subscription (webhook): {name or email or session_id}"
+    msg["Subject"] = subject
     msg.set_content("\n".join(lines))
     return msg
 
@@ -2629,11 +2774,18 @@ def process_checkout_completed(session):
             name, email, session_id, amount_paid, day0_sent, arhq_number)
     else:  # monitoring: confirmation receipt + internal notice
         sub_id = str(session.get("subscription") or "")
+        # Prior-audit safeguard (2026-10-27): monitoring maintains
+        # an AI Information Page, which only an audit creates, so
+        # look the buyer up in the order records before composing
+        # either email and thread the tri-state result into both
+        # (see _prior_audit_status). The subscription is recorded
+        # either way; only the emails change.
+        prior_audit = _prior_audit_status(email.lower(), session_id)
         day0_factory = lambda: compose_monitoring_email(  # noqa: E731
-            first_name, email, arhq_number)
+            first_name, email, arhq_number, prior_audit)
         notice_factory = lambda: compose_order_notice_monitoring(  # noqa: E731
             name, email, session_id, amount_paid, day0_sent,
-            arhq_number, sub_id)
+            arhq_number, sub_id, prior_audit)
 
     day0_sent = False
     if email and _EMAIL_RE.match(email):
