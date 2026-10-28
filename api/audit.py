@@ -2045,6 +2045,14 @@ def _claim_arhq_number(session_id):
         return str(existing["arhq_number"])
     seq_obj, seq_status = _blob_get_json_status(_ORDER_SEQ_PATHNAME)
     if seq_status == "error":
+        # One retry after a short pause (2026-10-28 hardening): a
+        # single transient read error otherwise costs an order its
+        # number even when the store answers fine a moment later,
+        # as happened to the 2026-10-28 test order. A persistent
+        # error still fails closed just below, unchanged.
+        time.sleep(1)
+        seq_obj, seq_status = _blob_get_json_status(_ORDER_SEQ_PATHNAME)
+    if seq_status == "error":
         print(f"order-numbering: sequence unreadable for session "
               f"{session_id}; day-0 email will carry no order "
               "reference")
