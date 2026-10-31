@@ -3312,7 +3312,6 @@ class handler(BaseHTTPRequestHandler):
             "blog.html": "text/html; charset=utf-8",
             "support.html": "text/html; charset=utf-8",
             "pricing-faq.html": "text/html; charset=utf-8",
-            "monitoring.html": "text/html; charset=utf-8",
             "blog-captcha.html": "text/html; charset=utf-8",
             "blog-free-ai-tools-platforms.html": "text/html; charset=utf-8",
             "blog-ai-answers-change.html": "text/html; charset=utf-8",

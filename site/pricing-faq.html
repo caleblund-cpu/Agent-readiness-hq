@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script>document.documentElement.classList.add('js-reveal');</script>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -93,6 +94,28 @@ a.tile:hover { transform: translateY(-5px); box-shadow: 0 18px 38px rgba(29, 29,
 @media (max-width: 720px) {
 #maintenance .tiles { grid-template-columns: 1fr; }
 }
+
+  /* ---- process flow chart (uniform steps) ---- */
+  .flow { display: flex; align-items: stretch; gap: 0.9rem; margin-top: 1.8rem; text-align: left; }
+  .flow-step { flex: 1 1 0; background: var(--bg); border-radius: var(--radius); box-shadow: var(--card-shadow); padding: 1.7rem 1.5rem; }
+  .flow-step .flow-num { display: inline-block; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--rose-dark); background: var(--rose-tint); padding: 0.3rem 0.65rem; border-radius: 999px; margin: 0 0 0.75rem; }
+  .flow-step h3 { font-size: 1.45rem; line-height: 1.2; letter-spacing: -0.02em; margin: 0 0 0.5rem; }
+  .flow-step .flow-copy { color: var(--muted); font-size: 0.98rem; line-height: 1.55; margin: 0; }
+  .flow-arrow { flex: 0 0 auto; align-self: center; font-size: 1.7rem; font-weight: 800; line-height: 1; color: var(--rose); }
+  @media (max-width: 720px) {
+    .flow { flex-direction: column; }
+    .flow-arrow { transform: rotate(90deg); margin: 0.15rem auto; }
+  }
+</style>
+<style id="heading-reveal-css">
+  /* Heading fill-in only. Applies solely when JS is running; the
+     headline text itself is unchanged and fully present in the page. */
+  .js-reveal .wrv { display: inline-block; opacity: 0; transform: translateY(.45em); filter: blur(5px);
+    transition: opacity .9s cubic-bezier(.22,.61,.21,1), transform .9s cubic-bezier(.22,.61,.21,1), filter .9s cubic-bezier(.22,.61,.21,1); }
+  .js-reveal .wrv.in { opacity: 1; transform: none; filter: none; }
+  @media (prefers-reduced-motion: reduce) {
+    .js-reveal .wrv { opacity: 1 !important; transform: none !important; filter: none !important; transition: none !important; }
+  }
 </style>
 </head>
 <body>
@@ -105,7 +128,6 @@ a.tile:hover { transform: translateY(-5px); box-shadow: 0 18px 38px rgba(29, 29,
       <nav class="nav-panel" aria-label="Site menu">
         <a href="/">Home</a>
         <a href="/pricing-faq.html">Pricing &amp; FAQs</a>
-        <a href="/monitoring.html">Ongoing Monitoring</a>
         <a href="/blog.html">Blog</a>
         <a href="mailto:hello@agentreadinesshq.com">Email us</a>
         <a class="nav-cta" href="/#cta">Get your free scan</a>
@@ -114,6 +136,31 @@ a.tile:hover { transform: translateY(-5px); box-shadow: 0 18px 38px rgba(29, 29,
 </div>
 </header>
 <main>
+<!-- How our process works -->
+<section class="section section-alt" id="process">
+<div class="container">
+<h2>How our process works</h2>
+<div class="flow">
+        <article class="flow-step">
+          <p class="flow-num">Step 1</p>
+          <h3>Free Scan</h3>
+          <p class="flow-copy">Assess how your website performs for AI agents today: seven checks and your 0 to 100 readiness score, free.</p>
+        </article>
+        <span class="flow-arrow" aria-hidden="true">&rarr;</span>
+        <article class="flow-step">
+          <p class="flow-num">Step 2</p>
+          <h3>Get Ready</h3>
+          <p class="flow-copy">The Audit ($149) or Done For You ($449) makes your website ready for agents to read, then a fresh scan verifies the fixes are live.</p>
+        </article>
+        <span class="flow-arrow" aria-hidden="true">&rarr;</span>
+        <article class="flow-step">
+          <p class="flow-num">Step 3</p>
+          <h3>Refine</h3>
+          <p class="flow-copy">Ongoing monitoring refines how agents find your business, month after month. It re-checks your AI Information Page every month as platforms change and business details drift, and keeps it current, with every update approved by you first.</p>
+        </article>
+      </div>
+</div>
+</section>
 <!-- 1. Meet them where they are -->
 <section class="hero">
 <div class="container">
@@ -199,7 +246,7 @@ a.tile:hover { transform: translateY(-5px); box-shadow: 0 18px 38px rgba(29, 29,
 <p class="cta-row"><a href="https://buy.stripe.com/fZu3cx6K5fR7e9N66e5AQ04" class="btn">Start Monthly Monitoring, $19.99/month</a><span class="cta-note">An optional add-on after your audit. Cancel anytime.</span></p>
 <div class="check-strip">
 <h3>Why ongoing maintenance matters</h3>
-<p>Your Audit or Done For You delivery reflects your site on the day the work ships. After that, things move. Platforms roll out changes that possibly alter how your pages are exposed to AI tools, assistants get updated, and your own services, hours, and prices change. Any one of those shifts could leave your AI Information Page describing a business that no longer quite matches the one you run. Monthly maintenance catches that drift while it is still small, proposes the fix, and applies it only with your approval. <a href="monitoring.html">See how ongoing maintenance works</a>.</p>
+<p>Your Audit or Done For You delivery reflects your site on the day the work ships. After that, things move. Platforms roll out changes that possibly alter how your pages are exposed to AI tools, assistants get updated, and your own services, hours, and prices change. Any one of those shifts could leave your AI Information Page describing a business that no longer quite matches the one you run. Monthly maintenance catches that drift while it is still small, proposes the fix, and applies it only with your approval. See how ongoing maintenance works.</p>
 </div>
 </div>
 </section>
@@ -377,6 +424,67 @@ document.querySelectorAll(".packet-form").forEach(function (form) {
       .catch(function () { note.textContent = "Something went wrong sending your request. Please try again."; });
   });
 });
+</script>
+<script id="heading-reveal-js">
+(function () {
+  // Headings fill in word by word: the hero title on load, every other
+  // heading as it scrolls into view. Heading text is unchanged and fully
+  // present in the page; the hidden state exists only while JS runs.
+  function splitWords(h) {
+    var walk = function (node) {
+      Array.prototype.slice.call(node.childNodes).forEach(function (n) {
+        if (n.nodeType === 3) {
+          var frag = document.createDocumentFragment();
+          n.textContent.split(/(\s+)/).forEach(function (part) {
+            if (!part) return;
+            if (/^\s+$/.test(part)) { frag.appendChild(document.createTextNode(' ')); return; }
+            var s = document.createElement('span');
+            s.className = 'wrv'; s.textContent = part;
+            frag.appendChild(s);
+          });
+          node.replaceChild(frag, n);
+        } else if (n.nodeType === 1) { walk(n); }
+      });
+    };
+    walk(h);
+    return h.querySelectorAll('.wrv');
+  }
+  function fill(words, base) {
+    words.forEach(function (w, i) { w.style.transitionDelay = ((base || 0) + i * 80) + 'ms'; w.classList.add('in'); });
+  }
+  var hero = document.querySelector('.hero h1');
+  if (hero) {
+    var hw = splitWords(hero);
+    hw.forEach(function (w, i) { w.style.transitionDelay = (150 + i * 80) + 'ms'; });
+    requestAnimationFrame(function () { requestAnimationFrame(function () {
+      hw.forEach(function (w) { w.classList.add('in'); });
+    }); });
+    setTimeout(function () { hw.forEach(function (w) { w.classList.add('in'); }); }, 3000);
+  }
+  var rest = Array.prototype.slice.call(document.querySelectorAll('main h2'))
+    .filter(function (h) { return h !== hero; });
+  var prepared = rest.map(function (h) { return { h: h, words: splitWords(h), done: false }; });
+  function fillItem(p) { if (!p.done) { p.done = true; fill(p.words, 0); } }
+  if (!('IntersectionObserver' in window)) { prepared.forEach(fillItem); }
+  else {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) {
+          var p = prepared.filter(function (x) { return x.h === e.target; })[0];
+          if (p) fillItem(p);
+          io.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.4, rootMargin: '0px 0px -8% 0px' });
+    prepared.forEach(function (p) { io.observe(p.h); });
+    setTimeout(function () {
+      prepared.forEach(function (p) {
+        var r = p.h.getBoundingClientRect();
+        if (r.top < window.innerHeight && r.bottom > 0) fillItem(p);
+      });
+    }, 2500);
+  }
+})();
 </script>
 </body>
 </html>
