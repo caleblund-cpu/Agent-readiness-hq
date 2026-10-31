@@ -38,6 +38,30 @@
   .steps-arc { max-width: 46rem; margin: 0 auto; text-align: left; }
   .steps-arc li { margin-bottom: 1.1rem; }
   .price-wrap { max-width: 30rem; margin: 0 auto; }
+  .hero-price-note { text-align: center; color: var(--muted); font-size: 1rem; margin: -1.6rem 0 0; }
+  .hero-price-note strong { color: var(--ink); }
+</style>
+<style id="flowchart-css">
+  /* Flow chart band (three steps, left to right on desktop, stacked
+     with down arrows on mobile). Lifted from the homepage flow-chart
+     implementation (flowchart-mockup-2026-10-31). */
+  .flow { display: flex; align-items: stretch; gap: 0.9rem; margin-top: 1.8rem; text-align: left; }
+  .flow-step { flex: 1 1 0; background: var(--bg); border-radius: var(--radius); box-shadow: var(--card-shadow); padding: 1.7rem 1.5rem; }
+  .flow-step .flow-num { display: inline-block; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--rose-dark); background: var(--rose-tint); padding: 0.3rem 0.65rem; border-radius: 999px; margin: 0 0 0.75rem; }
+  .flow-step h3 { font-size: 1.45rem; line-height: 1.2; letter-spacing: -0.02em; margin: 0 0 0.5rem; }
+  .flow-step .flow-copy { color: var(--muted); font-size: 0.98rem; line-height: 1.55; margin: 0; }
+  .flow-arrow { flex: 0 0 auto; align-self: center; font-size: 1.7rem; font-weight: 800; line-height: 1; color: var(--rose); }
+  .flow-step-hot { background: linear-gradient(180deg, var(--rose-tint) 0%, #ffe1e9 100%); border: 2px solid var(--rose); box-shadow: 0 14px 38px rgba(255, 77, 109, 0.25); }
+  .flow-step .flow-badge { display: inline-block; background: var(--rose); color: #fff; font-size: 0.7rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.34rem 0.65rem; border-radius: 999px; margin: 0 0 0.8rem; }
+  .flow-step-hot .flow-num { background: #fff; }
+  .flow-step-hot .flow-copy { color: #71404e; }
+  .flow-step .flow-more { margin: 0.9rem 0 0; }
+  .flow-step .flow-more a { color: var(--rose-dark); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+  .flow-step .flow-more a:hover { color: var(--rose); }
+  @media (max-width: 720px) {
+    .flow { flex-direction: column; }
+    .flow-arrow { transform: rotate(90deg); margin: 0.15rem auto; }
+  }
 </style>
 </head>
 <body>
@@ -66,37 +90,39 @@
   <section class="hero">
     <div class="container">
       <h1>Cleaned up once. <span class="grad-text">Kept ready.</span></h1>
-      <p class="lede">A one-time cleanup gets your website ready for AI agents. Ongoing monitoring is how it stays that way. Every month we re-check your AI Information Page, email you what changed, and propose updates for your approval, so the version of your business that machines read stays the version you actually run.</p>
+      <p class="lede">The Audit and Done For You get your site ready. Monitoring takes it to the next level: think of it as <em>SEO for AI agents</em>. Every month we cross-check that assistants can still find your business and describe it correctly, and propose the enhancements that keep it that way.</p>
+      <div class="hero-cta-row">
+        <a href="https://buy.stripe.com/fZu3cx6K5fR7e9N66e5AQ04" class="btn">Start monitoring</a>
+      </div>
+      <p class="hero-price-note"><strong>$19.99/month</strong> · cancel anytime</p>
     </div>
   </section>
 
-  <!-- The problem -->
-  <section class="section">
-    <div class="container">
-      <h2>AI does not sit still</h2>
-      <p class="section-intro">The assistants your customers ask are updated constantly. Platforms roll out new features, change how pages are exposed to machines, and retire old ones. Your own business changes too: new services, new hours, new prices.</p>
-      <p class="section-intro">A cleanup reflects your site on the day it shipped. Over time, small changes could leave your AI Information Page out of date, and details that were accurate and machine-readable may stop matching the business you run today. None of this announces itself. Without a regular check, drift is easy to miss until it has been sitting there for months.</p>
-    </div>
-  </section>
-
-  <!-- Why trends, not scores -->
-  <section class="section">
-    <div class="container">
-      <h2>Why we report trends, not scores</h2>
-      <p class="section-intro">Ask the same question twice and you may get two different answers. AI assistants assemble each answer on the spot, and the businesses they name can change from one day to the next. In one 2026 study, the same question asked twice produced the identical list of businesses less than 1 percent of the time. A single check on a single afternoon could show almost anything, so we do not grade your business on one answer, and we never sell a ranking.</p>
-      <p class="section-intro">Instead, each monthly check asks a wide set of real customer questions and follows the direction over time: how often your business shows up, and whether the facts in the answers are right. Wrong hours, an old price, or a service you no longer offer get flagged for correction. A trend across months tells you something true. One score, from one day, possibly tells you nothing at all.</p>
-    </div>
-  </section>
-
-  <!-- The three-step arc -->
+  <!-- Once it's ready, keep it fresh: flow chart -->
   <section class="section section-alt">
     <div class="container">
-      <h2>Three steps, in order</h2>
-      <ol class="checks steps-arc">
-        <li><strong>Step 1: Get ready.</strong> Start with the free scan to see where you stand. The Audit ($149) or Done For You ($449) then fixes the priority issues and creates your AI Information Page from your verified facts, so agents get a clear, accurate version of your business.</li>
-        <li><strong>Step 2: Verify it.</strong> Every paid option ends with a fresh scan. The before-and-after results show the improvements are live on your site and readable by machines. That rescan is evidence the work is in place. It is not a promise of any particular outcome.</li>
-        <li><strong>Step 3: Keep it ready.</strong> Monitoring watches your AI Information Page month after month, flags drift, and proposes updates for your approval. That is the service on this page.</li>
-      </ol>
+      <h2>Once it's ready, keep it fresh</h2>
+      <div class="flow">
+        <article class="flow-step">
+          <p class="flow-num">Step 1</p>
+          <h3>Free Scan</h3>
+          <p class="flow-copy">Assess how your website performs for AI agents today: seven checks and your 0 to 100 readiness score, free.</p>
+        </article>
+        <span class="flow-arrow" aria-hidden="true">&rarr;</span>
+        <article class="flow-step">
+          <p class="flow-num">Step 2</p>
+          <h3>Get Ready</h3>
+          <p class="flow-copy">The Audit ($149) or Done For You ($449) makes your website ready for agents to read, then a fresh scan verifies the fixes are live.</p>
+        </article>
+        <span class="flow-arrow" aria-hidden="true">&rarr;</span>
+        <article class="flow-step flow-step-hot">
+          <p class="flow-badge">Most important once you're ready</p>
+          <p class="flow-num">Step 3</p>
+          <h3>Refine</h3>
+          <p class="flow-copy">Ongoing monitoring refines how agents find your business, month after month. It re-checks your AI Information Page every month as platforms change and business details drift, and keeps it current, with every update approved by you first.</p>
+          <p class="flow-more"><a href="#monitoring-price">See the $19.99 plan below</a></p>
+        </article>
+      </div>
     </div>
   </section>
 
@@ -107,23 +133,76 @@
       <div class="cards why-cards">
         <article class="card">
           <span class="card-icon">◉</span>
-          <h3>A monthly re-check</h3>
-          <p>We re-run the scan on your AI Information Page and check it against your current services, hours, locations, and other key facts.</p>
+          <h3>Re-checked every month</h3>
+          <p>Your AI Information Page, re-scanned and cross-checked against your real services, hours, and prices.</p>
         </article>
         <article class="card">
           <span class="card-icon">⬢</span>
-          <h3>One short email</h3>
-          <p>A concise update tells you what changed, what we checked, and whether anything needs your attention. A person reviews it before it lands in your inbox. No dashboard to learn, no wall of data.</p>
+          <h3>One short email, from a person</h3>
+          <p>What changed, what we checked, what needs your OK. No dashboard, no wall of data.</p>
         </article>
         <article class="card">
           <span class="card-icon">⟡</span>
-          <h3>Fixes proposed first</h3>
-          <p>If something needs updating, we email you the exact proposed change. Nothing is applied to your page until you approve it.</p>
+          <h3>Nothing changes without your say-so</h3>
+          <p>You see the exact proposed fix first. It goes live only after you approve it.</p>
         </article>
         <article class="card">
           <span class="card-icon">☾</span>
-          <h3>Temporary access only</h3>
-          <p>On approval, we use temporary, minimum access to make that one change, and then access ends. We never ask for your password, and we keep no standing access to your site.</p>
+          <h3>Access that ends</h3>
+          <p>In for the one approved change, then out. No standing access, and we never ask for your password.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- Monthly cross-checks -->
+  <section class="section section-alt">
+    <div class="container">
+      <h2>Every month, we cross-check</h2>
+      <div class="cards">
+        <article class="card">
+          <span class="card-icon">◎</span>
+          <h3>Can AI still find you?</h3>
+          <p>Your business, checked against the questions customers actually ask assistants.</p>
+        </article>
+        <article class="card">
+          <span class="card-icon">✓</span>
+          <h3>Is what it says true?</h3>
+          <p>Phone, hours, services, and prices, checked against your verified facts.</p>
+        </article>
+        <article class="card">
+          <span class="card-icon">↻</span>
+          <h3>Has anything drifted?</h3>
+          <p>Business changes and platform changes, caught before they sit for months.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- What makes this different -->
+  <section class="section">
+    <div class="container">
+      <h2>What makes this different</h2>
+      <div class="cards why-cards">
+        <article class="card">
+          <span class="card-icon">◆</span>
+          <h3>Done for you, not a dashboard</h3>
+          <p>Elsewhere, cheap tools hand you charts to figure out yourself. Here the checks, proposed fixes, and applied updates are the service.</p>
+        </article>
+        <article class="card">
+          <span class="card-icon">☺</span>
+          <h3>A person reviews your update</h3>
+          <p>A human reads your monthly check before it goes out: what changed, what we fixed, in plain words.</p>
+        </article>
+        <article class="card">
+          <span class="card-icon">⊘</span>
+          <h3>No standing access, no passwords</h3>
+          <p>Fixes proposed first, applied only on your approval, with temporary access that ends.</p>
+        </article>
+        <article class="card">
+          <span class="card-icon">↗</span>
+          <h3>Trends, not scores</h3>
+          <p>Others sell AI visibility grades, but ask the same question twice and the business list can change almost every time (identical under 1 percent of the time in one 2026 study). We report the trend, and the facts we verified.</p>
         </article>
       </div>
     </div>
