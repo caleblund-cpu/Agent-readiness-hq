@@ -23,6 +23,7 @@ Agent Readiness HQ is a Colorado-based, family-run business. It helps businesses
 - [Free scan](https://agentreadinesshq.com/#cta)
 - [Blog](https://agentreadinesshq.com/blog.html)
 - [Pricing & FAQs](https://agentreadinesshq.com/pricing-faq.html)
+- [Ongoing Monitoring](https://agentreadinesshq.com/monitoring.html)
 - [AI Information Page](https://agentreadinesshq.com/ai-info.html)
 - [Information](https://agentreadinesshq.com/information.html): how the free scan works, what each plan includes, and what everything costs.
 - [Terms of Service](https://agentreadinesshq.com/terms.html)
