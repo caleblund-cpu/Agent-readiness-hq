@@ -106,6 +106,7 @@ a.tile:hover { transform: translateY(-5px); box-shadow: 0 18px 38px rgba(29, 29,
     .flow { flex-direction: column; }
     .flow-arrow { transform: rotate(90deg); margin: 0.15rem auto; }
   }
+  .hero-arrow { text-align: center; line-height: 0; }
 </style>
 <style id="heading-reveal-css">
   /* Heading fill-in only. Applies solely when JS is running; the
@@ -144,19 +145,27 @@ a.tile:hover { transform: translateY(-5px); box-shadow: 0 18px 38px rgba(29, 29,
         <article class="flow-step">
           <p class="flow-num">Step 1</p>
           <h3>Free Scan</h3>
-          <p class="flow-copy">Assess how your website performs for AI agents today: seven checks and your 0 to 100 readiness score, free.</p>
+          <p class="flow-copy"><strong>How AI agents see your site today.</strong> Seven checks and your 0 to 100 readiness score, free.</p>
         </article>
         <span class="flow-arrow" aria-hidden="true">&rarr;</span>
         <article class="flow-step">
           <p class="flow-num">Step 2</p>
           <h3>Get Ready</h3>
-          <p class="flow-copy">The Audit ($149) or Done For You ($449) makes your website ready for agents to read, then a fresh scan verifies the fixes are live.</p>
+          <p class="flow-copy"><strong>We make your website ready for agents to read.</strong> The Audit ($149) or Done For You ($449), then a fresh scan verifies the fixes are live.</p>
         </article>
         <span class="flow-arrow" aria-hidden="true">&rarr;</span>
         <article class="flow-step">
           <p class="flow-num">Step 3</p>
           <h3>Refine</h3>
-          <p class="flow-copy">Ongoing monitoring refines how agents find your business, month after month. It re-checks your AI Information Page every month as platforms change and business details drift, and keeps it current, with every update approved by you first.</p>
+          <p class="flow-copy"><strong>Think SEO for AI. We:</strong></p>
+<ul class="ticks">
+<li>Re-check your website and AI Information Page monthly for changes to services, hours, locations, and key facts</li>
+<li>Sample real customer questions and show how often your business appears in the AI answers we observe</li>
+<li>Use the same questions every time, with repeated samples, never a single answer</li>
+<li>Show which other businesses appear in those answers, for context, not rankings</li>
+<li>Have a person review every Snapshot before it reaches you</li>
+<li>Propose any update to your AI Information Page and apply it only after you approve it</li>
+</ul>
         </article>
       </div>
 </div>
@@ -164,13 +173,15 @@ a.tile:hover { transform: translateY(-5px); box-shadow: 0 18px 38px rgba(29, 29,
 <!-- 1. Meet them where they are -->
 <section class="hero">
 <div class="container">
-<h1>Have questions?<br><span style="color:#ff4d6d">Start here.</span></h1>
+<div class="hero-arrow" role="img" aria-label="Scroll down to compare your options">
+<svg width="72" height="72" viewBox="0 0 64 64" fill="none" aria-hidden="true"><path d="M 11.3 39.5 A 22 22 0 1 1 47.6 47.6" stroke="#ff4d6d" stroke-width="5" stroke-linecap="round"/><path d="M 47.6 47.6 L 51.1 36.2 M 47.6 47.6 L 58.9 44.0" stroke="#ff4d6d" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+</div>
 </div>
 </section>
 <!-- 2. Option one: DIY Audit -->
 <section class="section tier-diy" id="option-diy">
 <div class="container">
-<h2 style="text-align:center;font-size:clamp(1.8rem,4vw,2.6rem);line-height:1.15;letter-spacing:-0.02em;margin:0 auto 1rem;">Option One &middot; DIY Audit, $149</h2>
+<h2 style="text-align:center;font-size:clamp(1.8rem,4vw,2.6rem);line-height:1.15;letter-spacing:-0.02em;margin:0 auto 1rem;">DIY Audit, $149</h2>
 <p class="section-intro"><strong>You make the changes, step by step.</strong></p>
 <ol class="steps">
 <li class="step"><span class="step-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg></span><strong>Complete your intake</strong><span class="txt">A short form with your verified business facts. Your audit is built from what you confirm, nothing guessed.</span></li>
@@ -191,8 +202,10 @@ a.tile:hover { transform: translateY(-5px); box-shadow: 0 18px 38px rgba(29, 29,
 </div>
 <div class="panel panel-tint">
 <h3>Good to know</h3>
-<p><strong>If you don't have developer experience, no worries.</strong> We hand you a ready-made packet with detailed instructions.</p>
-<p><strong>If you are overwhelmed, again no worries.</strong> You can upgrade within 30 days to the $449 Done For You option and we'll do it for you, with your $149 fully credited to that purchase.</p>
+<ul class="ticks">
+<li><strong>No developer experience? No worries.</strong> You get a ready-made packet with detailed instructions.</li>
+<li><strong>Overwhelmed? No worries.</strong> Upgrade within 30 days to the $449 Done For You option and we'll do it for you, with your $149 fully credited.</li>
+</ul>
 </div>
 </div>
 <p class="cta-row"><a href="https://buy.stripe.com/5kQ14p9WhbAR4zd66e5AQ00" class="btn">Get the $149 DIY Audit</a></p>
@@ -201,7 +214,7 @@ a.tile:hover { transform: translateY(-5px); box-shadow: 0 18px 38px rgba(29, 29,
 <!-- 3. Option two: Done For You -->
 <section class="section section-alt tier-dfy" id="option-dfy">
 <div class="container">
-<h2 style="text-align:center;font-size:clamp(1.8rem,4vw,2.6rem);line-height:1.15;letter-spacing:-0.02em;margin:0 auto 1rem;">Option Two &middot; Done For You, $449</h2>
+<h2 style="text-align:center;font-size:clamp(1.8rem,4vw,2.6rem);line-height:1.15;letter-spacing:-0.02em;margin:0 auto 1rem;">Done For You, $449</h2>
 <p class="section-intro"><strong>We audit your website and make the changes for you.</strong></p>
 <ol class="steps">
 <li class="step"><span class="step-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg></span><strong>We do a comprehensive review of your business website</strong><span class="txt">It starts with your intake, then we go through your site page by page.</span></li>
@@ -222,9 +235,11 @@ a.tile:hover { transform: translateY(-5px); box-shadow: 0 18px 38px rgba(29, 29,
 </div>
 <div class="panel panel-tint">
 <h3>Good to know</h3>
-<p>You approve all changes we make before we make them.</p>
-<p>You sign an authorization for us to do the work beforehand.</p>
-<p>You provide us temporary access limited to implementing changes, which is revocable by you at any time.</p>
+<ul class="ticks">
+<li>You approve all changes before we make them.</li>
+<li>You sign an authorization for the work beforehand.</li>
+<li>You provide temporary access, limited to implementing changes, revocable by you at any time.</li>
+</ul>
 </div>
 </div>
 <p class="cta-row"><a href="https://buy.stripe.com/5kQ14p8Sd9sJe9NeCK5AQ01" class="btn">Get Done For You — $449</a></p>
@@ -234,19 +249,24 @@ a.tile:hover { transform: translateY(-5px); box-shadow: 0 18px 38px rgba(29, 29,
 <section class="section" id="maintenance">
 <div class="container">
 <h2 style="text-align:center;font-size:clamp(1.8rem,4vw,2.6rem);line-height:1.15;letter-spacing:-0.02em;margin:0 auto 1rem;">Add-on: Monitoring + AI Visibility &mdash; $19.99/month</h2>
-<p class="section-intro"><strong>Keep your AI Information Page current, and see what we're observing when AI systems answer common customer questions about businesses like yours.</strong></p>
+<p class="section-intro"><strong>Keep your AI Information Page current, and see what we observe when AI systems answer customer questions.</strong></p>
 <div class="tiles">
-<article class="tile"><span class="t-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></span><h3>Monthly website check</h3><p><strong>Keep your AI page current.</strong> Each month, we re-check your website and AI Information Page for material changes to your services, locations, hours and other important business information.</p></article>
-<article class="tile"><span class="t-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></span><h3>AI Visibility Snapshot</h3><p><strong>See where you're showing up.</strong> We sample common customer questions and show how often your business appeared in the AI-generated answers we observed.</p></article>
-<article class="tile"><span class="t-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg></span><h3>Real customer questions</h3><p><strong>See what customers might ask.</strong> We test a consistent set of common questions for your business and area, with repeated samples instead of relying on a single AI answer.</p></article>
-<article class="tile"><span class="t-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg></span><h3>See who else appears</h3><p><strong>Know who is showing up too.</strong> Your Snapshot shows other businesses appearing in the same sampled answers, giving you useful context without pretending the results are rankings.</p></article>
-<article class="tile"><span class="t-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 11.5 11 13.5 15 9.5"/></svg></span><h3>Human-reviewed</h3><p><strong>Reviewed before you see it.</strong> Every Snapshot is reviewed before it is sent, so you get the observations that matter without a wall of automated data.</p></article>
-<article class="tile"><span class="t-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/></svg></span><h3>Updates only with approval</h3><p><strong>Nothing changes without your approval.</strong> If we recommend updating your AI Information Page, you'll see the exact proposed change first. We only make it after you approve it.</p></article>
+<article class="tile"><span class="t-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></span><h3>Monthly website check</h3><p><strong>Keep your AI page current.</strong> We re-check your website and AI Information Page monthly for changes to services, locations, hours, and other key information.</p></article>
+<article class="tile"><span class="t-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></span><h3>AI Visibility Snapshot</h3><p><strong>See where you're showing up.</strong> We sample common customer questions and show how often your business appeared in the answers we observed.</p></article>
+<article class="tile"><span class="t-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg></span><h3>Real customer questions</h3><p><strong>See what customers might ask.</strong> A consistent set of questions for your business and area, sampled repeatedly, never one single answer.</p></article>
+<article class="tile"><span class="t-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg></span><h3>See who else appears</h3><p><strong>Know who is showing up too.</strong> Other businesses in the same sampled answers: useful context, not rankings.</p></article>
+<article class="tile"><span class="t-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 11.5 11 13.5 15 9.5"/></svg></span><h3>Human-reviewed</h3><p><strong>Reviewed before you see it.</strong> Every Snapshot is reviewed first, so you get what matters, not a wall of data.</p></article>
+<article class="tile"><span class="t-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/></svg></span><h3>Updates only with approval</h3><p><strong>Nothing changes without your approval.</strong> You see the exact proposed change first; we apply it only after you approve it.</p></article>
 </div>
 <p class="cta-row"><a href="https://buy.stripe.com/fZu3cx6K5fR7e9N66e5AQ04" class="btn">Start Monthly Monitoring, $19.99/month</a><span class="cta-note">An optional add-on after your audit. Cancel anytime.</span></p>
 <div class="check-strip">
 <h3>Why ongoing maintenance matters</h3>
-<p>Your Audit or Done For You delivery reflects your site on the day the work ships. After that, things move. Platforms roll out changes that possibly alter how your pages are exposed to AI tools, assistants get updated, and your own services, hours, and prices change. Any one of those shifts could leave your AI Information Page describing a business that no longer quite matches the one you run. Monthly maintenance catches that drift while it is still small, proposes the fix, and applies it only with your approval. See how ongoing maintenance works.</p>
+<ul class="ticks">
+<li><strong>Your business changes.</strong> Services, hours, and prices move after the day your work ships.</li>
+<li><strong>Platforms and assistants change too.</strong> Their updates could alter how your pages are exposed to AI tools.</li>
+<li><strong>Drift gets caught early.</strong> Monthly checks spot your AI Information Page falling out of sync while the gap is still small.</li>
+<li><strong>Fixes only with your approval.</strong> We propose the exact change first and apply it only after you approve it.</li>
+</ul>
 </div>
 </div>
 </section>
@@ -256,8 +276,8 @@ a.tile:hover { transform: translateY(-5px); box-shadow: 0 18px 38px rgba(29, 29,
 <h2>Here is what we are NOT doing</h2>
 <div class="tiles">
 <article class="tile"><span class="t-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg></span><h3>Redesigning your website</h3><p>Your design, your words, and your pages stay exactly as they are. We add one new page and the machine-readable layer underneath.</p></article>
-<article class="tile"><span class="t-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg></span><h3>Running an SEO service</h3><p>We are not trying to move you up the Google results, and this work does not change how your site ranks there. It is about whether AI agents can read your business accurately.</p></article>
-<article class="tile"><span class="t-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 11.5 11 13.5 15 9.5"/></svg></span><h3>Guessing before changing</h3><p>We work only from facts you confirm. If your pages disagree or something is unclear, we ask you. Nothing gets changed on a guess.</p></article>
+<article class="tile"><span class="t-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg></span><h3>Running an SEO service</h3><p>This work does not change how your site ranks on Google. It is about whether AI agents can read your business accurately.</p></article>
+<article class="tile"><span class="t-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 11.5 11 13.5 15 9.5"/></svg></span><h3>Guessing before changing</h3><p>We work only from facts you confirm. If something is unclear, we ask. Nothing gets changed on a guess.</p></article>
 <a class="tile" href="#faq-access"><span class="t-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span><h3>Gathering passwords</h3><p>We never ask for your password, by email, message, or form. Access is a temporary invite you create with minimum permissions, and you remove it when the work is done.</p></a>
 <a class="tile" href="#faq-authorization"><span class="t-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></svg></span><h3>Working without your approval</h3><p>Paying buys the work; it does not approve it. Nothing on your site changes until you approve the exact change list and sign the authorization.</p></a>
 <a class="tile" href="#faq-platform"><span class="t-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg></span><h3>Making it complex</h3><p>Plain English and clear implementation steps at every stage, so you always know what we found, what we propose, and what happens next.</p></a>
