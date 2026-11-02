@@ -28,7 +28,7 @@
     #hero-audit-form .btn { width: 100%; }
   }
   .result-correction { margin-top: 1.5rem; font-size: 0.95rem; color: var(--muted); text-align: center; }
-  .email-note { text-align: center; color: var(--muted); font-size: 0.92rem; margin: 1.25rem auto 0; }
+  .email-note { text-align: left; color: var(--muted); font-size: 0.92rem; margin: 1.25rem auto 0; }
   .result-correction a { color: var(--rose); }
   .explainer { text-align: center; margin-bottom: 2rem; }  .explainer-sub { max-width: 34rem; margin: 0.75rem auto 1.75rem; color: var(--muted); }
   .video-frame { max-width: 340px; margin: 1.5rem auto 0; position: relative; }
@@ -53,6 +53,10 @@
     .scan-url-row { flex-direction: column; border-radius: 24px; }
     .scan-url-row .btn { width: 100%; }
   }
+  /* Left align trial (Nov 2026): titles stay centered; the paragraphs under them align left, with the paragraph blocks moved to the container's left edge. Cards, tiles, and form components keep their treatment. Remove this block to revert. */
+  .lede { text-align: left; margin-left: 0; margin-right: 0; }
+  .section-intro { text-align: left; margin-left: 0; margin-right: 0; }
+  .checks { margin-left: 0; margin-right: 0; }
 </style>
 <script type="application/ld+json">
 {
