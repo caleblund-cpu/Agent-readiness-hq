@@ -55,9 +55,10 @@ from urllib.parse import parse_qs, urlparse, urljoin, urlencode
 
 import requests
 
-VERSION = "2.0-api"
-SCORING_VERSION = "v2"   # scoring rules version; stamped on every
-                         # report so v1 and v2 scores are never mixed
+VERSION = "3.0-api"
+SCORING_VERSION = "v3"   # scoring rules version; stamped on every
+                         # report so scores from different scoring
+                         # versions are never mixed
 UA = "AgentReadinessAudit/1.0 (machine-readability audit; single fetch)"
 TIMEOUT = 4          # per-fetch timeout (seconds) — tight for serverless
 TIMEOUT_DEEP = 3     # deep-page fetch gets a shorter budget
@@ -133,7 +134,7 @@ FIX_TEXT = {
     "llms_txt": "Add a concise /llms.txt summarizing offerings, pricing, service area, and contact info for LLM consumers.",
     "sitemap": "Publish /sitemap.xml listing key pages so agents can discover the site without guessing URLs.",
     "schema_jsonld": "Add schema.org JSON-LD: Product with price/offers, a business record (Organization or LocalBusiness with name and contact facts), and FAQPage for common questions - on the homepage or the relevant service/FAQ pages.",
-    "pricing_html": "Render at least headline pricing in the raw HTML (server-side or pre-rendered); JS-only prices are invisible to non-JS agents.",
+    "pricing_html": "Render at least headline pricing in the raw HTML of the homepage or a key service/pricing page (server-side or pre-rendered); JS-only prices are invisible to non-JS agents.",
     "bot_wall": "Move bot protection behind real abuse signals instead of the front door; challenge pages block legitimate agent traffic.",
     "page_speed": "Speed up the homepage: cache aggressively, shrink payload, and fix slow TTFB — agents time out faster than humans.",
 }
@@ -871,20 +872,49 @@ def strip_to_text(html):
     return re.sub(r"\s+", " ", text).strip()
 
 
-def check_pricing(html):
+def check_pricing_pages(pages):
+    """Scoring v3: aggregate the pricing check across the homepage plus
+    the same key inner pages the schema check scans (the v2 page set -
+    no additional fetches). pages = [(label, html), ...]. Credit logic
+    unchanged in spirit from v1: full credit for a parseable $ price
+    pattern in visible text on ANY scanned page; half credit when
+    pricing words appear but no $ pattern anywhere. The JS-shell rule
+    stays homepage-driven, exactly as v1 evaluated it, and keeps its
+    v1 precedence over the pricing-words partial."""
     w = WEIGHTS["pricing_html"]
-    text = strip_to_text(html)
-    prices = PRICE_RE.findall(text)
-    js_shell = bool(JS_SHELL_RE.search(html)) and len(text) < 500
-    if prices:
-        sample = ", ".join(list(dict.fromkeys(prices))[:5])
-        return w, "pass", f"{len(prices)} price-like pattern(s) in raw HTML (e.g. {sample})"
+    evals = []
+    for label, html in pages:
+        text = strip_to_text(html or "")
+        evals.append((label, text, PRICE_RE.findall(text)))
+    hit_pages = [(label, prices) for label, _text, prices in evals if prices]
+    if hit_pages:
+        total = sum(len(prices) for _label, prices in hit_pages)
+        found = []
+        for label, prices in hit_pages:
+            sample = ", ".join(list(dict.fromkeys(prices))[:5])
+            found.append(f"{label}: e.g. {sample}")
+        detail = (f"{total} price-like pattern(s) in raw HTML "
+                  f"({len(pages)} page(s) scanned) — found on "
+                  + "; ".join(found))
+        return w, "pass", detail
+    home_text = evals[0][1]
+    js_shell = bool(JS_SHELL_RE.search(pages[0][1] or "")) and len(home_text) < 500
     if js_shell:
         return 0.0, "fail", ("page looks like a JS shell (SPA root node, "
-                             f"{len(text)} chars of visible text, no prices) — agents without JS see nothing")
-    if PRICE_WORD_RE.search(text):
-        return w * 0.5, "partial", "pricing words found but no parseable $ price pattern in raw HTML"
-    return 0.0, "fail", "no price patterns and no pricing language found in raw HTML"
+                             f"{len(home_text)} chars of visible text, no prices) — agents without JS see nothing")
+    word_pages = [label for label, text, _prices in evals
+                  if PRICE_WORD_RE.search(text)]
+    if word_pages:
+        return w * 0.5, "partial", ("pricing words found but no parseable $ price pattern "
+                                    f"in raw HTML ({len(pages)} page(s) scanned) — "
+                                    "pricing words on " + "; ".join(word_pages))
+    return 0.0, "fail", (f"no price patterns and no pricing language found in raw HTML "
+                         f"({len(pages)} page(s) scanned)")
+
+
+def check_pricing(html):
+    """Single-page form (homepage only) - kept for parity with v1 callers."""
+    return check_pricing_pages([("homepage", html)])
 
 
 # ------------------------------------------------------------------ bot wall ---
@@ -1052,8 +1082,10 @@ def run_audit(raw_url):
         else:
             s, st, d = 0.0, "fail", "homepage content unavailable \u2014 schema check incomplete"
         checks.append(("schema_jsonld", "schema.org JSON-LD", s, st, d))
+        # Pricing: homepage plus the same key inner pages the schema
+        # check scanned (v3; no additional fetches).
         if homepage_ok:
-            s, st, d = check_pricing(html)
+            s, st, d = check_pricing_pages(schema_pages)
         else:
             s, st, d = 0.0, "fail", "homepage content unavailable \u2014 pricing check incomplete"
         checks.append(("pricing_html", "pricing in raw HTML", s, st, d))
