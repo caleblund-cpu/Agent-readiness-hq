@@ -55,8 +55,8 @@ from urllib.parse import parse_qs, urlparse, urljoin, urlencode
 
 import requests
 
-VERSION = "4.1.1-api"
-SCORING_VERSION = "v4"   # scoring rules version; stamped on every
+VERSION = "5.0-api"
+SCORING_VERSION = "v5"   # scoring rules version; stamped on every
                          # report so scores from different scoring
                          # versions are never mixed
 UA = "AgentReadinessAudit/1.0 (machine-readability audit; single fetch)"
@@ -94,14 +94,16 @@ AI_CRAWLERS = [
     "cohere-ai", "DuckAssistBot",
 ]
 
-# Scoring v2 bot-wall semantics: a page fails only on evidence of an
-# actual challenge/interstitial. HARD markers are challenge-vendor or
-# challenge-flow signatures. SOFT markers are challenge phrases that only
-# count when the page carries almost no real content (an interstitial,
-# not a content page that merely mentions them). NEUTRAL markers appear
-# in ordinary embedded form code (e.g. Squarespace serves reCAPTCHA
-# machinery with its forms) and never fail a page by themselves - the v1
-# rule zeroed 15 points on the bare string "captcha" for exactly that.
+# Scoring v5 bot-wall semantics: a page fails only when it IS a
+# challenge - an interstitial carrying scant usable content. HARD
+# markers are challenge-vendor or challenge-flow signatures; SOFT
+# markers are challenge phrases. Either kind is evidence only on a
+# near-empty page: a hard marker embedded in a usable content page
+# (a Turnstile form widget, say) is form protection, not a wall, and
+# does not fail the check. NEUTRAL markers appear in ordinary
+# embedded form code (e.g. Squarespace serves reCAPTCHA machinery
+# with its forms) and never fail a page by themselves - the v1 rule
+# zeroed 15 points on the bare string "captcha" for exactly that.
 BOT_WALL_HARD_MARKERS = [
     "cf-chl", "challenge-platform", "cf_clearance", "cf-turnstile",
     "datadome", "perimeterx", "incapsula", "distil_r_captcha",
@@ -154,10 +156,10 @@ FIX_TEXT = {
 # (and the results email's platform section), never per check.
 CHECK_COPY = {
     "robots_ai_posture": {
-        "meaning": "This file tells AI crawlers whether they may look at your site at all.",
+        "meaning": "This file tells AI crawlers whether they may look at your site at all. The crawlers we check do different jobs: some power search and AI answers, some collect training data, and some fetch a page for a user who asked. Blocking a training crawler is not the same as blocking customer discovery.",
     },
     "llms_txt": {
-        "meaning": "An optional file that introduces your business in a plain format written for AI agents. It supplements your pages. It is not a substitute for clear content, crawlability, structured data, or accurate facts.",
+        "meaning": "An optional file, following an emerging convention whose adoption varies by AI system, that introduces your business in a plain format written for AI agents. It supplements your pages. It is not a substitute for clear content, crawlability, structured data, or accurate facts.",
     },
     "sitemap": {
         "meaning": "The map of your site, so an agent can find every page that matters instead of just a corner of it.",
@@ -595,47 +597,100 @@ def parse_robots_groups(text):
 
 
 def group_for_crawler(crawler, groups):
+    """The merged rule group that applies to a crawler (scoring v5).
+    Every group naming the crawler at the winning specificity tier
+    (exact token, then substring, then '*') contributes its rules -
+    the union - so the verdict never depends on the order the groups
+    appear in the file. (The v4 rule returned the FIRST matching
+    group only, so identical rule content could block or allow the
+    same crawler depending purely on file order.)"""
     ua = crawler.lower()
-    for g in groups:
-        if ua in g["agents"]:
-            return g
-    for g in groups:
-        for a in g["agents"]:
-            if a != "*" and (a in ua or ua in a):
-                return g
-    for g in groups:
-        if "*" in g["agents"]:
-            return g
+    tiers = (
+        [g for g in groups if ua in g["agents"]],
+        [g for g in groups
+         if any(a != "*" and (a in ua or ua in a) for a in g["agents"])],
+        [g for g in groups if "*" in g["agents"]],
+    )
+    for tier in tiers:
+        if tier:
+            rules = []
+            for g in tier:
+                rules.extend(g["rules"])
+            return {"agents": [ua], "rules": rules}
     return None
 
 
-def blocked_sitewide(group):
+def crawler_access(group):
+    """(state, exceptions) for one crawler's merged group (v5).
+    "open": no site-wide Disallow, or an Allow: / overrides it.
+    "partial": a Disallow: / tempered by Allow rules for specific
+    paths - the crawler is locked out of the site EXCEPT the allowed
+    paths (the common real-world pattern of opening the content that
+    matters), so it is not a total lockout and is not scored as one.
+    "blocked": Disallow: / with no Allow relief at all."""
     if group is None:
-        return False
-    for rule, path in group["rules"]:
-        if rule == "disallow" and path.rstrip() in ("/", "/*"):
-            allows_root = any(r == "allow" and p.rstrip() in ("/", "/*")
-                              for r, p in group["rules"])
-            if not allows_root:
-                return True
-    return False
+        return "open", []
+    rules = group["rules"]
+    root_disallow = any(r == "disallow" and p.rstrip() in ("/", "/*")
+                        for r, p in rules)
+    if not root_disallow:
+        return "open", []
+    allows = [p for r, p in rules if r == "allow" and p.strip()]
+    if any(p.rstrip() in ("/", "/*") for p in allows):
+        return "open", []
+    if allows:
+        return "partial", allows
+    return "blocked", []
+
+
+def blocked_sitewide(group):
+    """True only for a TOTAL lockout - a site-wide Disallow with no
+    Allow relief (see crawler_access). Kept for callers that need
+    the binary answer."""
+    return crawler_access(group)[0] == "blocked"
 
 
 def check_robots(result):
+    """Robots posture (scoring v5). Retrieval outcomes are kept
+    distinct: 404/410 or an empty 200 = genuinely no robots.txt
+    (allow-all, full pass); any other status or a fetch failure =
+    COULD NOT VERIFY - status "uncertain", no credit, and run_audit
+    flags the scan incomplete rather than silently treating an
+    unmeasured posture as 'nothing blocked' (or as a measured fail).
+    A crawler under a blanket Disallow with Allow exceptions for
+    relevant paths is "partial" (half credit), not a total lockout;
+    the exceptions are named in the detail."""
     w = WEIGHTS["robots_ai_posture"]
     ok, status, text, _t, _ttfb, err = result
     if not ok:
-        return w * 0.0, "fail", f"could not fetch robots.txt ({err}); cannot verify crawler posture"
-    if status != 200 or not text.strip():
+        return 0.0, "uncertain", (f"could not fetch robots.txt ({err}); "
+                                  "crawler posture could not be verified")
+    if status in (404, 410) or (status == 200 and not text.strip()):
         return w * 1.0, "pass", "no robots.txt (defaults to allow-all for every crawler)"
+    if status != 200:
+        return 0.0, "uncertain", (f"robots.txt returned HTTP {status}; "
+                                  "crawler posture could not be verified")
     groups = parse_robots_groups(text)
-    blocked = [c for c in AI_CRAWLERS if blocked_sitewide(group_for_crawler(c, groups))]
-    allowed_frac = (len(AI_CRAWLERS) - len(blocked)) / len(AI_CRAWLERS)
-    if not blocked:
+    access = {c: crawler_access(group_for_crawler(c, groups))
+              for c in AI_CRAWLERS}
+    blocked = [c for c in AI_CRAWLERS if access[c][0] == "blocked"]
+    partial = [c for c in AI_CRAWLERS if access[c][0] == "partial"]
+    allowed_frac = ((len(AI_CRAWLERS) - len(blocked) - 0.5 * len(partial))
+                    / len(AI_CRAWLERS))
+    if not blocked and not partial:
         return w, "pass", f"all {len(AI_CRAWLERS)} known AI crawlers allowed"
-    detail = (f"{len(blocked)}/{len(AI_CRAWLERS)} AI crawlers disallowed site-wide: "
-              f"{', '.join(blocked)}")
-    return w * allowed_frac, ("partial" if allowed_frac > 0 else "fail"), detail
+    parts = []
+    if blocked:
+        parts.append(f"{len(blocked)}/{len(AI_CRAWLERS)} AI crawlers "
+                     f"disallowed site-wide: {', '.join(blocked)}")
+    if partial:
+        exc = "; ".join(f"{c} (allowed: {', '.join(access[c][1])})"
+                        for c in partial)
+        parts.append(f"{len(partial)} partially disallowed - site-wide "
+                     f"except specific Allow paths: {exc}")
+    return (w * allowed_frac,
+            ("partial" if allowed_frac > 0 else "fail"),
+            "; ".join(parts))
 
 
 # ----------------------------------------------------------------- llms.txt ---
@@ -646,6 +701,10 @@ def check_llms_txt(result):
         return 0.0, "fail", f"could not fetch /llms.txt ({err})"
     if status != 200:
         return 0.0, "fail", f"/llms.txt returned HTTP {status}"
+    if _is_html_document(text):
+        return 0.0, "fail", ("/llms.txt returned an HTML page, not a "
+                             "plain-text llms.txt - a fallback or error "
+                             "page earns no credit")
     chars = len(text.strip())
     if chars >= 200:
         return w, "pass", f"/llms.txt present ({chars} chars)"
@@ -665,7 +724,13 @@ def check_sitemap(result):
     if "<urlset" in text or "<sitemapindex" in text:
         urls = len(re.findall(r"<loc>", text))
         return w, "pass", f"/sitemap.xml present (~{urls} URLs listed)"
-    return w * 0.5, "partial", "/sitemap.xml returned 200 but content is not a recognizable sitemap"
+    if _is_html_document(text):
+        return 0.0, "fail", ("/sitemap.xml returned an HTML page, not "
+                             "sitemap XML - an error page earns no credit")
+    stripped = text.lstrip("\ufeff \t\r\n")
+    if stripped.startswith("<?xml") or stripped.startswith("<"):
+        return w * 0.5, "partial", "/sitemap.xml returned 200 but content is not a recognizable sitemap"
+    return 0.0, "fail", "/sitemap.xml returned 200 but the content is not XML"
 
 
 # -------------------------------------------------------------- JSON-LD -----
@@ -907,15 +972,163 @@ def _resolve_ref(node, id_index):
     return node
 
 
+# ------------------------------------------- v5 credit helpers ---
+# Shared by the schema and pricing checks (scoring v5, per the
+# adopted ChatGPT review of the v4 methodology):
+# - an offering's price must itself be visible AND associated with
+#   the offering on the same page (no name-only corroboration, no
+#   unassociated set membership);
+# - an FAQ's published answer must correspond to its structured
+#   answer (token-overlap correspondence);
+# - HTML documents served at plain-format URLs earn nothing.
+
+def _is_html_document(text):
+    """True when a response body is an HTML document rather than the
+    plain format expected at the URL - the signature of a fallback
+    or error page served with HTTP 200 (a CMS returning its 404
+    page, a SPA shell). Only the opening bytes are examined: a
+    doctype or an <html>/<head> root."""
+    t = (text or "").lstrip("\ufeff \t\r\n").lower()
+    return (t.startswith("<!doctype") or t.startswith("<html")
+            or t.startswith("<head"))
+
+
+_CONTENT_STOP = {"the", "and", "for", "with", "are", "you", "your",
+                 "our", "this", "that", "from", "will", "can", "all",
+                 "any", "its", "it", "is", "in", "on", "of", "to",
+                 "a", "an", "we", "us", "or", "as", "at", "by", "per"}
+
+
+def _content_tokens(text):
+    """Content words of a text: lowercase alphanumeric tokens of
+    length >= 3, minus common function words. Used by the overlap
+    correspondence tests (FAQ answers, offering names)."""
+    return {t for t in re.split(r"[^a-z0-9]+", _norm_text(text))
+            if len(t) >= 3 and t not in _CONTENT_STOP}
+
+
+def _text_corresponds(structured, published):
+    """Meaningful correspondence between a structured-data text and
+    published page text: True when the structured text's opening
+    appears verbatim in the published text, or at least half of its
+    content tokens appear there. A structured text with fewer than
+    3 content tokens must appear verbatim - there is too little of
+    it to overlap-test."""
+    n = _norm_text(structured)
+    if not n:
+        return False
+    if n[:80] in published:
+        return True
+    toks = _content_tokens(n)
+    if len(toks) < 3:
+        return n in published
+    present = sum(1 for t in toks
+                  if re.search(r"\b" + re.escape(t) + r"\b", published))
+    return present / len(toks) >= 0.5
+
+
+def _name_anchor_positions(name, text):
+    """Positions in a page's normalized visible text where an
+    offering's name is anchored: exact occurrences of the full
+    normalized name, or - when the full name never appears intact -
+    positions from which at least 60% of the name's content tokens
+    occur within the following 400 chars."""
+    nname = _norm_text(name) if isinstance(name, str) else ""
+    if len(nname) < 4:
+        return []
+    pos, start = [], 0
+    while True:
+        i = text.find(nname, start)
+        if i < 0:
+            break
+        pos.append(i)
+        start = i + 1
+    if pos:
+        return pos
+    toks = sorted(_content_tokens(nname))
+    if not toks:
+        return []
+    occ = {t: [m.start() for m in
+               re.finditer(r"\b" + re.escape(t) + r"\b", text)]
+           for t in toks}
+    starts = sorted(p for ps in occ.values() for p in ps)
+    anchors = []
+    for p in starts:
+        covered = sum(1 for t in toks
+                      if any(p <= q <= p + 400 for q in occ[t]))
+        if covered / len(toks) >= 0.6:
+            anchors.append(p)
+    return anchors
+
+
+_PRICE_ASSOC_WINDOW = 600  # chars between an offering's name anchor
+                           # and a visible occurrence of its price
+                           # for the two to count as associated
+
+
+def _price_corroborated(price_hits, price, name, text):
+    """True when the offer's OWN price appears in the page's visible
+    text AND is associated with the offering: a visible occurrence
+    of the same amount within _PRICE_ASSOC_WINDOW chars of an
+    occurrence of the offering's name. (The v4 tests credited two
+    weaker things, both removed in v5: a visible offering NAME
+    corroborating a price that existed only in JSON-LD, and any
+    visible amount anywhere in the scanned set that merely equalled
+    the price numerically, whatever it referred to.)"""
+    spots = [pos for val, pos in price_hits if val == round(price, 2)]
+    if not spots:
+        return False
+    anchors = _name_anchor_positions(name, text)
+    if not anchors:
+        return False
+    return any(abs(s - a) <= _PRICE_ASSOC_WINDOW
+               for s in spots for a in anchors)
+
+
+_OFFER_CONTEXT_RE = re.compile(
+    r"\b(prices?|pricing|costs?|fees?|rates?|tuition|enrol|packages?|"
+    r"plans?|sessions?|payments?|paid|buy|book|purchase|order|from|"
+    r"monthly|weekly|hourly|nightly|per)\b", re.I)
+_PRICING_CONTEXT_WINDOW = 250  # chars either side of a $ figure in
+                               # which offering language qualifies it
+
+
+def _page_structured_prices(html):
+    """Prices carried by Product/Service Offers in a page's own
+    JSON-LD - one of the contexts that can qualify a visible $ figure
+    as an offering's published price in the pricing check."""
+    prices = set()
+    for b in extract_jsonld_blocks(html or ""):
+        for n in _iter_nodes(b, []):
+            if _node_types(n) & {"product", "service"}:
+                offers = n.get("offers")
+                offer_list = offers if isinstance(offers, list) else [offers]
+                for off in offer_list:
+                    if isinstance(off, dict):
+                        p = _offer_price(off)
+                        if p is not None:
+                            prices.add(round(p, 2))
+    return prices
+
+
 def check_jsonld_pages(pages, site_host="", site_names=None):
     """Schema check: aggregate JSON-LD across the homepage plus key
     inner pages. Three credited thirds, 20 pts total:
     (1) an offering - a Product OR Service with a meaningful linked
-        Offer whose price or name is corroborated by visible content;
+        Offer whose OWN price is published in visible content on the
+        same page, associated with the offering (scoring v5: a
+        visible offering name no longer corroborates a hidden price,
+        and an unrelated visible amount that merely equals the price
+        numerically does not corroborate it either);
     (2) a business-identity record (Organization or LocalBusiness
         family) that describes the scanned business;
-    (3) an FAQPage whose questions and nonempty accepted answers are
-        visible in the page content.
+    (3) an FAQPage whose published questions AND answers correspond
+        to its structured data (v5: the visible answer must
+        correspond to the structured answer, not merely be nonempty
+        in JSON-LD while the question appears). FAQ structured data
+        detected without corresponding page content is recorded in
+        the detail as an informational finding, whether or not
+        another FAQ on the scan earned the third - no silent skips.
     Misses are reported as 'not found within the scanned pages' -
     never as proof the markup is absent from the website."""
     w = WEIGHTS["schema_jsonld"]
@@ -951,34 +1164,24 @@ def check_jsonld_pages(pages, site_host="", site_names=None):
         site_names = _site_identity_signals(pages[0][1] if pages else "", host)
     visible_norm = {label: _norm_text(strip_to_text(h))
                     for label, h, _b, _n in per_page}
-    visible_prices = set()
-    for label, h, _b, _n in per_page:
-        for m in PRICE_RE.findall(strip_to_text(h)):
-            v = _parse_price(m)
+    # Every visible $ amount per page, with its position - the raw
+    # material for the associated-price corroboration test.
+    price_hits = {}
+    for label, _h, _b, _n in per_page:
+        hits = []
+        for m in PRICE_RE.finditer(visible_norm[label]):
+            v = _parse_price(m.group(0))
             if v is not None:
-                visible_prices.add(round(v, 2))
-
-    def name_visible(nm):
-        nname = _norm_text(nm)
-        if len(nname) < 4:
-            return False
-        if any(nname in t for t in visible_norm.values()):
-            return True
-        toks = _name_tokens(nm)
-        if not toks:
-            return False
-        for t in visible_norm.values():
-            present = sum(1 for tok in toks if tok in t)
-            if toks and present / len(toks) >= 0.6:
-                return True
-        return False
+                hits.append((round(v, 2), m.start()))
+        price_hits[label] = hits
 
     offering_ok, offering_where = False, ""
     offering_seen, offering_hidden, offering_unpriced = False, False, False
     identity_ok, identity_where = False, ""
     identity_foreign_seen, identity_empty_seen = False, False
     faq_ok, faq_where = False, ""
-    faq_unseen_seen = False
+    faq_structured_seen, faq_unseen_seen = False, False
+    faq_mismatch_seen = False
     for label, _h, _b, nodes in per_page:
         for n in nodes:
             types = _node_types(n)
@@ -1009,7 +1212,9 @@ def check_jsonld_pages(pages, site_host="", site_names=None):
                     if price is None:
                         offering_unpriced = True
                         continue
-                    if round(price, 2) in visible_prices or name_visible(n.get("name")):
+                    if _price_corroborated(price_hits.get(label, []),
+                                           price, n.get("name"),
+                                           visible_norm.get(label, "")):
                         if not offering_ok:
                             offering_ok, offering_where = True, label
                     else:
@@ -1022,14 +1227,27 @@ def check_jsonld_pages(pages, site_host="", site_names=None):
                     if not isinstance(q, dict) or "question" not in _node_types(q):
                         continue
                     qtext = _norm_text(q.get("name") or q.get("text"))
+                    if not qtext:
+                        continue
+                    faq_structured_seen = True
                     ans = _resolve_ref(q.get("acceptedAnswer"), id_index)
-                    atext = _norm_text(ans.get("text")) if isinstance(ans, dict) else ""
-                    if qtext and atext:
-                        if qtext[:80] in visible_norm.get(label, ""):
-                            if not faq_ok:
-                                faq_ok, faq_where = True, label
-                        else:
-                            faq_unseen_seen = True
+                    atext = (_norm_text(ans.get("text"))
+                             if isinstance(ans, dict) else "")
+                    page_text = visible_norm.get(label, "")
+                    qpos = page_text.find(qtext[:80])
+                    if qpos < 0:
+                        # The question itself is not published on the
+                        # page - structured data without content.
+                        faq_unseen_seen = True
+                    elif atext and _text_corresponds(
+                            atext, page_text[qpos:qpos + 1500]):
+                        if not faq_ok:
+                            faq_ok, faq_where = True, label
+                    else:
+                        # The question is published, but the published
+                        # answer does not correspond to the structured
+                        # answer (or the structured answer is empty).
+                        faq_mismatch_seen = True
     hits = sum([offering_ok, identity_ok, faq_ok])
     parts = []
     if offering_ok:
@@ -1038,7 +1256,8 @@ def check_jsonld_pages(pages, site_host="", site_names=None):
         s = ("no Product or Service with a meaningful, visibly-corroborated "
              "offer found within the scanned pages")
         if offering_hidden:
-            s += " (an offer's price appears only in JSON-LD, not in visible page content)"
+            s += (" (an offer's price appears only in JSON-LD, not in "
+                  "visible page content associated with the offering)")
         elif offering_unpriced:
             s += " (offering found, but its offer carries no valid price)"
         elif offering_seen:
@@ -1055,11 +1274,15 @@ def check_jsonld_pages(pages, site_host="", site_names=None):
             s += " (an identity record with no name or identifying content was ignored)"
         parts.append(s)
     if faq_ok:
-        parts.append("FAQPage with visible questions and answers")
+        parts.append("FAQPage with visible questions and corresponding answers")
     else:
-        s = "no FAQPage with visible questions and answers found within the scanned pages"
+        s = ("no FAQPage with visible questions and corresponding "
+             "answers found within the scanned pages")
         if faq_unseen_seen:
             s += " (FAQ markup found, but its questions are not visible in page content)"
+        elif faq_mismatch_seen:
+            s += (" (FAQ questions are visible, but the published answers "
+                  "do not correspond to the structured answers)")
         parts.append(s)
     detail = (f"{hits}/3 target types \u2014 " + "; ".join(parts)
               + f" ({total_blocks} ld+json block(s) parsed across {len(pages)} page(s))")
@@ -1072,6 +1295,12 @@ def check_jsonld_pages(pages, site_host="", site_names=None):
         found.append(f"{faq_where}: FAQ")
     if found:
         detail += " \u2014 found on " + "; ".join(found)
+    if faq_structured_seen and (faq_unseen_seen or faq_mismatch_seen):
+        # Review item 1: the informational finding is recorded
+        # whenever FAQ structured data lacks corresponding page
+        # content - including when another FAQ earned the third.
+        detail += (" \u2014 informational finding: FAQ structured data "
+                   "detected; corresponding page content not found")
     score = w * hits / 3
     status = "pass" if hits == 3 else ("partial" if hits > 0 else "fail")
     return score, status, detail
@@ -1247,41 +1476,73 @@ def strip_to_text(html):
 
 
 def check_pricing_pages(pages):
-    """Scoring v3: aggregate the pricing check across the homepage plus
-    the same key inner pages the schema check scans (the v2 page set -
-    no additional fetches). pages = [(label, html), ...]. Credit logic
-    unchanged in spirit from v1: full credit for a parseable $ price
-    pattern in visible text on ANY scanned page; half credit when
-    pricing words appear but no $ pattern anywhere. The JS-shell rule
-    stays homepage-driven, exactly as v1 evaluated it, and keeps its
-    v1 precedence over the pricing-words partial."""
+    """Pricing check: aggregate across the homepage plus the same
+    key inner pages the schema check scans (the v2/v3 page set - no
+    additional fetches). pages = [(label, html), ...].
+
+    Scoring v5 (false-positive correction): a $ figure earns full
+    credit only when it is presented as an OFFERING's price, shown
+    by any one of: (a) it appears on a pricing/services/offering
+    page; (b) offering language (price, fee, per, from, book, ...)
+    appears within _PRICING_CONTEXT_WINDOW chars of it; or (c) it
+    matches the price of a Product/Service Offer in the same page's
+    structured data. An incidental amount - a testimonial's 'saved
+    $500', a donation total, a savings claim - establishes nothing
+    on its own. Half credit when pricing words appear but no
+    qualifying $ figure does. The JS-shell rule stays
+    homepage-driven, exactly as v1 evaluated it, and keeps its v1
+    precedence over the pricing-words partial."""
     w = WEIGHTS["pricing_html"]
     evals = []
     for label, html in pages:
         text = strip_to_text(html or "")
-        evals.append((label, text, PRICE_RE.findall(text)))
-    hit_pages = [(label, prices) for label, _text, prices in evals if prices]
+        structured = _page_structured_prices(html)
+        page_ctx = _classify_schema_candidate(label) == "pricing"
+        found, qualified = [], []
+        for m in PRICE_RE.finditer(text):
+            val = _parse_price(m.group(0))
+            if val is None:
+                continue
+            found.append(m.group(0))
+            window = text[max(0, m.start() - _PRICING_CONTEXT_WINDOW):
+                          m.start() + _PRICING_CONTEXT_WINDOW]
+            if (page_ctx or round(val, 2) in structured
+                    or _OFFER_CONTEXT_RE.search(window)):
+                qualified.append(m.group(0))
+        evals.append((label, text, found, qualified))
+    hit_pages = [(label, q) for label, _t, _f, q in evals if q]
     if hit_pages:
-        total = sum(len(prices) for _label, prices in hit_pages)
-        found = []
-        for label, prices in hit_pages:
-            sample = ", ".join(list(dict.fromkeys(prices))[:5])
-            found.append(f"{label}: e.g. {sample}")
-        detail = (f"{total} price-like pattern(s) in raw HTML "
-                  f"({len(pages)} page(s) scanned) — found on "
-                  + "; ".join(found))
+        total = sum(len(q) for _label, q in hit_pages)
+        found_desc = []
+        for label, q in hit_pages:
+            sample = ", ".join(list(dict.fromkeys(q))[:5])
+            found_desc.append(f"{label}: e.g. {sample}")
+        detail = (f"{total} offering price(s) in raw HTML "
+                  f"({len(pages)} page(s) scanned) \u2014 found on "
+                  + "; ".join(found_desc))
         return w, "pass", detail
     home_text = evals[0][1]
     js_shell = bool(JS_SHELL_RE.search(pages[0][1] or "")) and len(home_text) < 500
     if js_shell:
         return 0.0, "fail", ("page looks like a JS shell (SPA root node, "
-                             f"{len(home_text)} chars of visible text, no prices) — agents without JS see nothing")
-    word_pages = [label for label, text, _prices in evals
+                             f"{len(home_text)} chars of visible text, no prices) \u2014 agents without JS see nothing")
+    any_amounts = any(f for _l, _t, f, _q in evals)
+    word_pages = [label for label, text, _f, _q in evals
                   if PRICE_WORD_RE.search(text)]
     if word_pages:
-        return w * 0.5, "partial", ("pricing words found but no parseable $ price pattern "
-                                    f"in raw HTML ({len(pages)} page(s) scanned) — "
-                                    "pricing words on " + "; ".join(word_pages))
+        detail = ("pricing words found but no $ price presented as an "
+                  f"offering's price in raw HTML ({len(pages)} page(s) scanned) \u2014 "
+                  "pricing words on " + "; ".join(word_pages))
+        if any_amounts:
+            detail += ("; dollar amounts were found, but none is presented "
+                       "as an offering's price (incidental amounts do not "
+                       "establish published pricing)")
+        return w * 0.5, "partial", detail
+    if any_amounts:
+        return 0.0, "fail", ("dollar amounts found in raw HTML, but none is "
+                             "presented as an offering's price \u2014 incidental "
+                             "amounts (testimonials, savings claims, donations) "
+                             f"do not establish published pricing ({len(pages)} page(s) scanned)")
     return 0.0, "fail", (f"no price patterns and no pricing language found in raw HTML "
                          f"({len(pages)} page(s) scanned)")
 
@@ -1293,26 +1554,44 @@ def check_pricing(html):
 
 # ------------------------------------------------------------------ bot wall ---
 def check_bot_wall(pages):
-    """Scoring v2: fail only on evidence of an actual challenge.
-    Hard vendor/challenge markers fail any page. Soft challenge phrases
-    fail only a near-empty page (an interstitial, not a content page).
-    A bare "captcha" string - embedded form machinery such as the
-    reCAPTCHA code Squarespace serves with its forms - never fails a
-    page by itself."""
+    """Scoring v5: a page fails only when it IS a challenge - an
+    interstitial that replaces the content a visitor (or agent)
+    came for. Challenge evidence = challenge markers (hard
+    vendor/flow signatures or soft challenge phrases) on a page
+    carrying scant usable content (< BOT_WALL_MIN_CONTENT_CHARS
+    visible chars). A hard marker embedded in an otherwise usable
+    content page - the standard pattern of a Turnstile, DataDome or
+    similar form-protection widget sitting inside real content -
+    does NOT fail the check: the vendor code is present, but nobody
+    is actually walled, and the detail says so. (The v2-v4 rule
+    failed ANY page containing a hard marker, which contradicted
+    the documented embedded-code behaviour and failed ordinary
+    form pages; the v1 rule additionally failed the bare string
+    'captcha', which remains neutral and never fails a page.)"""
     w = WEIGHTS["bot_wall"]
     hits = {}
+    embedded = []
     for label, html in pages:
         html = html or ""
         low = html.lower()
         hard = sorted({m for m in BOT_WALL_HARD_MARKERS if m in low})
-        if hard:
-            hits[label] = hard
-            continue
         soft = sorted({m for m in BOT_WALL_SOFT_MARKERS if m in low})
-        if soft and len(strip_to_text(html)) < BOT_WALL_MIN_CONTENT_CHARS:
-            hits[label] = soft
+        markers = hard + [s for s in soft if s not in hard]
+        if not markers:
+            continue
+        if len(strip_to_text(html)) < BOT_WALL_MIN_CONTENT_CHARS:
+            hits[label] = markers
+        elif hard:
+            embedded.append(label)
     if not hits:
-        return w, "pass", f"no bot-wall/CAPTCHA challenge on {len(pages)} page(s) scanned"
+        detail = (f"no bot-wall/CAPTCHA challenge on {len(pages)} "
+                  f"page(s) scanned")
+        if embedded:
+            detail += ("; challenge-vendor code is embedded on "
+                       + ", ".join(embedded)
+                       + ", but those pages carry usable content "
+                         "(form protection, not a wall)")
+        return w, "pass", detail
     detail = "; ".join(f"{label}: {', '.join(m)}" for label, m in hits.items())
     return 0.0, "fail", f"bot-wall/CAPTCHA challenge detected \u2014 {detail}"
 
@@ -1350,16 +1629,23 @@ def _classify_probe_result(ok, status, text, err):
 
 def speed_readings(session, url, first):
     """Three homepage speed readings: the scan's own homepage fetch
-    plus two probes of the same URL. All three use the same sampling
-    method - same URL, session headers, redirect handling, and timing
-    definitions; probes additionally cap the body at
-    SPEED_PROBE_MAX_BYTES. The probe timeout (SPEED_PROBE_TIMEOUT)
+    plus two probes of the same URL. All three readings use the same
+    URL, the same session headers, the same redirect handling, and
+    the same timing definitions. Reading 1 is the scan's homepage
+    fetch itself: in the production copy all three readings share
+    the 2 MB body cap, but reading 1 runs at the scan fetch timeout
+    (4s production / 10s local) rather than the probe timeout, and
+    the local engine reads reading 1's body uncapped - so the local
+    copy approximates, but does not exactly replicate, production
+    sampling (documented in scoring.md g). The probes cap the body
+    at SPEED_PROBE_MAX_BYTES and run at SPEED_PROBE_TIMEOUT, which
     sits ABOVE the 6s total-time scoring threshold, so a response
-    completing inside the scoring window (e.g. 5s) is measured, never
-    misclassified as a failure for stopping early. A failed probe is
-    recorded as a slow reading WITH its diagnostic reason (timeout /
-    network error / rate limit / challenge / HTTP status); it is not
-    a scan failure - the homepage itself was already read."""
+    completing inside the scoring window (e.g. 5s) is measured,
+    never misclassified as a failure for stopping early. A failed
+    probe is recorded as a slow reading WITH its diagnostic reason
+    (timeout / network error / rate limit / challenge / HTTP
+    status); it is not a scan failure - the homepage itself was
+    already read."""
     readings = [(first[0], first[1], None)]
     for _ in range(SPEED_READINGS - 1):
         ok, status, text, total, ttfb, err = fetch(
@@ -1565,6 +1851,11 @@ def run_audit(raw_url):
 
         checks = []
         s, st, d = check_robots(robots_r)
+        if st == "uncertain":
+            # Scoring v5: an unverifiable robots.txt flags the scan
+            # incomplete - never silently a pass, never a measured fail.
+            incomplete_reasons.append(
+                "robots.txt could not be verified - crawler posture unmeasured")
         checks.append(("robots_ai_posture", "robots.txt AI-crawler posture", s, st, d))
         s, st, d = check_llms_txt(llms_r)
         checks.append(("llms_txt", "llms.txt present", s, st, d))
@@ -1657,7 +1948,12 @@ def run_audit(raw_url):
             "url": url,
             "fetched_at": datetime.now(timezone.utc).isoformat(),
             "score": total_score,
-            "grade": grade(total_score),
+            # Scoring v5: no letter grade is emitted for an incomplete
+            # scan - the numeric partial score stays in the report for
+            # internal use, but a grade computed from unmeasured
+            # checks would mislead (an unreadable homepage caps the
+            # measurable total at 40, an automatic 'F').
+            "grade": grade(total_score) if not incomplete_reasons else None,
             "business_name": business_name,
             "checks": results,
             "platform": platform_block,
@@ -1767,7 +2063,7 @@ def _email_button_html(url, label):
 
 
 def _results_email_html(first_name, site, score, grade, checks, platform=None,
-                        email=None):
+                        email=None, incomplete=False):
     """HTML version of the results email, mirroring the on-page results:
     score/grade header, then per check the technical name + score pill,
     the finding line, and the plain-English meaning line. (Per-check
@@ -1947,6 +2243,66 @@ def _results_email_html(first_name, site, score, grade, checks, platform=None,
             '<p style="font-size:13px; font-weight:700; '
             'letter-spacing:0.05em; color:#8e8e93; margin:0;">'
             "Platform details</p>" + "".join(detail_parts) + "</div>")
+    # Header block: score + grade chip for a complete scan; for an
+    # incomplete scan (scoring v5) an explicit Incomplete result with
+    # NO score and NO grade - a partial number computed from
+    # unmeasured checks would mislead.
+    if incomplete:
+        header_block = (
+            '<table role="presentation" width="100%" cellpadding="0" '
+            'cellspacing="0" style="margin-top:22px; background-color:'
+            '#fdf6ec; border:1px solid #ecd9ae; border-radius:12px;">'
+            '<tr><td style="padding:22px 26px; vertical-align:middle;">'
+            '<div style="font-size:12px; font-weight:700; '
+            'letter-spacing:0.09em; color:#8a5a00;">SCAN RESULT</div>'
+            '<div style="margin-top:6px; font-size:30px; font-weight:800; '
+            'letter-spacing:-0.02em; color:#1d1d1f;">Incomplete scan</div>'
+            '<p style="font-size:15px; line-height:1.55; color:#333336; '
+            'margin-top:8px;">We could not read everything on this '
+            'site, so no score or grade is issued for this scan.</p>'
+            "</td></tr></table>")
+        scored_line = (
+            '<p style="font-size:15.5px; line-height:1.6; color:#333336; '
+            'margin-top:20px;">Here is what the scan could measure on '
+            + _esc_html(site) + ", and what it could not:</p>")
+    else:
+        header_block = (
+            '<table role="presentation" width="100%" cellpadding="0" '
+            'cellspacing="0" style="margin-top:22px; background-color:'
+            '#fff7f8; border:1px solid #ffd9e1; border-radius:12px;">'
+            "<tr>"
+            '<td style="padding:22px 26px; vertical-align:middle;">'
+            '<div style="font-size:12px; font-weight:700; '
+            'letter-spacing:0.09em; color:#c21847;">YOUR AI READINESS '
+            "SCORE</div>"
+            '<div style="margin-top:6px;"><span style="font-size:46px; '
+            'font-weight:800; letter-spacing:-0.02em; color:#1d1d1f;">'
+            + _esc_html(score) + '</span><span style="font-size:19px; '
+            'font-weight:600; color:#6e6e73;"> / 100</span></div>'
+            '<table role="presentation" width="100%" cellpadding="0" '
+            'cellspacing="0" style="margin-top:12px;"><tr><td style="'
+            'background-color:#f6dde2; border-radius:99px; height:9px;">'
+            '<div style="width:' + pct_txt + '%; height:9px; '
+            'border-radius:99px; background-color:#ff4d6d; font-size:0; '
+            'line-height:0;">&nbsp;</div></td></tr></table>'
+            "</td>"
+            '<td width="118" align="center" style="padding:22px 10px; '
+            'vertical-align:middle;">'
+            '<div style="font-size:12px; font-weight:700; '
+            'letter-spacing:0.09em; color:#8a5a00;">GRADE</div>'
+            '<div style="display:inline-block; margin-top:8px; '
+            "background-color:" + chip_bg + "; color:" + chip_fg + "; "
+            'font-size:34px; font-weight:800; line-height:1; '
+            'padding:12px 22px; border-radius:12px;">'
+            + _esc_html(grade) + "</div>"
+            "</td>"
+            "</tr>"
+            "</table>")
+        scored_line = (
+            '<p style="font-size:15.5px; line-height:1.6; color:#333336; '
+            'margin-top:20px;">' + _esc_html(site) + " scored "
+            + _esc_html(score) + "/100 (grade " + _esc_html(grade)
+            + "). Here is how the seven checks came out:</p>")
     return """<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -1960,20 +2316,8 @@ def _results_email_html(first_name, site, score, grade, checks, platform=None,
 <div style="border-bottom:2px solid #ff4d6d; margin:20px 0 26px 0; font-size:0; line-height:0;">&nbsp;</div>
 <h1 style="font-size:27px; line-height:1.25; font-weight:800; letter-spacing:-0.01em; color:#1d1d1f; margin:0;">Your free scan results</h1>
 <p style="font-size:16px; line-height:1.6; color:#333336; margin-top:16px;">Hi %(first)s, thanks for running your free AI Readiness Scan with Agent Readiness HQ!</p>
-<table role="presentation" width="100%%" cellpadding="0" cellspacing="0" style="margin-top:22px; background-color:#fff7f8; border:1px solid #ffd9e1; border-radius:12px;">
-<tr>
-<td style="padding:22px 26px; vertical-align:middle;">
-<div style="font-size:12px; font-weight:700; letter-spacing:0.09em; color:#c21847;">YOUR AI READINESS SCORE</div>
-<div style="margin-top:6px;"><span style="font-size:46px; font-weight:800; letter-spacing:-0.02em; color:#1d1d1f;">%(score)s</span><span style="font-size:19px; font-weight:600; color:#6e6e73;"> / 100</span></div>
-<table role="presentation" width="100%%" cellpadding="0" cellspacing="0" style="margin-top:12px;"><tr><td style="background-color:#f6dde2; border-radius:99px; height:9px;"><div style="width:%(pct)s%%; height:9px; border-radius:99px; background-color:#ff4d6d; font-size:0; line-height:0;">&nbsp;</div></td></tr></table>
-</td>
-<td width="118" align="center" style="padding:22px 10px; vertical-align:middle;">
-<div style="font-size:12px; font-weight:700; letter-spacing:0.09em; color:#8a5a00;">GRADE</div>
-<div style="display:inline-block; margin-top:8px; background-color:%(chip_bg)s; color:%(chip_fg)s; font-size:34px; font-weight:800; line-height:1; padding:12px 22px; border-radius:12px;">%(grade)s</div>
-</td>
-</tr>
-</table>
-<p style="font-size:15.5px; line-height:1.6; color:#333336; margin-top:20px;">%(site)s scored %(score)s/100 (grade %(grade)s). Here is how the seven checks came out:</p>
+%(header_block)s
+%(scored_line)s
 %(checks)s
 %(conversion)s
 %(details)s
@@ -1992,6 +2336,8 @@ def _results_email_html(first_name, site, score, grade, checks, platform=None,
         "pct": pct_txt,
         "chip_bg": chip_bg,
         "chip_fg": chip_fg,
+        "header_block": header_block,
+        "scored_line": scored_line,
         "checks": "".join(blocks),
         "conversion": conversion_html,
         "details": details_html,
@@ -2015,17 +2361,32 @@ def compose_results_email(first_name, email, report):
     site = report.get("url") or ""
     score = _fmt_num(report.get("score"))
     grade = report.get("grade") or "?"
+    incomplete = report.get("complete") is False
     checks = report.get("checks") or []
     platform = report.get("platform") or {}
     eligibility = platform.get("eligibility")
-    lines = [
-        f"Hi {first_name}, thanks for running your free AI Readiness Scan "
-        "with Agent Readiness HQ!",
-        "",
-        f"{site} scored {score}/100 (grade {grade}). "
-        "Here is how the seven checks came out:",
-        "",
-    ]
+    if incomplete:
+        # Scoring v5: an incomplete scan carries no grade anywhere in
+        # the email - subject or body. The per-check findings still
+        # show what could and could not be measured.
+        lines = [
+            f"Hi {first_name}, thanks for running your free AI Readiness Scan "
+            "with Agent Readiness HQ!",
+            "",
+            f"We could not read everything on {site}, so this scan is "
+            "incomplete and no grade is issued. Here is what the scan "
+            "could measure, and what it could not:",
+            "",
+        ]
+    else:
+        lines = [
+            f"Hi {first_name}, thanks for running your free AI Readiness Scan "
+            "with Agent Readiness HQ!",
+            "",
+            f"{site} scored {score}/100 (grade {grade}). "
+            "Here is how the seven checks came out:",
+            "",
+        ]
     for c in checks:
         mark = _STATUS_MARK.get(c.get("status"), "?")
         lines.append(
@@ -2114,12 +2475,14 @@ def compose_results_email(first_name, email, report):
     msg = EmailMessage()
     msg["From"] = f"Agent Readiness HQ <{RESULTS_FROM}>"
     msg["To"] = email
-    msg["Subject"] = f"Your free scan results for {site}: {score}/100 (grade {grade})"
+    msg["Subject"] = (f"Your free scan results for {site}: incomplete scan"
+                      if incomplete else
+                      f"Your free scan results for {site}: {score}/100 (grade {grade})")
     msg.set_content("\n".join(lines))
     _set_unsubscribe_headers(msg, email)
     msg.add_alternative(
         _results_email_html(first_name, site, score, grade, checks,
-                            platform, email=email),
+                            platform, email=email, incomplete=incomplete),
         subtype="html")
     return msg
 

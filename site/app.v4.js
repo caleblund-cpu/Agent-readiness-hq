@@ -79,7 +79,17 @@
     html += '<div class="score-center"><div class="score-number">' + esc(report.score) + '</div>';
     html += '<div class="score-max">/ 100</div></div>';
     html += "</div>";
-    html += '<div class="score-grade">Grade ' + esc(report.grade || "-") + "</div>";
+    if (report.complete === false) {
+      /* Scoring v5: an incomplete scan shows a prominent Incomplete
+         result and NO letter grade (the API withholds the grade; a
+         grade computed from unmeasured checks would mislead). The
+         numeric ring is the partial score of the checks that could
+         be measured, and it is labelled as such. */
+      html += '<div class="score-grade score-incomplete">Incomplete scan</div>';
+      html += '<div class="score-note">We could not read everything on this site, so no grade is issued. The number above is the partial score of the checks that could be measured.</div>';
+    } else {
+      html += '<div class="score-grade">Grade ' + esc(report.grade || "-") + "</div>";
+    }
     html += '<div class="score-url">' + esc(report.url) + "</div>";
     html += "</div>";
 
@@ -263,7 +273,7 @@
      failure never blocks or alters the on-page results. */
   function captureScanLead(firstName, email, report) {
     var score = report.score != null ? String(report.score) : "?";
-    var grade = report.grade || "?";
+    var grade = report.complete === false ? "Incomplete scan" : (report.grade || "?");
     var site = report.url || "";
     var params = new URLSearchParams();
     params.append("name", firstName);

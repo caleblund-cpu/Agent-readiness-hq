@@ -67,7 +67,13 @@
     html += '<div class="score-center"><div class="score-number">' + esc(report.score) + '</div>';
     html += '<div class="score-max">/ 100</div></div>';
     html += "</div>";
-    html += '<div class="score-grade">Grade ' + esc(report.grade || "-") + "</div>";
+    if (report.complete === false) {
+      /* Scoring v5: incomplete scans show no letter grade. */
+      html += '<div class="score-grade score-incomplete">Incomplete scan</div>';
+      html += '<div class="score-note">We could not read everything on this site, so no grade is issued. The number above is the partial score of the checks that could be measured.</div>';
+    } else {
+      html += '<div class="score-grade">Grade ' + esc(report.grade || "-") + "</div>";
+    }
     html += '<div class="score-url">' + esc(report.url) + "</div>";
     html += "</div>";
 
