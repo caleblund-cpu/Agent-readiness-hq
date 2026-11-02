@@ -89,6 +89,7 @@
       html += '<div class="score-note">We could not read everything on this site, so no grade is issued. The number above is the partial score of the checks that could be measured.</div>';
     } else {
       html += '<div class="score-grade">Grade ' + esc(report.grade || "-") + "</div>";
+      html += '<div class="score-note">Based on seven automated technical checks using our proprietary methodology. This assesses website accessibility and machine-readability, not business quality or whether AI recommends your business.</div>';
     }
     html += '<div class="score-url">' + esc(report.url) + "</div>";
     html += "</div>";
@@ -181,6 +182,9 @@
          and the emailed copy always show identical wording. */
       if (c.meaning) {
         html += '<div class="check-meaning">' + esc(c.meaning) + "</div>";
+      }
+      if (c.note) {
+        html += '<div class="check-meaning">' + esc(c.note) + "</div>";
       }
       if (c.fixable) {
         html += '<div class="check-fixable">' + esc(c.fixable) + "</div>";
