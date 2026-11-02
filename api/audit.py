@@ -143,7 +143,7 @@ FIX_TEXT = {
     "schema_jsonld": "Add schema.org JSON-LD: Product with price/offers, a business record (Organization or LocalBusiness with name and contact facts), and FAQPage for common questions - on the homepage or the relevant service/FAQ pages.",
     "pricing_html": "Render at least headline pricing in the raw HTML of the homepage or a key service/pricing page (server-side or pre-rendered); JS-only prices are invisible to non-JS agents.",
     "bot_wall": "Move bot protection behind real abuse signals instead of the front door; challenge pages block legitimate agent traffic.",
-    "page_speed": "Speed up the homepage: cache aggressively, shrink payload, and fix slow TTFB — agents time out faster than humans.",
+    "page_speed": "Server response timing is set by your hosting platform and plan, not by page content, so it may cap this part of your score no matter what else is fixed. If it's slow, the change that helps is a hosting change, and we'll note what to ask your host.",
 }
 
 # Plain-English layer shown with every check result, on the scan page
@@ -176,6 +176,20 @@ CHECK_COPY = {
     "page_speed": {
         "meaning": "How fast your pages answer. Slow pages can make it harder for automated systems to retrieve information reliably.",
     },
+}
+
+# Companion disclosure rendered beside a check's meaning line on the
+# results page and in the results email (language pack items D-4 and
+# D-12, Caleb direction 2026-11-02): page speed varies from scan to
+# scan, so this note travels with the speed check wherever its meaning
+# line is shown. It is a disclosure, not a fix: nothing in the $149 or
+# $449 scope changes a host's response timing.
+CHECK_NOTES = {
+    "page_speed": ("Page speed is one of the seven checks, and it can "
+                   "move your score on its own. Your server's response "
+                   "speed varies from scan to scan, so this check may "
+                   "reduce or improve your score even when nothing on "
+                   "your website has changed."),
 }
 
 
@@ -399,6 +413,21 @@ def assess_platform(platform_name, raw_checks):
             f"providers update their features over time, so what a "
             f"platform allows may change; we work to what it allows "
             f"today.")
+        # Language pack item D-12 (2026-11-02): fold response timing
+        # into the ceiling story in words. Timing is set by the
+        # hosting platform and plan, not by page content, so when the
+        # speed check lost points the staged disclosure sentence
+        # travels with the ceiling line (no numeric cap is invented
+        # for timing).
+        if scores.get("page_speed", WEIGHTS["page_speed"]) \
+                < WEIGHTS["page_speed"]:
+            ceiling_line += (
+                " Server response timing is set by your hosting "
+                "platform and plan, not by page content, so it may "
+                "cap this part of your score no matter what else is "
+                "fixed. If it's slow, the change that helps is a "
+                "hosting change, and we'll note what to ask your "
+                "host.")
     ceiling_val = 100 - blocked_points
     if float(ceiling_val).is_integer():
         ceiling_val = int(ceiling_val)
@@ -1923,6 +1952,8 @@ def run_audit(raw_url):
                 "id": cid, "name": name, "weight": WEIGHTS[cid],
                 "status": st, "score": round(sc, 1), "detail": detail,
                 "meaning": CHECK_COPY[cid]["meaning"]}
+            if cid in CHECK_NOTES:
+                entry["note"] = CHECK_NOTES[cid]
             results.append(entry)
         platform_block = {
             "detected": bool(platform_name),
@@ -2121,6 +2152,12 @@ def _results_email_html(first_name, site, score, grade, checks, platform=None,
                 '<p style="font-size:15px; line-height:1.6; color:#333336; '
                 'margin-top:8px; padding-left:20px;">%s</p>'
                 % _esc_html(meaning))
+        note = (c.get("note") or "").strip()
+        if note:
+            block.append(
+                '<p style="font-size:15px; line-height:1.6; color:#333336; '
+                'margin-top:8px; padding-left:20px;">%s</p>'
+                % _esc_html(note))
         block.append("</div>")
         blocks.append("".join(block))
     # Conversion block (Caleb ruling 2026-10-22), mirroring the
@@ -2247,6 +2284,7 @@ def _results_email_html(first_name, site, score, grade, checks, platform=None,
     # incomplete scan (scoring v5) an explicit Incomplete result with
     # NO score and NO grade - a partial number computed from
     # unmeasured checks would mislead.
+    framing_line = ""
     if incomplete:
         header_block = (
             '<table role="presentation" width="100%" cellpadding="0" '
@@ -2303,6 +2341,16 @@ def _results_email_html(first_name, site, score, grade, checks, platform=None,
             'margin-top:20px;">' + _esc_html(site) + " scored "
             + _esc_html(score) + "/100 (grade " + _esc_html(grade)
             + "). Here is how the seven checks came out:</p>")
+        # Language pack item S-4 (2026-11-02): Caleb's prescribed
+        # grade-framing sentence, directly under the grade block, the
+        # same sentence the results page shows under the grade.
+        framing_line = (
+            '<p style="font-size:14.5px; line-height:1.6; color:#6e6e73; '
+            'margin-top:12px;">Based on seven automated technical '
+            "checks using our proprietary methodology. This assesses "
+            "website accessibility and machine-readability, not "
+            "business quality or whether AI recommends your "
+            "business.</p>")
     return """<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -2317,6 +2365,7 @@ def _results_email_html(first_name, site, score, grade, checks, platform=None,
 <h1 style="font-size:27px; line-height:1.25; font-weight:800; letter-spacing:-0.01em; color:#1d1d1f; margin:0;">Your free scan results</h1>
 <p style="font-size:16px; line-height:1.6; color:#333336; margin-top:16px;">Hi %(first)s, thanks for running your free AI Readiness Scan with Agent Readiness HQ!</p>
 %(header_block)s
+%(framing)s
 %(scored_line)s
 %(checks)s
 %(conversion)s
@@ -2337,6 +2386,7 @@ def _results_email_html(first_name, site, score, grade, checks, platform=None,
         "chip_bg": chip_bg,
         "chip_fg": chip_fg,
         "header_block": header_block,
+        "framing": framing_line,
         "scored_line": scored_line,
         "checks": "".join(blocks),
         "conversion": conversion_html,
@@ -2385,6 +2435,10 @@ def compose_results_email(first_name, email, report):
             "",
             f"{site} scored {score}/100 (grade {grade}). "
             "Here is how the seven checks came out:",
+            "Based on seven automated technical checks using our "
+            "proprietary methodology. This assesses website "
+            "accessibility and machine-readability, not business "
+            "quality or whether AI recommends your business.",
             "",
         ]
     for c in checks:
@@ -2399,6 +2453,9 @@ def compose_results_email(first_name, email, report):
         meaning = (c.get("meaning") or "").strip()
         if meaning:
             lines.append(f"   {meaning}")
+        note = (c.get("note") or "").strip()
+        if note:
+            lines.append(f"   {note}")
     # Conversion block (Caleb ruling 2026-10-22), mirroring the
     # results page and the HTML part: headline + subline; for B/C the
     # short platform limitation sentence before the choices; the two
