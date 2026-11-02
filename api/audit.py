@@ -55,11 +55,15 @@ from urllib.parse import parse_qs, urlparse, urljoin, urlencode
 
 import requests
 
-VERSION = "1.0-api"
+VERSION = "2.0-api"
+SCORING_VERSION = "v2"   # scoring rules version; stamped on every
+                         # report so v1 and v2 scores are never mixed
 UA = "AgentReadinessAudit/1.0 (machine-readability audit; single fetch)"
 TIMEOUT = 4          # per-fetch timeout (seconds) — tight for serverless
 TIMEOUT_DEEP = 3     # deep-page fetch gets a shorter budget
 TIME_BUDGET = 5.5    # skip the deep page once this many seconds have elapsed
+SCHEMA_MAX_PAGES = 4        # homepage + at most 3 inner pages (schema)
+SCHEMA_TIME_BUDGET = 6.5    # start schema inner fetches only before this
 MAX_BYTES = 2_000_000
 MAX_URL_LEN = 2048
 
@@ -84,13 +88,27 @@ AI_CRAWLERS = [
     "cohere-ai", "DuckAssistBot",
 ]
 
-BOT_WALL_MARKERS = [
-    "cf-chl", "challenge-platform", "verify you are human",
-    "captcha", "cf_clearance", "cf-turnstile", "just a moment",
-    "checking your browser", "datadome", "perimeterx",
-    "please verify you are a human", "are you a robot",
-    "incapsula", "distil_r_captcha", "human verification",
+# Scoring v2 bot-wall semantics: a page fails only on evidence of an
+# actual challenge/interstitial. HARD markers are challenge-vendor or
+# challenge-flow signatures. SOFT markers are challenge phrases that only
+# count when the page carries almost no real content (an interstitial,
+# not a content page that merely mentions them). NEUTRAL markers appear
+# in ordinary embedded form code (e.g. Squarespace serves reCAPTCHA
+# machinery with its forms) and never fail a page by themselves - the v1
+# rule zeroed 15 points on the bare string "captcha" for exactly that.
+BOT_WALL_HARD_MARKERS = [
+    "cf-chl", "challenge-platform", "cf_clearance", "cf-turnstile",
+    "datadome", "perimeterx", "incapsula", "distil_r_captcha",
 ]
+BOT_WALL_SOFT_MARKERS = [
+    "verify you are human", "please verify you are a human",
+    "are you a robot", "human verification",
+    "checking your browser", "just a moment",
+]
+BOT_WALL_NEUTRAL_MARKERS = ["captcha"]
+BOT_WALL_MARKERS = (BOT_WALL_HARD_MARKERS + BOT_WALL_SOFT_MARKERS
+                    + BOT_WALL_NEUTRAL_MARKERS)
+BOT_WALL_MIN_CONTENT_CHARS = 2000  # below this, soft markers = interstitial
 
 PRICE_RE = re.compile(r"\$\s?\d[\d,]*(?:\.\d{1,2})?")
 PRICE_WORD_RE = re.compile(r"\b(price|pricing|cost|rates?|from\s+\$)", re.I)
@@ -104,11 +122,17 @@ LOCAL_BUSINESS_TYPES = {
     "healthandbeautybusiness", "sportsactivitylocation", "drycleaningorlaundry",
 }
 
+# Scoring v2: the business-identity third of the schema check is earned by
+# a LocalBusiness-family record OR a plain Organization record (the
+# standards-preferred generic business identity; v1 deliberately did not
+# credit it, which zeroed the check for most non-trade businesses).
+IDENTITY_TYPES = LOCAL_BUSINESS_TYPES | {"organization"}
+
 FIX_TEXT = {
     "robots_ai_posture": "Allow major AI crawlers in robots.txt (or add explicit Allow lines); blocking them hides the site from shopping/research agents.",
     "llms_txt": "Add a concise /llms.txt summarizing offerings, pricing, service area, and contact info for LLM consumers.",
     "sitemap": "Publish /sitemap.xml listing key pages so agents can discover the site without guessing URLs.",
-    "schema_jsonld": "Add schema.org JSON-LD: Product with price/offers, LocalBusiness (name, address, phone, hours), and FAQPage for common questions.",
+    "schema_jsonld": "Add schema.org JSON-LD: Product with price/offers, a business record (Organization or LocalBusiness with name and contact facts), and FAQPage for common questions - on the homepage or the relevant service/FAQ pages.",
     "pricing_html": "Render at least headline pricing in the raw HTML (server-side or pre-rendered); JS-only prices are invisible to non-JS agents.",
     "bot_wall": "Move bot protection behind real abuse signals instead of the front door; challenge pages block legitimate agent traffic.",
     "page_speed": "Speed up the homepage: cache aggressively, shrink payload, and fix slow TTFB — agents time out faster than humans.",
@@ -451,7 +475,7 @@ def make_session():
     return s
 
 
-def fetch(session, url, timeout=TIMEOUT):
+def fetch(session, url, timeout=TIMEOUT, max_bytes=MAX_BYTES):
     """Single GET with byte cap. Returns (ok, status, text, elapsed, ttfb, err)."""
     t0 = time.perf_counter()
     try:
@@ -461,7 +485,7 @@ def fetch(session, url, timeout=TIMEOUT):
         for chunk in r.iter_content(chunk_size=65536):
             if chunk:
                 size += len(chunk)
-                if size > MAX_BYTES:
+                if size > max_bytes:
                     break
                 chunks.append(chunk)
         raw = b"".join(chunks)
@@ -720,28 +744,123 @@ def flatten_types(node, out):
             flatten_types(item, out)
 
 
-def check_jsonld(html):
+def check_jsonld_pages(pages):
+    """Scoring v2: aggregate JSON-LD across the homepage plus key inner
+    pages (AI Information page, service/pricing pages, FAQ page).
+    pages = [(label, html), ...]. Three credited thirds, 20 pts total:
+    Product with price/offers; a business-identity record (Organization
+    or a LocalBusiness-family type); FAQPage - found on ANY scanned page."""
     w = WEIGHTS["schema_jsonld"]
-    blocks = extract_jsonld_blocks(html)
-    if not blocks:
-        return 0.0, "fail", "no parseable application/ld+json blocks found"
+    per_page = [(label, extract_jsonld_blocks(html or "")) for label, html in pages]
+    all_blocks = [b for _label, blocks in per_page for b in blocks]
+    if not all_blocks:
+        return 0.0, "fail", (f"no parseable application/ld+json blocks found "
+                             f"({len(pages)} page(s) scanned)")
     types = set()
-    for b in blocks:
+    for b in all_blocks:
         flatten_types(b, types)
-    has_product, has_price = jsonld_has_product_price(blocks)
+    has_product, has_price = jsonld_has_product_price(all_blocks)
     product_ok = has_product and has_price
-    local_ok = bool(types & LOCAL_BUSINESS_TYPES)
+    identity_ok = bool(types & IDENTITY_TYPES)
     faq_ok = "faqpage" in types
-    hits = sum([product_ok, local_ok, faq_ok])
+    hits = sum([product_ok, identity_ok, faq_ok])
     parts = []
     parts.append("Product+price/offers" if product_ok else "no Product with price/offers"
                  + (" (Product found, price missing)" if has_product and not has_price else ""))
-    parts.append("LocalBusiness" if local_ok else "no LocalBusiness type")
+    parts.append("Organization/LocalBusiness" if identity_ok
+                 else "no Organization or LocalBusiness type")
     parts.append("FAQPage" if faq_ok else "no FAQPage")
-    detail = f"{hits}/3 target types — " + "; ".join(parts) + f" ({len(blocks)} ld+json block(s) parsed)"
+    detail = (f"{hits}/3 target types \u2014 " + "; ".join(parts)
+              + f" ({len(all_blocks)} ld+json block(s) parsed across {len(pages)} page(s))")
+    if hits:
+        found = []
+        for label, blocks in per_page:
+            ptypes = set()
+            for b in blocks:
+                flatten_types(b, ptypes)
+            pp, ppr = jsonld_has_product_price(blocks)
+            got = []
+            if pp and ppr:
+                got.append("Product+price/offers")
+            if ptypes & IDENTITY_TYPES:
+                got.append("Organization/LocalBusiness")
+            if "faqpage" in ptypes:
+                got.append("FAQPage")
+            if got:
+                found.append(f"{label}: {', '.join(got)}")
+        if found:
+            detail += " \u2014 found on " + "; ".join(found)
     score = w * hits / 3
     status = "pass" if hits == 3 else ("partial" if hits > 0 else "fail")
     return score, status, detail
+
+
+def check_jsonld(html):
+    """Single-page form (homepage only) - kept for parity with v1 callers."""
+    return check_jsonld_pages([("homepage", html)])
+
+
+# ------------------------------------------------- schema page discovery ---
+_AI_INFO_PATHS = ("/ai-information", "/ai-info")
+_PRICING_PATH_WORDS = ("pricing", "price", "plans", "packages", "rates",
+                       "services", "service", "work-with", "workwith",
+                       "book", "offers", "shop", "store")
+_FAQ_PATH_WORDS = ("faq", "faqs")
+
+
+def _classify_schema_candidate(path):
+    """Bucket an inner-page path: 'ai' (AI Information page), 'faq',
+    'pricing' (service/pricing/offer page), or None."""
+    p = (path or "").lower()
+    if any(p.rstrip("/").endswith(a) for a in _AI_INFO_PATHS):
+        return "ai"
+    seg = p.strip("/")
+    if any(w in seg for w in _FAQ_PATH_WORDS):
+        return "faq"
+    if any(w in p for w in _PRICING_PATH_WORDS):
+        return "pricing"
+    return None
+
+
+def discover_schema_pages(base, homepage_html, sitemap_text=""):
+    """Up to SCHEMA_MAX_PAGES - 1 inner-page URLs worth scanning for
+    JSON-LD: the AI Information page first, then FAQ and service/pricing
+    pages, discovered from the sitemap and homepage links. The canonical
+    /ai-information path is always probed - it is the page this audit's
+    own fixes install, and sitemaps can lag behind a fresh publish."""
+    netloc = urlparse(base).netloc.lower()
+    found = {}
+
+    def consider(raw_url):
+        try:
+            absu = urljoin(base + "/", (raw_url or "").strip())
+            p = urlparse(absu)
+        except Exception:
+            return
+        if p.netloc.lower() != netloc or p.scheme not in ("http", "https"):
+            return
+        path = p.path or "/"
+        if path == "/" or path.lower().endswith((".xml", ".txt", ".pdf")):
+            return
+        bucket = _classify_schema_candidate(path)
+        if bucket:
+            found.setdefault(bucket, f"{p.scheme}://{p.netloc}{path}")
+
+    for m in re.finditer(r"<loc>\s*([^<\s]+)\s*</loc>", sitemap_text or ""):
+        consider(m.group(1))
+    for m in re.finditer(r'<a[^>]+href=["\']([^"\']+)["\']', homepage_html or "", re.I):
+        consider(m.group(1))
+    ordered = [found["ai"]] if "ai" in found else [base + "/ai-information"]
+    for bucket in ("faq", "pricing"):
+        if bucket in found:
+            ordered.append(found[bucket])
+    out, seen = [], set()
+    for u in ordered:
+        key = urlparse(u).path.rstrip("/").lower()
+        if key not in seen:
+            seen.add(key)
+            out.append(u)
+    return out[:SCHEMA_MAX_PAGES - 1]
 
 
 # ------------------------------------------------------------------- pricing ---
@@ -770,17 +889,28 @@ def check_pricing(html):
 
 # ------------------------------------------------------------------ bot wall ---
 def check_bot_wall(pages):
+    """Scoring v2: fail only on evidence of an actual challenge.
+    Hard vendor/challenge markers fail any page. Soft challenge phrases
+    fail only a near-empty page (an interstitial, not a content page).
+    A bare "captcha" string - embedded form machinery such as the
+    reCAPTCHA code Squarespace serves with its forms - never fails a
+    page by itself."""
     w = WEIGHTS["bot_wall"]
     hits = {}
     for label, html in pages:
+        html = html or ""
         low = html.lower()
-        found = sorted({m for m in BOT_WALL_MARKERS if m in low})
-        if found:
-            hits[label] = found
+        hard = sorted({m for m in BOT_WALL_HARD_MARKERS if m in low})
+        if hard:
+            hits[label] = hard
+            continue
+        soft = sorted({m for m in BOT_WALL_SOFT_MARKERS if m in low})
+        if soft and len(strip_to_text(html)) < BOT_WALL_MIN_CONTENT_CHARS:
+            hits[label] = soft
     if not hits:
-        return w, "pass", f"no bot-wall/CAPTCHA markers on {len(pages)} page(s) scanned"
+        return w, "pass", f"no bot-wall/CAPTCHA challenge on {len(pages)} page(s) scanned"
     detail = "; ".join(f"{label}: {', '.join(m)}" for label, m in hits.items())
-    return 0.0, "fail", f"bot-wall/CAPTCHA markers detected — {detail}"
+    return 0.0, "fail", f"bot-wall/CAPTCHA challenge detected \u2014 {detail}"
 
 
 # --------------------------------------------------------------------- speed ---
@@ -856,12 +986,59 @@ def run_audit(raw_url):
             robots_r, llms_r, sitemap_r = f_robots.result(), f_llms.result(), f_sitemap.result()
 
         ok_h, st_h, html, total, ttfb, err_h = home
+        homepage_ok = bool(ok_h and st_h == 200 and html and html.strip())
+        incomplete_reasons = []
         if not ok_h:
             errors.append(f"homepage fetch failed: {err_h}")
             html, st_h = "", None
         elif st_h != 200:
             errors.append(f"homepage returned HTTP {st_h}")
             html = ""
+        if not homepage_ok:
+            # Scoring v2 / scanner fix queue: a scan that could not read
+            # the homepage is explicitly INCOMPLETE - the content-driven
+            # checks fail with that stated, instead of silently scoring
+            # an empty page (the v1 mechanism behind a 16.5 for an
+            # unmeasured homepage).
+            incomplete_reasons.append(
+                "homepage could not be fetched or returned no content")
+
+        # Scoring v2: schema is aggregated over the homepage plus key
+        # inner pages (the AI Information page + sitemap/homepage-
+        # discovered service, pricing and FAQ pages), fetched in
+        # parallel at the deep-page timeout while the clock allows.
+        sitemap_text = sitemap_r[2] if (sitemap_r[0] and sitemap_r[1] == 200) else ""
+        schema_pages = [("homepage", html)]
+        inner_fetched = []
+        if homepage_ok:
+            candidates = discover_schema_pages(base, html, sitemap_text)
+            if candidates and (time.perf_counter() - t_start) < SCHEMA_TIME_BUDGET:
+                with ThreadPoolExecutor(max_workers=min(3, len(candidates))) as ex2:
+                    futs = {ex2.submit(fetch, session, u, timeout=TIMEOUT_DEEP): u
+                            for u in candidates}
+                    inner_results = {u: f.result() for f, u in futs.items()}
+                unreachable = 0
+                for cand in candidates:
+                    cok, cstatus, chtml, _ct, _cttfb, cerr = inner_results[cand]
+                    if cok and cstatus == 200 and chtml and chtml.strip():
+                        label = urlparse(cand).path or cand
+                        schema_pages.append((label, chtml))
+                        inner_fetched.append((label, chtml))
+                    elif cok and cstatus == 404:
+                        pass  # page does not exist - negative result, not a gap
+                    else:
+                        unreachable += 1
+                        errors.append(f"schema page fetch failed ({cand}): "
+                                      f"{cerr or 'HTTP ' + str(cstatus)}")
+                if not inner_fetched and unreachable:
+                    # A page that appears to exist could not be read, so
+                    # credited schema may have been missed. (All-404
+                    # candidates mean the site has no such pages;
+                    # homepage-only is then a complete measurement.)
+                    incomplete_reasons.append(
+                        "schema check: inner page(s) unreachable (homepage only)")
+            elif candidates:
+                errors.append("schema inner pages skipped (time budget \u2014 homepage only)")
 
         checks = []
         s, st, d = check_robots(robots_r)
@@ -870,24 +1047,42 @@ def run_audit(raw_url):
         checks.append(("llms_txt", "llms.txt present", s, st, d))
         s, st, d = check_sitemap(sitemap_r)
         checks.append(("sitemap", "sitemap.xml present", s, st, d))
-        s, st, d = check_jsonld(html)
+        if homepage_ok:
+            s, st, d = check_jsonld_pages(schema_pages)
+        else:
+            s, st, d = 0.0, "fail", "homepage content unavailable \u2014 schema check incomplete"
         checks.append(("schema_jsonld", "schema.org JSON-LD", s, st, d))
-        s, st, d = check_pricing(html)
+        if homepage_ok:
+            s, st, d = check_pricing(html)
+        else:
+            s, st, d = 0.0, "fail", "homepage content unavailable \u2014 pricing check incomplete"
         checks.append(("pricing_html", "pricing in raw HTML", s, st, d))
 
-        pages = [("homepage", html)]
-        if html and (time.perf_counter() - t_start) < TIME_BUDGET:
-            deep_url = pick_deep_page(base, html)
-            dok, dstatus, dhtml, _t, _ttfb, derr = fetch(session, deep_url, timeout=TIMEOUT_DEEP)
-            if dok and dstatus == 200:
-                pages.append(("deep page " + urlparse(deep_url).path, dhtml))
+        # Bot wall: homepage + one inner page. Empty content never earns
+        # these points - no readable homepage = incomplete, not a pass.
+        if not homepage_ok:
+            s, st, d = 0.0, "fail", ("no page content fetched \u2014 cannot verify "
+                                     "bot-wall posture (scan incomplete)")
+            checks.append(("bot_wall", "no bot-wall / CAPTCHA", s, st, d))
+        else:
+            pages = [("homepage", html)]
+            if inner_fetched:
+                pages.append(("deep page " + inner_fetched[0][0], inner_fetched[0][1]))
+            elif (time.perf_counter() - t_start) < TIME_BUDGET:
+                deep_url = pick_deep_page(base, html)
+                dok, dstatus, dhtml, _t, _ttfb, derr = fetch(session, deep_url, timeout=TIMEOUT_DEEP)
+                if dok and dstatus == 200:
+                    pages.append(("deep page " + urlparse(deep_url).path, dhtml))
+                else:
+                    errors.append(f"deep page fetch failed ({deep_url}): {derr or 'HTTP ' + str(dstatus)}")
             else:
-                errors.append(f"deep page fetch failed ({deep_url}): {derr or 'HTTP ' + str(dstatus)}")
-        elif html:
-            errors.append("deep page skipped (time budget — homepage only)")
-        s, st, d = check_bot_wall(pages)
-        checks.append(("bot_wall", "no bot-wall / CAPTCHA", s, st, d))
-        s, st, d = check_speed(ttfb, total)
+                errors.append("deep page skipped (time budget \u2014 homepage only)")
+            s, st, d = check_bot_wall(pages)
+            checks.append(("bot_wall", "no bot-wall / CAPTCHA", s, st, d))
+        if homepage_ok:
+            s, st, d = check_speed(ttfb, total)
+        else:
+            s, st, d = 0.0, "fail", "homepage did not load \u2014 no speed measurement (scan incomplete)"
         checks.append(("page_speed", "page speed (TTFB + total)", s, st, d))
 
         # Platform feasibility (Caleb ruling 2026-10-21): detect the
@@ -931,6 +1126,7 @@ def run_audit(raw_url):
 
         return {
             "tool": f"agent-readiness-audit/{VERSION}",
+            "scoring_version": SCORING_VERSION,
             "url": url,
             "fetched_at": datetime.now(timezone.utc).isoformat(),
             "score": total_score,
@@ -944,6 +1140,8 @@ def run_audit(raw_url):
             },
             "fixes": fixes,
             "errors": errors,
+            "complete": not incomplete_reasons,
+            "incomplete_reasons": incomplete_reasons,
             "duration_s": round(time.perf_counter() - t_start, 2),
         }
     except Exception as e:  # absolute last resort — never 500
