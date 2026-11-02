@@ -55,7 +55,7 @@ from urllib.parse import parse_qs, urlparse, urljoin, urlencode
 
 import requests
 
-VERSION = "4.1-api"
+VERSION = "4.1.1-api"
 SCORING_VERSION = "v4"   # scoring rules version; stamped on every
                          # report so scores from different scoring
                          # versions are never mixed
@@ -512,12 +512,27 @@ def fetch(session, url, timeout=TIMEOUT, max_bytes=MAX_BYTES):
 
 
 # --------------------------------------------------------------- SSRF guard ---
+# Reason returned when a hostname cannot be resolved at all. A named
+# constant because run_audit treats this one failure differently: an
+# unresolvable host is not a rejected request, it is a scan that could
+# not start, and it gets the normal report shape with complete: false
+# (build 4.1.1; before this fix, resolver failures surfaced as HTTP 400
+# - or, when the resolver raised a plain OSError instead of gaierror,
+# as a raw "internal error" body).
+DNS_FAIL_REASON = "hostname does not resolve"
+
+
 def host_is_public(hostname):
     """Reject hostnames resolving to non-public IPs. Returns (ok, reason)."""
     try:
         infos = socket.getaddrinfo(hostname, None, type=socket.SOCK_STREAM)
-    except socket.gaierror:
-        return False, "hostname does not resolve"
+    except (OSError, UnicodeError):
+        # gaierror is the usual failure mode, but it is not the only
+        # one: a sandboxed resolver can raise a plain OSError (EBUSY was
+        # observed in production) and an unencodable name raises
+        # UnicodeError. Every resolver failure means the same thing
+        # here: the name does not resolve.
+        return False, DNS_FAIL_REASON
     for _fam, _type, _proto, _canon, sockaddr in infos:
         try:
             ip = ipaddress.ip_address(sockaddr[0])
@@ -530,22 +545,32 @@ def host_is_public(hostname):
 
 
 def normalize_url(raw):
-    """Returns (base, url) or (None, error_message)."""
+    """Returns (base, url, error). On success error is None. On a hard
+    rejection (missing/invalid URL, non-http scheme, non-public IP)
+    base and url are None and error carries the message. One soft
+    failure differs: when the hostname does not resolve, base and url
+    ARE returned with error == DNS_FAIL_REASON and the caller proceeds
+    with the scan - every fetch then fails on DNS and the report
+    degrades exactly like the resolvable-but-dead case (complete:
+    false, per-check could-not-fetch reasons) instead of an HTTP 400
+    rejection (build 4.1.1)."""
     url = (raw or "").strip()[:MAX_URL_LEN]
     if not url:
-        return None, "missing 'url' in request body"
+        return None, None, "missing 'url' in request body"
     if not re.match(r"^https?://", url, re.I):
         url = "https://" + url
     p = urlparse(url)
     if p.scheme.lower() not in ("http", "https"):
-        return None, "only http(s) URLs are allowed"
+        return None, None, "only http(s) URLs are allowed"
     if not p.hostname:
-        return None, "invalid URL"
+        return None, None, "invalid URL"
     ok, reason = host_is_public(p.hostname)
-    if not ok:
-        return None, f"URL rejected: {reason}"
     base = f"{p.scheme}://{p.netloc}".rstrip("/")
-    return base, url
+    if not ok:
+        if reason == DNS_FAIL_REASON:
+            return base, url, DNS_FAIL_REASON
+        return None, None, f"URL rejected: {reason}"
+    return base, url, None
 
 
 # ------------------------------------------------------------ robots.txt ---
@@ -1423,13 +1448,19 @@ def run_audit(raw_url):
     """Full audit. Never raises — failures are reported in the dict."""
     t_start = time.perf_counter()
     try:
-        norm = normalize_url(raw_url)
-        if norm[0] is None:
-            return {"url": (raw_url or "")[:200], "error": norm[1], "score": 0.0,
-                    "checks": [], "fixes": [], "errors": [norm[1]]}
-        base, url = norm
+        base, url, norm_error = normalize_url(raw_url)
+        if base is None:
+            return {"url": (raw_url or "")[:200], "error": norm_error, "score": 0.0,
+                    "checks": [], "fixes": [], "errors": [norm_error]}
+        # Build 4.1.1: an unresolvable host proceeds through the scan
+        # (all fetches fail on DNS) so it earns the standard incomplete
+        # report instead of the pre-4.1.1 HTTP 400 / internal-error body.
+        dns_unresolvable = norm_error == DNS_FAIL_REASON
 
         errors = []
+        if dns_unresolvable:
+            errors.append(
+                f"could not resolve host: {urlparse(url).hostname}")
         session = make_session()
 
         # 4 independent fetches in parallel
@@ -1444,6 +1475,8 @@ def run_audit(raw_url):
         ok_h, st_h, html, total, ttfb, err_h = home
         homepage_ok = bool(ok_h and st_h == 200 and html and html.strip())
         incomplete_reasons = []
+        if dns_unresolvable:
+            incomplete_reasons.append("could not resolve host")
         if not ok_h:
             errors.append(f"homepage fetch failed: {err_h}")
             html, st_h = "", None
