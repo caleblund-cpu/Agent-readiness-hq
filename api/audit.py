@@ -55,8 +55,8 @@ from urllib.parse import parse_qs, urlparse, urljoin, urlencode
 
 import requests
 
-VERSION = "3.0-api"
-SCORING_VERSION = "v3"   # scoring rules version; stamped on every
+VERSION = "4.1-api"
+SCORING_VERSION = "v4"   # scoring rules version; stamped on every
                          # report so scores from different scoring
                          # versions are never mixed
 UA = "AgentReadinessAudit/1.0 (machine-readability audit; single fetch)"
@@ -66,6 +66,11 @@ TIME_BUDGET = 5.5    # skip the deep page once this many seconds have elapsed
 SCHEMA_MAX_PAGES = 4        # homepage + at most 3 inner pages (schema)
 SCHEMA_TIME_BUDGET = 6.5    # start schema inner fetches only before this
 MAX_BYTES = 2_000_000
+SPEED_READINGS = 3                  # homepage timings per scan (v4)
+SPEED_PROBE_TIMEOUT = 7             # per-probe timeout, seconds - sits ABOVE the
+                                    # 6s total-time scoring threshold so a response
+                                    # completing inside the scoring window is measured
+SPEED_PROBE_MAX_BYTES = 2_000_000   # probe body cap (v4)
 MAX_URL_LEN = 2048
 
 # ---------------------------------------------------------------- weights ---
@@ -699,34 +704,6 @@ def derive_business_name(html):
     return ""
 
 
-def jsonld_has_product_price(blocks):
-    found_product = found_price = False
-
-    def walk(node):
-        nonlocal found_product, found_price
-        if isinstance(node, dict):
-            t = node.get("@type")
-            types = {str(x).lower() for x in t} if isinstance(t, list) else {str(t).lower()} if t else set()
-            if "product" in types:
-                found_product = True
-            for k in ("price", "offers", "priceSpecification"):
-                if k in node and node[k]:
-                    found_price = True
-            g = node.get("@graph")
-            if g:
-                walk(g)
-            for v in node.values():
-                if isinstance(v, (dict, list)):
-                    walk(v)
-        elif isinstance(node, list):
-            for i in node:
-                walk(i)
-
-    for b in blocks:
-        walk(b)
-    return found_product, found_price
-
-
 def flatten_types(node, out):
     if isinstance(node, dict):
         t = node.get("@type")
@@ -745,52 +722,331 @@ def flatten_types(node, out):
             flatten_types(item, out)
 
 
-def check_jsonld_pages(pages):
-    """Scoring v2: aggregate JSON-LD across the homepage plus key inner
-    pages (AI Information page, service/pricing pages, FAQ page).
-    pages = [(label, html), ...]. Three credited thirds, 20 pts total:
-    Product with price/offers; a business-identity record (Organization
-    or a LocalBusiness-family type); FAQPage - found on ANY scanned page."""
+# ------------------------------------------- schema credit (final v4) ---
+# Strengthened per the adopted final review (section 5):
+# - the business-identity record must describe the SCANNED business,
+#   not an unrelated publisher or embedded vendor record;
+# - the offering third accepts a valid Product OR Service whose linked
+#   Offer carries a real price (and a plausible currency when stated),
+#   and whose price or name is corroborated by VISIBLE page content -
+#   a price that exists solely in hidden JSON-LD earns nothing;
+# - the FAQ third requires real questions with nonempty accepted
+#   answers whose question text is visible in the page content;
+# - @graph containers, @type arrays, and @id references resolvable
+#   within the fetched page set are all handled. Empty records and
+#   empty offers earn nothing.
+
+def _node_types(node):
+    t = node.get("@type")
+    if isinstance(t, list):
+        return {str(x).lower() for x in t}
+    if t:
+        return {str(t).lower()}
+    return set()
+
+
+def _iter_nodes(node, out):
+    """Every dict node in a parsed JSON-LD structure, @graph included."""
+    if isinstance(node, dict):
+        out.append(node)
+        for v in node.values():
+            _iter_nodes(v, out)
+    elif isinstance(node, list):
+        for item in node:
+            _iter_nodes(item, out)
+    return out
+
+
+def _norm_text(s):
+    return re.sub(r"\s+", " ", str(s or "")).strip().lower()
+
+
+def _name_tokens(name):
+    stop = {"the", "and", "of", "llc", "inc", "co", "company", "group",
+            "www", "com", "http", "https"}
+    return {t for t in re.split(r"[^a-z0-9]+", _norm_text(name))
+            if len(t) >= 3 and t not in stop}
+
+
+def _site_identity_signals(homepage_html, host):
+    """Identity signals for the scanned business itself: name tokens
+    from the homepage <title>, og:site_name, and any WebSite /
+    Organization names in the homepage JSON-LD. Used to tell the
+    business's own identity record from an unrelated publisher or
+    vendor record embedded on the page."""
+    names = set()
+    html = homepage_html or ""
+    m = re.search(r'property=["\']og:site_name["\'][^>]*'
+                  r'content=["\']([^"\']{2,80})["\']', html, re.I)
+    if m:
+        names |= _name_tokens(m.group(1))
+    m = re.search(r"<title[^>]*>([^<]{2,120})</title>", html, re.I)
+    if m:
+        stem = re.split(r"\s*[|\u2013\u2014\u00b7]\s*|\s+-\s+",
+                        m.group(1).strip())[0]
+        names |= _name_tokens(stem)
+    for b in extract_jsonld_blocks(html):
+        for n in _iter_nodes(b, []):
+            # WebSite names only: harvesting Organization names here
+            # would be circular (an embedded vendor's own record would
+            # certify itself as the site's identity).
+            if _node_types(n) & {"website"}:
+                nm = n.get("name")
+                if isinstance(nm, str) and nm.strip():
+                    names |= _name_tokens(nm)
+    return names
+
+
+def _url_host(u):
+    try:
+        return (urlparse(str(u)).netloc or "").lower()
+    except Exception:
+        return ""
+
+
+def _identity_coherent(node, host, site_names):
+    """True when an Organization/LocalBusiness-family record plausibly
+    describes the scanned business: its url/@id host is the site's own
+    host, or its name overlaps the site's own identity signals. A
+    record pointing at a foreign host with an unrelated name is an
+    embedded vendor/publisher record, not the business's identity."""
+    name = node.get("name")
+    name = name if isinstance(name, str) else ""
+    url = node.get("url") or node.get("@id") or ""
+    nhost = _url_host(url) if url else ""
+    if nhost and host and nhost == host:
+        return True
+    if name and site_names and (_name_tokens(name) & site_names):
+        return True
+    if nhost and host and nhost != host:
+        return False  # points at a different organization
+    if name and site_names:
+        return False  # named, but not this business
+    # No usable cross-check exists (nothing points elsewhere, and the
+    # site offered no name signals to contradict): accept a named
+    # record, reject an anonymous one.
+    return bool(name.strip())
+
+
+def _parse_price(v):
+    if isinstance(v, bool):
+        return None
+    if isinstance(v, (int, float)):
+        return float(v)
+    if isinstance(v, str):
+        m = re.search(r"\d[\d,]*(?:\.\d{1,2})?", v)
+        if m:
+            try:
+                return float(m.group(0).replace(",", ""))
+            except ValueError:
+                return None
+    return None
+
+
+def _offer_price(offer):
+    """The meaningful price of an Offer node, or None. Requires a
+    numeric price > 0 (directly or via priceSpecification / lowPrice)
+    and, when a currency is stated, a plausible 3-letter code. Empty
+    offers and price-less shells return None."""
+    if not isinstance(offer, dict):
+        return None
+    price = _parse_price(offer.get("price"))
+    if price is None:
+        price = _parse_price(offer.get("lowPrice"))  # AggregateOffer
+    if price is None:
+        spec = offer.get("priceSpecification")
+        specs = spec if isinstance(spec, list) else [spec]
+        for s in specs:
+            if isinstance(s, dict):
+                price = _parse_price(s.get("price"))
+                if price is not None:
+                    break
+    if price is None or price <= 0:
+        return None
+    cur = offer.get("priceCurrency")
+    if cur is not None and not re.fullmatch(r"[A-Za-z]{3}",
+                                            str(cur).strip()):
+        return None
+    return price
+
+
+def _resolve_ref(node, id_index):
+    """Resolve an @id reference (a bare string, or a dict carrying
+    little besides @id) against nodes indexed across the page set."""
+    if isinstance(node, str):
+        return id_index.get(node, node)
+    if isinstance(node, dict) and node.get("@id"):
+        extra = {k for k in node if k not in ("@id", "@type")}
+        if not extra:
+            return id_index.get(node["@id"], node)
+    return node
+
+
+def check_jsonld_pages(pages, site_host="", site_names=None):
+    """Schema check: aggregate JSON-LD across the homepage plus key
+    inner pages. Three credited thirds, 20 pts total:
+    (1) an offering - a Product OR Service with a meaningful linked
+        Offer whose price or name is corroborated by visible content;
+    (2) a business-identity record (Organization or LocalBusiness
+        family) that describes the scanned business;
+    (3) an FAQPage whose questions and nonempty accepted answers are
+        visible in the page content.
+    Misses are reported as 'not found within the scanned pages' -
+    never as proof the markup is absent from the website."""
     w = WEIGHTS["schema_jsonld"]
-    per_page = [(label, extract_jsonld_blocks(html or "")) for label, html in pages]
-    all_blocks = [b for _label, blocks in per_page for b in blocks]
-    if not all_blocks:
+    host = (site_host or "").lower()
+    per_page = []
+    id_index = {}
+    for label, html in pages:
+        html = html or ""
+        blocks = extract_jsonld_blocks(html)
+        nodes = []
+        for b in blocks:
+            nodes.extend(_iter_nodes(b, []))
+        for n in nodes:
+            nid = n.get("@id")
+            if isinstance(nid, str) and nid:
+                # A pure reference stub ({"@id": ...} and nothing
+                # else) must not claim the index ahead of the real
+                # node it points at - stubs appear earlier in the
+                # tree than their targets.
+                stub = not {k for k in n if k not in ("@id", "@type")}
+                existing = id_index.get(nid)
+                if existing is None or (
+                        not stub
+                        and not {k for k in existing
+                                 if k not in ("@id", "@type")}):
+                    id_index[nid] = n
+        per_page.append((label, html, blocks, nodes))
+    total_blocks = sum(len(b) for _l, _h, b, _n in per_page)
+    if not total_blocks:
         return 0.0, "fail", (f"no parseable application/ld+json blocks found "
-                             f"({len(pages)} page(s) scanned)")
-    types = set()
-    for b in all_blocks:
-        flatten_types(b, types)
-    has_product, has_price = jsonld_has_product_price(all_blocks)
-    product_ok = has_product and has_price
-    identity_ok = bool(types & IDENTITY_TYPES)
-    faq_ok = "faqpage" in types
-    hits = sum([product_ok, identity_ok, faq_ok])
+                             f"within the scanned pages ({len(pages)} page(s) scanned)")
+    if site_names is None:
+        site_names = _site_identity_signals(pages[0][1] if pages else "", host)
+    visible_norm = {label: _norm_text(strip_to_text(h))
+                    for label, h, _b, _n in per_page}
+    visible_prices = set()
+    for label, h, _b, _n in per_page:
+        for m in PRICE_RE.findall(strip_to_text(h)):
+            v = _parse_price(m)
+            if v is not None:
+                visible_prices.add(round(v, 2))
+
+    def name_visible(nm):
+        nname = _norm_text(nm)
+        if len(nname) < 4:
+            return False
+        if any(nname in t for t in visible_norm.values()):
+            return True
+        toks = _name_tokens(nm)
+        if not toks:
+            return False
+        for t in visible_norm.values():
+            present = sum(1 for tok in toks if tok in t)
+            if toks and present / len(toks) >= 0.6:
+                return True
+        return False
+
+    offering_ok, offering_where = False, ""
+    offering_seen, offering_hidden, offering_unpriced = False, False, False
+    identity_ok, identity_where = False, ""
+    identity_foreign_seen, identity_empty_seen = False, False
+    faq_ok, faq_where = False, ""
+    faq_unseen_seen = False
+    for label, _h, _b, nodes in per_page:
+        for n in nodes:
+            types = _node_types(n)
+            if types & IDENTITY_TYPES:
+                if _identity_coherent(n, host, site_names):
+                    if not identity_ok:
+                        identity_ok, identity_where = True, label
+                else:
+                    # Classify the rejection for the detail: the
+                    # record positively points at / names a different
+                    # organization, or it is an empty stub carrying
+                    # no identifying content at all.
+                    _nhost = _url_host(n.get("url") or n.get("@id") or "")
+                    _nm = n.get("name") if isinstance(n.get("name"), str) else ""
+                    if ((_nhost and host and _nhost != host)
+                            or (_nm and site_names
+                                and not (_name_tokens(_nm) & site_names))):
+                        identity_foreign_seen = True
+                    else:
+                        identity_empty_seen = True
+            if types & {"product", "service"}:
+                offering_seen = True
+                offers = n.get("offers")
+                offer_list = offers if isinstance(offers, list) else [offers]
+                for off in offer_list:
+                    off = _resolve_ref(off, id_index)
+                    price = _offer_price(off)
+                    if price is None:
+                        offering_unpriced = True
+                        continue
+                    if round(price, 2) in visible_prices or name_visible(n.get("name")):
+                        if not offering_ok:
+                            offering_ok, offering_where = True, label
+                    else:
+                        offering_hidden = True
+            if "faqpage" in types:
+                me = n.get("mainEntity")
+                items = me if isinstance(me, list) else ([me] if me else [])
+                for q in items:
+                    q = _resolve_ref(q, id_index)
+                    if not isinstance(q, dict) or "question" not in _node_types(q):
+                        continue
+                    qtext = _norm_text(q.get("name") or q.get("text"))
+                    ans = _resolve_ref(q.get("acceptedAnswer"), id_index)
+                    atext = _norm_text(ans.get("text")) if isinstance(ans, dict) else ""
+                    if qtext and atext:
+                        if qtext[:80] in visible_norm.get(label, ""):
+                            if not faq_ok:
+                                faq_ok, faq_where = True, label
+                        else:
+                            faq_unseen_seen = True
+    hits = sum([offering_ok, identity_ok, faq_ok])
     parts = []
-    parts.append("Product+price/offers" if product_ok else "no Product with price/offers"
-                 + (" (Product found, price missing)" if has_product and not has_price else ""))
-    parts.append("Organization/LocalBusiness" if identity_ok
-                 else "no Organization or LocalBusiness type")
-    parts.append("FAQPage" if faq_ok else "no FAQPage")
+    if offering_ok:
+        parts.append("Product/Service with visibly-priced offer")
+    else:
+        s = ("no Product or Service with a meaningful, visibly-corroborated "
+             "offer found within the scanned pages")
+        if offering_hidden:
+            s += " (an offer's price appears only in JSON-LD, not in visible page content)"
+        elif offering_unpriced:
+            s += " (offering found, but its offer carries no valid price)"
+        elif offering_seen:
+            s += " (offering found, offer not creditable)"
+        parts.append(s)
+    if identity_ok:
+        parts.append("Organization/LocalBusiness describing this business")
+    else:
+        s = ("no Organization or LocalBusiness record describing this "
+             "business found within the scanned pages")
+        if identity_foreign_seen:
+            s += " (a record for a different organization was ignored)"
+        if identity_empty_seen:
+            s += " (an identity record with no name or identifying content was ignored)"
+        parts.append(s)
+    if faq_ok:
+        parts.append("FAQPage with visible questions and answers")
+    else:
+        s = "no FAQPage with visible questions and answers found within the scanned pages"
+        if faq_unseen_seen:
+            s += " (FAQ markup found, but its questions are not visible in page content)"
+        parts.append(s)
     detail = (f"{hits}/3 target types \u2014 " + "; ".join(parts)
-              + f" ({len(all_blocks)} ld+json block(s) parsed across {len(pages)} page(s))")
-    if hits:
-        found = []
-        for label, blocks in per_page:
-            ptypes = set()
-            for b in blocks:
-                flatten_types(b, ptypes)
-            pp, ppr = jsonld_has_product_price(blocks)
-            got = []
-            if pp and ppr:
-                got.append("Product+price/offers")
-            if ptypes & IDENTITY_TYPES:
-                got.append("Organization/LocalBusiness")
-            if "faqpage" in ptypes:
-                got.append("FAQPage")
-            if got:
-                found.append(f"{label}: {', '.join(got)}")
-        if found:
-            detail += " \u2014 found on " + "; ".join(found)
+              + f" ({total_blocks} ld+json block(s) parsed across {len(pages)} page(s))")
+    found = []
+    if offering_ok:
+        found.append(f"{offering_where}: offering")
+    if identity_ok:
+        found.append(f"{identity_where}: identity")
+    if faq_ok:
+        found.append(f"{faq_where}: FAQ")
+    if found:
+        detail += " \u2014 found on " + "; ".join(found)
     score = w * hits / 3
     status = "pass" if hits == 3 else ("partial" if hits > 0 else "fail")
     return score, status, detail
@@ -805,8 +1061,15 @@ def check_jsonld(html):
 _AI_INFO_PATHS = ("/ai-information", "/ai-info")
 _PRICING_PATH_WORDS = ("pricing", "price", "plans", "packages", "rates",
                        "services", "service", "work-with", "workwith",
-                       "book", "offers", "shop", "store")
+                       "book", "offers", "shop", "store", "products",
+                       "collections")
 _FAQ_PATH_WORDS = ("faq", "faqs")
+_FAQ_TEXT_WORDS = ("faq", "frequently asked")
+_PRICING_TEXT_WORDS = ("pricing", "prices", "services", "our services",
+                       "plans", "packages", "book", "shop", "store",
+                       "products")
+# Deterministic bucket priority for filling the inner-page slots.
+_BUCKET_ORDER = ("ai", "faq", "pricing")
 
 
 def _classify_schema_candidate(path):
@@ -823,16 +1086,26 @@ def _classify_schema_candidate(path):
     return None
 
 
-def discover_schema_pages(base, homepage_html, sitemap_text=""):
-    """Up to SCHEMA_MAX_PAGES - 1 inner-page URLs worth scanning for
-    JSON-LD: the AI Information page first, then FAQ and service/pricing
-    pages, discovered from the sitemap and homepage links. The canonical
-    /ai-information path is always probed - it is the page this audit's
-    own fixes install, and sitemaps can lag behind a fresh publish."""
-    netloc = urlparse(base).netloc.lower()
-    found = {}
+def _classify_link_text(text):
+    """Bucket an anchor's visible text when its path is uninformative."""
+    t = _norm_text(text)
+    if not t:
+        return None
+    if any(w in t for w in _FAQ_TEXT_WORDS):
+        return "faq"
+    if any(w in t for w in _PRICING_TEXT_WORDS):
+        return "pricing"
+    return None
 
-    def consider(raw_url):
+
+def _schema_candidates(base, homepage_html, sitemap_text=""):
+    """All classifiable inner-page candidates as (bucket, path, url),
+    gathered from the sitemap and from homepage links (URL + anchor
+    text). Deterministic: sorted within each bucket by path."""
+    netloc = urlparse(base).netloc.lower()
+    by_path = {}
+
+    def consider(raw_url, link_text=""):
         try:
             absu = urljoin(base + "/", (raw_url or "").strip())
             p = urlparse(absu)
@@ -843,25 +1116,101 @@ def discover_schema_pages(base, homepage_html, sitemap_text=""):
         path = p.path or "/"
         if path == "/" or path.lower().endswith((".xml", ".txt", ".pdf")):
             return
-        bucket = _classify_schema_candidate(path)
+        bucket = _classify_schema_candidate(path) or _classify_link_text(link_text)
         if bucket:
-            found.setdefault(bucket, f"{p.scheme}://{p.netloc}{path}")
+            by_path.setdefault(path, (bucket, f"{p.scheme}://{p.netloc}{path}"))
 
     for m in re.finditer(r"<loc>\s*([^<\s]+)\s*</loc>", sitemap_text or ""):
         consider(m.group(1))
-    for m in re.finditer(r'<a[^>]+href=["\']([^"\']+)["\']', homepage_html or "", re.I):
-        consider(m.group(1))
-    ordered = [found["ai"]] if "ai" in found else [base + "/ai-information"]
+    for m in re.finditer(r'<a[^>]+href=["\']([^"\']+)["\'][^>]*>(.*?)</a>',
+                         homepage_html or "", re.I | re.S):
+        consider(m.group(1), strip_to_text(m.group(2)))
+    return by_path
+
+
+def discover_schema_pages(base, homepage_html, sitemap_text=""):
+    """Up to SCHEMA_MAX_PAGES - 1 inner-page URLs worth scanning:
+    the AI Information page first, then FAQ and service/pricing
+    coverage, selected DETERMINISTICALLY (bucket priority, then path)
+    from the sitemap and homepage links. The canonical /ai-information
+    path is always probed when no AI page is linked - it is the page
+    this audit's own fixes install, and sitemaps can lag a fresh
+    publish. Remaining slots are filled by the next-best candidates
+    in bucket order rather than left empty."""
+    by_path = _schema_candidates(base, homepage_html, sitemap_text)
+    per_bucket = {b: [] for b in _BUCKET_ORDER}
+    for path in sorted(by_path, key=lambda p: p.lower()):
+        bucket, url = by_path[path]
+        per_bucket[bucket].append(url)
+    picked = []
+    if per_bucket["ai"]:
+        picked.append(per_bucket["ai"].pop(0))
+    else:
+        picked.append(base + "/ai-information")
     for bucket in ("faq", "pricing"):
-        if bucket in found:
-            ordered.append(found[bucket])
+        if per_bucket[bucket]:
+            picked.append(per_bucket[bucket].pop(0))
+    # Fill any remaining slots deterministically from leftovers.
+    leftovers = []
+    for bucket in _BUCKET_ORDER:
+        leftovers.extend(per_bucket[bucket])
+    picked.extend(leftovers)
     out, seen = [], set()
-    for u in ordered:
+    for u in picked:
         key = urlparse(u).path.rstrip("/").lower()
         if key not in seen:
             seen.add(key)
             out.append(u)
     return out[:SCHEMA_MAX_PAGES - 1]
+
+
+def ai_info_link_status(base, homepage_html, sitemap_text=""):
+    """Whether the AI Information page is DISCOVERABLE - linked from
+    the homepage and/or listed in the sitemap. Direct probing (how the
+    schema check finds an unlinked AI page) does not by itself prove
+    discoverability, so the two facts are recorded separately."""
+    netloc = urlparse(base).netloc.lower()
+
+    def is_ai(raw_url):
+        try:
+            p = urlparse(urljoin(base + "/", (raw_url or "").strip()))
+        except Exception:
+            return False
+        return (p.netloc.lower() == netloc
+                and _classify_schema_candidate(p.path or "/") == "ai")
+
+    in_sitemap = any(is_ai(m.group(1)) for m in
+                     re.finditer(r"<loc>\s*([^<\s]+)\s*</loc>", sitemap_text or ""))
+    in_links = any(is_ai(m.group(1)) for m in
+                   re.finditer(r'<a[^>]+href=["\']([^"\']+)["\']',
+                               homepage_html or "", re.I))
+    if in_links and in_sitemap:
+        return "linked from homepage and listed in sitemap"
+    if in_links:
+        return "linked from homepage"
+    if in_sitemap:
+        return "listed in sitemap"
+    return "not linked from homepage or sitemap (direct probe only)"
+
+
+_SOFT404_TITLE_RE = re.compile(
+    r"<title[^>]*>[^<]*(404|page not found|not found|doesn'?t exist)"
+    r"[^<]*</title>", re.I)
+
+
+def _is_soft_404(html):
+    """A 200 response that is really an error page: a 'not found'
+    title, or a very short page whose text leads with not-found
+    language. Soft-404s are rejected as scan candidates - they are
+    absences, not content pages."""
+    if not html:
+        return False
+    if _SOFT404_TITLE_RE.search(html):
+        return True
+    text = _norm_text(strip_to_text(html))
+    if len(text) < 1500 and ("page not found" in text or "404" in text[:200]):
+        return True
+    return False
 
 
 # ------------------------------------------------------------------- pricing ---
@@ -944,26 +1293,103 @@ def check_bot_wall(pages):
 
 
 # --------------------------------------------------------------------- speed ---
-def check_speed(ttfb, total):
+def _median3(values):
+    """Median of the speed readings; None counts as no response and
+    sorts slowest. A single failed reading CAN change the median (it
+    replaces a real value), but it cannot by itself force the median
+    to failure: with three readings, the median is a failure only
+    when at least two readings are slow or absent."""
+    vals = sorted(float("inf") if v is None else v for v in values)
+    mid = vals[len(vals) // 2]
+    return None if mid == float("inf") else mid
+
+
+def _classify_probe_result(ok, status, text, err):
+    """Distinct diagnostic reason for a failed speed reading, kept
+    distinct end-to-end (review section 3): a timeout is not a
+    network error is not a rate limit is not a challenge response."""
+    if ok and status == 200:
+        return None
+    if status == 429:
+        return "rate limit (HTTP 429)"
+    if ok and text and any(m in text.lower() for m in BOT_WALL_HARD_MARKERS):
+        return "challenge response"
+    if status is not None:
+        return f"HTTP {status}"
+    if err and "timeout" in err.lower():
+        return "timeout"
+    if err:
+        return "network error"
+    return "no response"
+
+
+def speed_readings(session, url, first):
+    """Three homepage speed readings: the scan's own homepage fetch
+    plus two probes of the same URL. All three use the same sampling
+    method - same URL, session headers, redirect handling, and timing
+    definitions; probes additionally cap the body at
+    SPEED_PROBE_MAX_BYTES. The probe timeout (SPEED_PROBE_TIMEOUT)
+    sits ABOVE the 6s total-time scoring threshold, so a response
+    completing inside the scoring window (e.g. 5s) is measured, never
+    misclassified as a failure for stopping early. A failed probe is
+    recorded as a slow reading WITH its diagnostic reason (timeout /
+    network error / rate limit / challenge / HTTP status); it is not
+    a scan failure - the homepage itself was already read."""
+    readings = [(first[0], first[1], None)]
+    for _ in range(SPEED_READINGS - 1):
+        ok, status, text, total, ttfb, err = fetch(
+            session, url, max_bytes=SPEED_PROBE_MAX_BYTES,
+            timeout=SPEED_PROBE_TIMEOUT)
+        if ok and status == 200:
+            readings.append((ttfb, total, None))
+        else:
+            readings.append((None, None,
+                             _classify_probe_result(ok, status, text, err)))
+    return readings
+
+
+def check_speed(readings):
+    """Score SERVER RESPONSE TIMING from the MEDIAN of SPEED_READINGS
+    homepage readings. This measures how fast the server answers our
+    scanner; it is not a full browser page-load measurement. The
+    bands are deliberately wide - three steps per component - so
+    ordinary timing jitter cannot swing the score; a genuinely slow
+    site still lands at the bottom."""
     w = WEIGHTS["page_speed"]
 
-    def band(v, good, ok, bad):
+    def band(v, good, ok):
         if v is None:
             return 0.0
         if v <= good:
             return 1.0
         if v <= ok:
-            return 0.6
-        if v <= bad:
-            return 0.3
+            return 0.5
         return 0.0
 
-    ttfb_s = band(ttfb, 0.6, 1.2, 2.5)
-    total_s = band(total, 1.5, 3.0, 6.0)
+    triples = [(r[0], r[1], r[2] if len(r) > 2 else None) for r in readings]
+    ttfbs = [r[0] for r in triples]
+    totals = [r[1] for r in triples]
+    med_ttfb = _median3(ttfbs)
+    med_total = _median3(totals)
+    ttfb_s = band(med_ttfb, 1.0, 3.0)
+    total_s = band(med_total, 2.5, 6.0)
     score = w * 0.5 * (ttfb_s + total_s)
-    ttfb_str = f"{ttfb:.2f}s" if ttfb is not None else "n/a"
-    detail = f"TTFB {ttfb_str}, total fetch {total:.2f}s"
-    status = "pass" if (ttfb_s == 1.0 and total_s == 1.0) else ("partial" if score >= w * 0.5 else "fail")
+
+    def fmt(v):
+        return f"{v:.2f}s" if v is not None else "no response"
+
+    detail = (f"TTFB median {fmt(med_ttfb)} (readings: "
+              + ", ".join(fmt(v) for v in ttfbs)
+              + f"); total median {fmt(med_total)} (readings: "
+              + ", ".join(fmt(v) for v in totals)
+              + ") \u2014 median of 3 readings")
+    fails = [f"reading {i + 1}: {reason}"
+             for i, (_t, _tt, reason) in enumerate(triples) if reason]
+    if fails:
+        detail += "; failed readings \u2014 " + ", ".join(fails)
+    detail += (" \u2014 server response timing measured by our scanner; "
+               "not a full browser page-load measure")
+    status = "pass" if score >= w else ("partial" if score >= w * 0.5 else "fail")
     return score, status, detail
 
 
@@ -1039,6 +1465,15 @@ def run_audit(raw_url):
         # parallel at the deep-page timeout while the clock allows.
         sitemap_text = sitemap_r[2] if (sitemap_r[0] and sitemap_r[1] == 200) else ""
         schema_pages = [("homepage", html)]
+        # Final v4: per-page status is recorded for every selected page
+        # (ok / not_found / soft_404 / duplicate / truncated / failed /
+        # skipped); a selected page that failed or was truncated makes
+        # the affected checks UNCERTAIN via incomplete_reasons - never
+        # silently scored as a verified absence.
+        scanned_pages = [{"url": base + "/",
+                          "status": "ok" if homepage_ok else "failed"}]
+        ai_status = (ai_info_link_status(base, html, sitemap_text)
+                     if homepage_ok else "unknown (homepage unreadable)")
         inner_fetched = []
         if homepage_ok:
             candidates = discover_schema_pages(base, html, sitemap_text)
@@ -1047,28 +1482,53 @@ def run_audit(raw_url):
                     futs = {ex2.submit(fetch, session, u, timeout=TIMEOUT_DEEP): u
                             for u in candidates}
                     inner_results = {u: f.result() for f, u in futs.items()}
-                unreachable = 0
+                uncertain = 0
+                seen_hashes = {hashlib.sha256(
+                    html.encode("utf-8", "replace")).hexdigest()}
                 for cand in candidates:
                     cok, cstatus, chtml, _ct, _cttfb, cerr = inner_results[cand]
                     if cok and cstatus == 200 and chtml and chtml.strip():
+                        if _is_soft_404(chtml):
+                            scanned_pages.append({"url": cand, "status": "soft_404"})
+                            continue
+                        digest = hashlib.sha256(
+                            chtml.encode("utf-8", "replace")).hexdigest()
+                        if digest in seen_hashes:
+                            # A redirect landed on an already-scanned page.
+                            scanned_pages.append({"url": cand, "status": "duplicate"})
+                            continue
+                        seen_hashes.add(digest)
                         label = urlparse(cand).path or cand
                         schema_pages.append((label, chtml))
                         inner_fetched.append((label, chtml))
+                        truncated = (len(chtml.encode("utf-8", "replace"))
+                                     >= MAX_BYTES - 1024)
+                        scanned_pages.append(
+                            {"url": cand,
+                             "status": "truncated" if truncated else "ok"})
+                        if truncated:
+                            uncertain += 1
                     elif cok and cstatus == 404:
-                        pass  # page does not exist - negative result, not a gap
+                        # Page does not exist - negative result, not a gap.
+                        scanned_pages.append({"url": cand, "status": "not_found"})
                     else:
-                        unreachable += 1
+                        uncertain += 1
+                        scanned_pages.append({"url": cand, "status": "failed"})
                         errors.append(f"schema page fetch failed ({cand}): "
                                       f"{cerr or 'HTTP ' + str(cstatus)}")
-                if not inner_fetched and unreachable:
-                    # A page that appears to exist could not be read, so
-                    # credited schema may have been missed. (All-404
-                    # candidates mean the site has no such pages;
-                    # homepage-only is then a complete measurement.)
+                if uncertain:
                     incomplete_reasons.append(
-                        "schema check: inner page(s) unreachable (homepage only)")
+                        "schema/pricing checks: selected inner page(s) failed "
+                        "or were truncated - findings are 'within the "
+                        "scanned pages' only")
             elif candidates:
                 errors.append("schema inner pages skipped (time budget \u2014 homepage only)")
+                for cand in candidates:
+                    scanned_pages.append({"url": cand, "status": "skipped"})
+                incomplete_reasons.append(
+                    "schema/pricing checks: selected inner page(s) not "
+                    "scanned (time budget) - findings are 'within the "
+                    "scanned pages' only")
 
         checks = []
         s, st, d = check_robots(robots_r)
@@ -1078,7 +1538,8 @@ def run_audit(raw_url):
         s, st, d = check_sitemap(sitemap_r)
         checks.append(("sitemap", "sitemap.xml present", s, st, d))
         if homepage_ok:
-            s, st, d = check_jsonld_pages(schema_pages)
+            s, st, d = check_jsonld_pages(
+                schema_pages, site_host=urlparse(base).netloc)
         else:
             s, st, d = 0.0, "fail", "homepage content unavailable \u2014 schema check incomplete"
         checks.append(("schema_jsonld", "schema.org JSON-LD", s, st, d))
@@ -1112,10 +1573,11 @@ def run_audit(raw_url):
             s, st, d = check_bot_wall(pages)
             checks.append(("bot_wall", "no bot-wall / CAPTCHA", s, st, d))
         if homepage_ok:
-            s, st, d = check_speed(ttfb, total)
+            readings = speed_readings(session, base + "/", (ttfb, total))
+            s, st, d = check_speed(readings)
         else:
             s, st, d = 0.0, "fail", "homepage did not load \u2014 no speed measurement (scan incomplete)"
-        checks.append(("page_speed", "page speed (TTFB + total)", s, st, d))
+        checks.append(("page_speed", "server response timing", s, st, d))
 
         # Platform feasibility (Caleb ruling 2026-10-21): detect the
         # platform and compute the $449 eligibility outcome for the
@@ -1174,6 +1636,8 @@ def run_audit(raw_url):
             "errors": errors,
             "complete": not incomplete_reasons,
             "incomplete_reasons": incomplete_reasons,
+            "ai_info_discoverable": ai_status,
+            "scanned_pages": scanned_pages,
             "duration_s": round(time.perf_counter() - t_start, 2),
         }
     except Exception as e:  # absolute last resort — never 500
