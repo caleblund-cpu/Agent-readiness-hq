@@ -197,6 +197,30 @@ body {
   margin-bottom: 0.6rem;
 }
 
+/* ---------- Testimonial ---------- */
+.testimonial blockquote {
+  margin: 0 auto;
+  max-width: 46rem;
+  text-align: center;
+}
+.testimonial .quote-text {
+  font-size: 1.45rem;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--ink);
+  margin: 0 0 1rem;
+}
+.testimonial .quote-attribution {
+  color: var(--muted);
+  margin: 0;
+}
+.testimonial .quote-attribution a {
+  color: var(--rose-dark);
+  font-weight: 600;
+  text-decoration: none;
+}
+.testimonial .quote-attribution a:hover { text-decoration: underline; }
+
 /* ---------- Cards ---------- */
 .cards {
   display: grid;
