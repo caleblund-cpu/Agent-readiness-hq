@@ -198,19 +198,17 @@ body {
 }
 
 /* ---------- Social proof band ---------- */
+/* Frozen static row while there are only a few reviews; the scrolling marquee resumes at 7 to 10 reviews. To re-enable: wrap the cards in .marquee > .marquee-track markup with the card set duplicated (second half aria-hidden), and restore the proofscroll animation on the track. */
 .proof-band { background:#fff7f8; padding:2.1rem 0 2.3rem; overflow:hidden; }
 .proof-band-label { text-align:center; text-transform:uppercase; letter-spacing:.14em; font-size:.78rem; font-weight:700; color:#c82846; margin:0 1rem 1.1rem; }
-.marquee { overflow:hidden; -webkit-mask-image:linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent); mask-image:linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent); }
-.marquee-track { display:flex; gap:1rem; width:max-content; padding:0 .5rem; animation:proofscroll 45s linear infinite; }
-.marquee:hover .marquee-track { animation-play-state:paused; }
-@keyframes proofscroll { to { transform:translateX(-50%); } }
-.proof-card { position:relative; flex:0 0 auto; width:335px; max-width:82vw; background:#fff; border:1px solid #f6dde1; border-radius:18px; box-shadow:0 10px 26px rgba(29,29,31,.07); padding:1.25rem 1.35rem 1.1rem; }
+.proof-row { display:flex; flex-wrap:wrap; gap:1rem; justify-content:center; padding:0 .5rem; }
+.proof-card { position:relative; display:flex; flex-direction:column; flex:0 0 auto; width:335px; max-width:82vw; background:#fff; border:1px solid #f6dde1; border-radius:18px; box-shadow:0 10px 26px rgba(29,29,31,.07); padding:1.25rem 1.35rem 1.1rem; }
 .proof-card blockquote { margin:0 0 .8rem; font-size:1.02rem; line-height:1.5; color:var(--ink,#1d1d1f); }
+.proof-card .proof-attr { margin-top:auto; }
 .proof-card .who { font-weight:700; font-size:.95rem; }
 .proof-card .biz { color:var(--muted,#55565c); font-size:.88rem; }
 .proof-card .biz a { color:var(--rose-dark); font-weight:600; text-decoration:none; }
 .proof-card .biz a:hover { text-decoration:underline; }
-@media (prefers-reduced-motion: reduce) { .marquee-track { animation:none; flex-wrap:wrap; width:auto; justify-content:center; } }
 
 /* ---------- Cards ---------- */
 .cards {
