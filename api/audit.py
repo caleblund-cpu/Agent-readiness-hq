@@ -55,12 +55,16 @@ from urllib.parse import parse_qs, urlparse, urljoin, urlencode
 
 import requests
 
-VERSION = "5.0-api"
-SCORING_VERSION = "v5"   # scoring rules version; stamped on every
+VERSION = "6.0-api"
+SCORING_VERSION = "v6"   # scoring rules version; stamped on every
                          # report so scores from different scoring
                          # versions are never mixed
 UA = "AgentReadinessAudit/1.0 (machine-readability audit; single fetch)"
 TIMEOUT = 4          # per-fetch timeout (seconds) — tight for serverless
+LLMS_RETRY_TIMEOUT = 12   # llms.txt second attempt after a first-fetch
+                          # timeout (scoring v6); a file that still
+                          # cannot be fetched is UNVERIFIED
+                          # (uncertain), never a measured absence
 TIMEOUT_DEEP = 3     # deep-page fetch gets a shorter budget
 TIME_BUDGET = 5.5    # skip the deep page once this many seconds have elapsed
 SCHEMA_MAX_PAGES = 4        # homepage + at most 3 inner pages (schema)
@@ -724,10 +728,21 @@ def check_robots(result):
 
 # ----------------------------------------------------------------- llms.txt ---
 def check_llms_txt(result):
+    """llms.txt presence (scoring v6). Retrieval outcomes are kept
+    distinct, matching the robots rule: an HTTP response is a
+    measured result (a non-200 status is a genuinely absent file and
+    fails; a 200 body is scored on its content), but a fetch that
+    never completed proves nothing about the file - status
+    "uncertain", no credit, and run_audit flags the scan incomplete.
+    The timeout retry itself happens in run_audit, which re-fetches
+    at LLMS_RETRY_TIMEOUT before this check sees the result (the v5
+    rule scored a transient timeout on a file that exists as a
+    fail, flipping a complete scan by the check's full weight)."""
     w = WEIGHTS["llms_txt"]
     ok, status, text, _t, _ttfb, err = result
     if not ok:
-        return 0.0, "fail", f"could not fetch /llms.txt ({err})"
+        return 0.0, "uncertain", (f"could not fetch /llms.txt ({err}); "
+                                  "llms.txt presence could not be verified")
     if status != 200:
         return 0.0, "fail", f"/llms.txt returned HTTP {status}"
     if _is_html_document(text):
@@ -1341,7 +1356,15 @@ def check_jsonld(html):
 
 
 # ------------------------------------------------- schema page discovery ---
-_AI_INFO_PATHS = ("/ai-information", "/ai-info")
+_AI_INFO_PATHS = ("/ai-information", "/ai-info", "/pages/ai-information")
+# Scoring v6: when no AI Information page is discovered in the
+# sitemap or homepage links, these paths are probed directly, in
+# order - the canonical path, Shopify's /pages/ prefix, and the
+# short form. (v5 probed only /ai-information, which 404s on
+# Shopify stores, so a correctly published page earned no credit
+# until the sitemap caught up with the publish.)
+_AI_INFO_PROBE_PATHS = ("/ai-information", "/pages/ai-information",
+                        "/ai-info")
 _PRICING_PATH_WORDS = ("pricing", "price", "plans", "packages", "rates",
                        "services", "service", "work-with", "workwith",
                        "book", "offers", "shop", "store", "products",
@@ -1415,21 +1438,25 @@ def discover_schema_pages(base, homepage_html, sitemap_text=""):
     """Up to SCHEMA_MAX_PAGES - 1 inner-page URLs worth scanning:
     the AI Information page first, then FAQ and service/pricing
     coverage, selected DETERMINISTICALLY (bucket priority, then path)
-    from the sitemap and homepage links. The canonical /ai-information
-    path is always probed when no AI page is linked - it is the page
+    from the sitemap and homepage links. When no AI page is linked,
+    the _AI_INFO_PROBE_PATHS are probed directly - it is the page
     this audit's own fixes install, and sitemaps can lag a fresh
-    publish. Remaining slots are filled by the next-best candidates
-    in bucket order rather than left empty."""
+    publish. Probe misses are recorded not_found and do not consume
+    content-page slots (the return cap grows by the number of extra
+    probe paths). Remaining slots are filled by the next-best
+    candidates in bucket order rather than left empty."""
     by_path = _schema_candidates(base, homepage_html, sitemap_text)
     per_bucket = {b: [] for b in _BUCKET_ORDER}
     for path in sorted(by_path, key=lambda p: p.lower()):
         bucket, url = by_path[path]
         per_bucket[bucket].append(url)
     picked = []
+    probing = False
     if per_bucket["ai"]:
         picked.append(per_bucket["ai"].pop(0))
     else:
-        picked.append(base + "/ai-information")
+        probing = True
+        picked.extend(base + p for p in _AI_INFO_PROBE_PATHS)
     for bucket in ("faq", "pricing"):
         if per_bucket[bucket]:
             picked.append(per_bucket[bucket].pop(0))
@@ -1444,7 +1471,10 @@ def discover_schema_pages(base, homepage_html, sitemap_text=""):
         if key not in seen:
             seen.add(key)
             out.append(u)
-    return out[:SCHEMA_MAX_PAGES - 1]
+    cap = SCHEMA_MAX_PAGES - 1
+    if probing:
+        cap += len(_AI_INFO_PROBE_PATHS) - 1
+    return out[:cap]
 
 
 def ai_info_link_status(base, homepage_html, sitemap_text=""):
@@ -1787,6 +1817,13 @@ def run_audit(raw_url):
             home = f_home.result()
             robots_r, llms_r, sitemap_r = f_robots.result(), f_llms.result(), f_sitemap.result()
 
+        if not llms_r[0] and llms_r[5] and "timeout" in llms_r[5]:
+            # Scoring v6: one longer-timeout retry for llms.txt, so
+            # a transient timeout on a slow host is not scored as a
+            # confirmed absence (the robots rule, extended to llms).
+            llms_r = fetch(session, base + "/llms.txt",
+                           timeout=LLMS_RETRY_TIMEOUT)
+
         ok_h, st_h, html, total, ttfb, err_h = home
         homepage_ok = bool(ok_h and st_h == 200 and html and html.strip())
         incomplete_reasons = []
@@ -1887,6 +1924,11 @@ def run_audit(raw_url):
                 "robots.txt could not be verified - crawler posture unmeasured")
         checks.append(("robots_ai_posture", "robots.txt AI-crawler posture", s, st, d))
         s, st, d = check_llms_txt(llms_r)
+        if st == "uncertain":
+            # Scoring v6: an unverifiable llms.txt flags the scan
+            # incomplete - never silently a pass, never a measured fail.
+            incomplete_reasons.append(
+                "llms.txt could not be verified - presence unmeasured")
         checks.append(("llms_txt", "llms.txt present", s, st, d))
         s, st, d = check_sitemap(sitemap_r)
         checks.append(("sitemap", "sitemap.xml present", s, st, d))
