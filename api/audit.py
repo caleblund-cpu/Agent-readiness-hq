@@ -4497,6 +4497,7 @@ class handler(BaseHTTPRequestHandler):
             "packet.html": "text/html; charset=utf-8",
             "ai-info.html": "text/html; charset=utf-8",
             "widget-test.html": "text/html; charset=utf-8",
+            "widget-demo-hvac.html": "text/html; charset=utf-8",
         "information.html": "text/html; charset=utf-8",
         "information-packet.b64": "text/plain; charset=utf-8",
             "blog.html": "text/html; charset=utf-8",
