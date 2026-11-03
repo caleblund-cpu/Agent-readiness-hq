@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Website Question Widget Test | Agent Readiness HQ</title>
+<meta name="description" content="A working test of a website question widget, answering visitor questions about Agent Readiness HQ from a fixed set of facts.">
+<link rel="stylesheet" href="styles.v7.css">
+<style>
+.page-wrap { max-width: 52rem; margin: 0 auto; padding: 3rem 1.25rem 4rem; }
+.page-wrap h1 { font-size: 2rem; letter-spacing: -0.02em; line-height: 1.2; margin-bottom: 1.25rem; }
+.page-wrap p { line-height: 1.7; }
+.wt-card { background: #fff; border: 1px solid #e5e5ea; border-radius: 20px; box-shadow: 0 18px 50px rgba(29,29,31,.10); overflow: hidden; margin-top: 1.75rem; }
+.wt-head { background: var(--ink); color: #fff; padding: 1rem 1.25rem; }
+.wt-head h2 { color: #fff; margin: 0; font-size: 1.15rem; }
+.wt-head p { color: rgba(255,255,255,.75); margin: .25rem 0 0; font-size: .9rem; line-height: 1.5; }
+.wt-msgs { padding: 1rem 1.25rem .25rem; display: flex; flex-direction: column; gap: .6rem; max-height: 430px; overflow-y: auto; }
+.wt-msg { padding: .65rem .9rem; border-radius: 14px; line-height: 1.55; font-size: .98rem; max-width: 92%; }
+.wt-msg.bot { background: #f5f5f7; align-self: flex-start; }
+.wt-msg.user { background: var(--rose); color: #fff; align-self: flex-end; }
+.wt-lead { background: #fff7f9; border: 1px solid #f0c3cd; border-radius: 14px; padding: 1rem; align-self: stretch; }
+.wt-lead p { margin: 0 0 .6rem; font-size: .95rem; }
+.wt-lead label { display: block; font-size: .85rem; margin: .55rem 0 .25rem; color: var(--muted); }
+.wt-lead input { width: 100%; box-sizing: border-box; padding: .65rem .8rem; border: 1px solid #d9d9de; border-radius: 10px; font-size: 1rem; font-family: inherit; }
+.wt-lead button { margin-top: .8rem; }
+.wt-lead .wt-hint { color: #b00020; font-size: .88rem; margin-top: .5rem; }
+.wt-chips { padding: .75rem 1.25rem .25rem; display: flex; flex-wrap: wrap; gap: .5rem; }
+.wt-chip { border: 1px solid #d9d9de; background: #fff; border-radius: 999px; padding: .45rem .9rem; font-size: .9rem; cursor: pointer; font-family: inherit; color: var(--ink); }
+.wt-chip:hover { border-color: var(--rose); color: var(--rose); }
+.wt-form-row { display: flex; gap: .6rem; padding: .9rem 1.25rem 1.25rem; }
+.wt-form-row input { flex: 1; min-width: 0; padding: .8rem 1rem; border: 1px solid #d9d9de; border-radius: 12px; font-size: 1rem; font-family: inherit; color: var(--ink); }
+.wt-form-row input:focus { outline: none; box-shadow: 0 0 0 4px rgba(255,77,109,.35); border-color: var(--rose); }
+.wt-note { font-size: .9rem; color: var(--muted); margin-top: 1rem; }
+.wt-log { margin-top: 2.5rem; }
+.wt-log h2 { font-size: 1.35rem; margin-bottom: .5rem; }
+.wt-log ul { list-style: none; margin: 0; padding: 0; }
+.wt-log li { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; padding: .55rem 0; border-bottom: 1px solid #eee; }
+.wt-badge { font-size: .78rem; padding: .18rem .6rem; border-radius: 999px; white-space: nowrap; background: #e8f6ee; color: #146c2e; }
+.wt-badge.un { background: #fdf0e0; color: #8a5a00; }
+.wt-badge.lead { background: #e8effe; color: #274b9f; }
+@media (max-width: 560px) {
+  .wt-form-row { flex-direction: column; }
+  .wt-form-row .btn { width: 100%; }
+  .wt-msg { max-width: 100%; }
+}
+</style>
+</head>
+<body>
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="wordmark" href="/"><svg width="30" height="30" viewBox="0 0 48 48" fill="none" style="vertical-align:-8px;margin-right:9px" aria-hidden="true"><rect x="5" y="5" width="38" height="38" rx="10" stroke="#1d1d1f" stroke-width="5"/><path d="M15.5 25 L22 31.5 L33.5 17.5" stroke="#ff4d6d" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Agent Readiness <span class="hq">HQ</span></a>
+    <a href="/#cta" class="btn btn-small"><span class="btn-full">Get your free scan</span><span class="btn-short">Free scan</span></a>
+  </div>
+</header>
+<main class="page-wrap">
+<h1>Website question widget: test page</h1>
+<p>This page is a working test of a question widget for a business website. A visitor types a question, and the widget answers on the spot from a fixed set of facts about the business.</p>
+<p>Try it below. Ask about the free scan, the $149 Audit, the $449 Done For You, or AI Page Monitoring. If the widget does not have an answer, it will ask for your details instead, and the demo log under the widget records every question asked and what happened to it.</p>
+
+<div class="wt-card">
+  <div class="wt-head">
+    <h2>Agent Readiness HQ test assistant</h2>
+    <p>Answers questions about Agent Readiness HQ from a prepared set of facts. Test version.</p>
+  </div>
+  <div class="wt-msgs" id="wt-msgs">
+    <div class="wt-msg bot">Hello. Ask me about the free scan, the $149 Audit, the $449 Done For You, or AI Page Monitoring at $19.99 per month.</div>
+  </div>
+  <div class="wt-chips">
+    <button type="button" class="wt-chip" data-q="What does the free scan check?">What does the free scan check?</button>
+    <button type="button" class="wt-chip" data-q="What do I get with Done For You?">What do I get with Done For You?</button>
+    <button type="button" class="wt-chip" data-q="How much is monitoring?">How much is monitoring?</button>
+    <button type="button" class="wt-chip" data-q="Will this get me more customers?">Will this get me more customers?</button>
+  </div>
+  <form class="wt-form-row" id="wt-form">
+    <input id="wt-input" type="text" placeholder="Type your question" autocomplete="off" aria-label="Type your question">
+    <button class="btn" type="submit">Ask</button>
+  </form>
+</div>
+<p class="wt-note">Demo note: this test widget answers from a prepared set of facts, not a live AI model, and nothing typed here is sent or stored anywhere. In the live product, a question the widget cannot answer goes straight to the business with the visitor's contact details.</p>
+
+<div class="wt-log">
+<h2>Demo question log</h2>
+<p id="wt-log-summary">No questions yet. Every question asked in this session appears here with its outcome. In the live product, this log is the business owner's view of what visitors asked.</p>
+<ul id="wt-log-list"></ul>
+</div>
+</main>
+<footer class="site-footer">
+  <div class="container">
+    <p><strong>Agent Readiness HQ</strong>: helping businesses make their websites easier for AI systems to access, understand, and accurately interpret. A Colorado-based, family-run business. <a href="/">agentreadinesshq.com</a> &middot; <a href="/blog.html">Blog</a> &middot; <a href="/pricing-faq.html">Pricing &amp; FAQs</a> &middot; <a href="/support.html">FAQs &amp; Support</a> &middot; <a href="/terms.html">Terms of Service</a> &middot; <a href="/privacy.html">Privacy Policy</a></p>
+    <p class="footer-social" style="margin-top:10px"><a href="https://x.com/getagentready" target="_blank" rel="noopener" aria-label="Agent Readiness HQ on X" style="display:inline-flex;align-items:center;gap:7px;color:#6e6e73;text-decoration:none"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.9 2.1h3.4l-7.4 8.5 8.7 11.3h-6.8l-5.3-6.8-6.1 6.8H2l7.9-9.1L1.6 2.1H8.6l4.8 6.2 5.5-6.2zm-1.2 17.7h1.9L7.6 4H5.6l12.1 15.8z"/></svg><span>@getagentready</span></a></p>
+<style>.footer-social a:hover{color:#e63a5c}</style>
+  </div>
+</footer>
+<script>
+/*
+  Agent Readiness HQ test assistant.
+  Demo only: answers come from the prepared knowledge set below, matched
+  by keywords and phrases. There is no live AI model behind this test.
+*/
+var WT_KB = [
+  { id: "greeting",
+    patterns: [["hello", 6], ["hi", 6], ["hey", 6], ["good morning", 6], ["good afternoon", 6]],
+    answer: "Hello. Ask me anything about Agent Readiness HQ: the free scan, the $149 Audit, the $449 Done For You, or AI Page Monitoring at $19.99 per month." },
+  { id: "thanks",
+    patterns: [["thanks", 6], ["thank you", 6]],
+    answer: "You are welcome. If another question comes up, ask here any time, or email hello@agentreadinesshq.com." },
+  { id: "scan_checks",
+    patterns: [["what does the free scan check", 10], ["seven checks", 8], ["list the checks", 8], ["what do you check", 7], ["what is checked", 6], ["the checks", 4], ["checks", 2]],
+    answer: "The free scan runs seven checks: (1) whether AI crawlers are allowed to read your site, (2) whether you have an llms.txt file, a short plain text introduction written for AI systems, (3) whether your site has a sitemap, the map that lists your pages, (4) whether your key facts are in structured data, machine readable labels an AI system can quote accurately, (5) whether your prices appear in the page itself, where a machine can read them, (6) whether anything blocks automated visitors at the door, and (7) how fast your pages answer." },
+  { id: "scan_overview",
+    patterns: [["what does the scan do", 9], ["how does the scan work", 7], ["what is the scan", 6], ["free scan", 5], ["the scan", 3], ["scan", 1]],
+    answer: "The free scan looks at your website the way an AI system would and gives you a score from 0 to 100, with a plain English fix list for each of the seven checks. It runs right on our homepage, and it takes under a minute." },
+  { id: "scan_free",
+    patterns: [["is the scan free", 8], ["how much is the scan", 8], ["is it free", 6], ["cost of the scan", 6], ["scan cost", 6], ["free", 3]],
+    answer: "Yes. The scan on our homepage is free, and it covers all seven checks with your score and a fix list. The paid options start only if you want the detailed Audit at $149, or want us to do the work for you at $449." },
+  { id: "scan_time",
+    patterns: [["how long does the scan take", 9], ["how fast is the scan", 7], ["how long is the scan", 7], ["scan take", 5], ["how long", 2]],
+    answer: "The scan itself runs in under a minute. You enter your website address on our homepage and get your score and fix list right away." },
+  { id: "score",
+    patterns: [["what does my score mean", 8], ["how is the score calculated", 8], ["how do you score", 6], ["score", 4], ["grading", 4], ["grade", 3]],
+    answer: "Your score runs from 0 to 100 across the seven checks. Each check covers one part of how easily AI systems can read your site, and your results explain in plain English what each finding means and what could be done about it. The score describes your website's machine readability only. It is not a rating of your business or your work." },
+  { id: "audit",
+    patterns: [["what does the audit include", 8], ["diy audit", 7], ["149", 6], ["audit include", 6], ["audit", 5], ["the audit", 5]],
+    answer: "The DIY Audit is $149. You get a detailed report on your site, a custom AI Information Page written from your verified business facts, and an Implementation Kit with the exact changes and code, each piece labeled with where it goes, plus a Word document you can copy and paste from. You publish the changes yourself, or hand them to your web person. Delivery is within 5 business days after your completed intake form." },
+  { id: "delivery_149",
+    patterns: [["how long does the audit take", 12], ["when do i get the audit", 7], ["how long for the audit", 7], ["audit delivered", 6], ["audit delivery", 6], ["how long", 2]],
+    answer: "The $149 Audit is delivered within 5 business days after your completed intake form. It often lands sooner, but 5 business days is the promise we plan around." },
+  { id: "dfy",
+    patterns: [["done for you include", 8], ["what does done for you", 7], ["done for you", 7], ["449", 6], ["dfy", 6]],
+    answer: "Done For You is $449, and it includes everything in the $149 Audit. On top of that, we publish your AI Information Page for you and carry out up to five approved fixes on your site. Nothing changes until you sign an authorization that lists the exact changes, and you give us temporary access only for that work. When we finish, you get a before and after report showing what changed and your new score." },
+  { id: "delivery_449",
+    patterns: [["how long does the 449", 12], ["how long does done for you take", 12], ["449 take", 7], ["how long for done for you", 7], ["done for you take", 6], ["when will done for you", 6], ["how long", 2]],
+    answer: "Done For You takes up to 10 business days once three things are all in: your completed intake, your signed authorization, and working access to your site. The clock starts when the last of the three arrives." },
+  { id: "difference",
+    patterns: [["149 or 449", 8], ["audit or done for you", 8], ["audit and done for you", 8], ["difference between", 7], ["which should i", 6], ["difference", 5], ["which one", 3], ["vs", 3]],
+    answer: "The $149 Audit gives you the report, your AI Information Page, and the instructions and code to publish the changes yourself. The $449 Done For You includes all of that, and we do the publishing and up to five approved fixes for you. If you have a web person, the Audit may be all you need. If you would rather not touch the site, Done For You is the fit." },
+  { id: "upgrade",
+    patterns: [["upgrade", 7], ["switch to done for you", 6], ["300", 6], ["change my mind", 4]],
+    answer: "If you start with the $149 Audit and decide within 30 days that you want us to do the work, you can upgrade to Done For You for $300 more, so you never pay twice for the same ground." },
+  { id: "monitoring",
+    patterns: [["ai page monitoring", 8], ["19.99", 7], ["monitoring", 6], ["subscription", 3], ["per month", 3], ["monthly", 2]],
+    answer: "AI Page Monitoring is $19.99 per month. Each month we rescan your site, check that the facts on your AI Information Page are still accurate, compare the results with last month, and send you a short report called an AI Visibility Snapshot. It also covers approved small updates to your AI Information Page, up to three discrete changes a month. It is billed monthly through Stripe until you cancel." },
+  { id: "snapshot",
+    patterns: [["ai visibility snapshot", 9], ["snapshot", 7], ["monthly report", 5]],
+    answer: "An AI Visibility Snapshot is the monthly report that comes with AI Page Monitoring. It shows your latest scan results, whether the facts stated about your business are still accurate, how a sample of AI answers described your business that month, and one clear priority for what to look at next. The AI answers are sampled from one AI model through a data service, so they are a measured sample, not a picture of every answer everywhere." },
+  { id: "cancel",
+    patterns: [["how do i cancel", 9], ["cancel", 7], ["stop monitoring", 7], ["unsubscribe", 5]],
+    answer: "You can cancel AI Page Monitoring any time through the Stripe customer portal. The link to the portal is in your subscription confirmation email. Cancellation takes effect at the end of the paid period, and there is nothing else you need to do." },
+  { id: "platform",
+    patterns: [["godaddy", 7], ["squarespace", 7], ["wix", 7], ["wordpress", 7], ["kajabi", 7], ["shopify", 7], ["webflow", 7], ["duda", 7], ["website builder", 6], ["will it work on my site", 6], ["platform", 5], ["my site is on", 5]],
+    answer: "It depends on your website platform, and we check before you pay for Done For You. Some website builders limit what anyone can change. For example, structured data cannot be added on GoDaddy Website Builder, and Squarespace and Kajabi cannot place an llms.txt file at the root of a site. Where a limit exists, we tell you plainly before purchase, and your score may cap at a stated level on that platform. Most other fixes are still possible, and the $149 Audit covers everything that can be done on your platform." },
+  { id: "access",
+    patterns: [["how do you get into my site", 8], ["access to my site", 7], ["password", 7], ["credentials", 6], ["login", 5], ["log in", 5], ["access", 4]],
+    answer: "We never ask you to email us a password. Done For You access is usually a temporary user or collaborator invite on your platform, with only the permissions the work needs. If that route does not fit, there are other paths, including a guided session where you stay logged in, or a package that you or your web person applies while we verify the result from outside." },
+  { id: "authorization",
+    patterns: [["why do i need to sign", 8], ["authorization", 7], ["authorisation", 7], ["approve the changes", 5], ["approval", 4], ["sign", 3]],
+    answer: "Payment and authorization are two separate steps. Before we change anything on a Done For You site, you sign an authorization that lists the exact changes we will make. It protects you: we only ever make the changes on that list, and anything beyond it needs a new approval from you." },
+  { id: "ai_page",
+    patterns: [["what is an ai information page", 9], ["ai information page", 8], ["information page", 5]],
+    answer: "An AI Information Page is one page on your website that puts your key business facts in a single clear place: what you do, what you offer, your prices where you publish them, and how to reach you. It gives AI systems an accurate page to read and quote, and it is written from facts you verify first, never invented." },
+  { id: "llms",
+    patterns: [["llms", 8], ["llms txt", 8]],
+    answer: "An llms.txt file is a short plain text file that sits at the root of a website and introduces the business to AI systems: what it offers, where it works, and how to get in touch. It is one of the seven things our free scan checks for. Some website builders cannot host one, and where that is the case we say so plainly." },
+  { id: "guarantees",
+    patterns: [["more customers", 7], ["get me customers", 7], ["guarantee", 6], ["guaranteed", 6], ["rankings", 6], ["traffic", 6], ["leads", 6], ["ranking", 5], ["more business", 5], ["will this help", 4], ["promise", 4]],
+    answer: "No, and we will not pretend otherwise. We do not guarantee rankings, citations, traffic, or leads, and nobody honest can promise how an AI system will present your business. What we do is make the facts on your site clear and machine readable, which may help AI systems describe your business accurately instead of skipping it or getting it wrong." },
+  { id: "refund",
+    patterns: [["refund policy", 9], ["refund", 7], ["money back", 7]],
+    answer: "If you pay and never complete your intake, you can ask for a refund any time within 12 months of payment. Just email hello@agentreadinesshq.com. The full terms are on our Terms of Service page." },
+  { id: "started",
+    patterns: [["how do i start", 8], ["get started", 8], ["how do i sign up", 7], ["how do i buy", 7], ["sign up", 5], ["next step", 5], ["order", 3]],
+    answer: "Start with the free scan on our homepage: enter your website address and you will have your score in under a minute. From your results you can choose the $149 Audit or the $449 Done For You, and payment is by card through Stripe. Questions first? Email hello@agentreadinesshq.com." },
+  { id: "contact",
+    patterns: [["how do i contact", 7], ["talk to a human", 7], ["how do i reach", 7], ["contact", 6], ["email", 6], ["reach you", 6], ["real person", 6], ["phone", 5], ["support", 4]],
+    answer: "You can reach a person at hello@agentreadinesshq.com. That is the one email address for questions, support, and orders, and we read everything sent there." },
+  { id: "who",
+    patterns: [["who runs", 7], ["who are you", 6], ["where are you", 5], ["located", 5], ["colorado", 5], ["company", 3], ["family", 3]],
+    answer: "Agent Readiness HQ is a Colorado based, family run business, run by Lund Wiest Legacy LLC of Denver, Colorado. Our mailing address is 1500 N Grant St, Suite #12205, Denver, CO 80203." },
+  { id: "what_is",
+    patterns: [["what is agent readiness hq", 8], ["what is agent readiness", 8], ["what do you do", 7], ["what does agent readiness", 6], ["what is this", 5], ["tell me about", 3], ["your business", 2]],
+    answer: "Agent Readiness HQ helps businesses make their websites easier for AI systems to read and understand. More people now ask AI assistants to find and compare businesses, and if a site is hard for those systems to read, the business may be skipped or described wrong. We scan your site, explain what we find in plain English, and either give you the fixes or do them for you." },
+  { id: "prices",
+    patterns: [["how much do you charge", 8], ["what does it cost", 7], ["prices", 6], ["pricing", 6], ["how much", 4], ["fees", 4], ["cost", 3]],
+    answer: "Our prices are simple. The scan is free. The DIY Audit is $149. Done For You is $449, and it includes everything in the Audit. If you start with the Audit, you can upgrade within 30 days for $300 more. AI Page Monitoring is an optional $19.99 per month. Those are the only prices; there are no tiers or bundles to decode." }
+];
+var WT_THRESHOLD = 5;
+var WT_FALLBACK = "I do not have an answer to that one. Leave your name and a phone number or email with your question below, and a person will follow up. You can also email us any time at hello@agentreadinesshq.com.";
+
+function wtTokens(s) {
+  return String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").split(" ").filter(function (t) { return t.length > 0; });
+}
+function wtContainsSeq(hay, needle) {
+  if (!needle.length || needle.length > hay.length) return false;
+  for (var i = 0; i + needle.length <= hay.length; i++) {
+    var ok = true;
+    for (var j = 0; j < needle.length; j++) {
+      if (hay[i + j] !== needle[j]) { ok = false; break; }
+    }
+    if (ok) return true;
+  }
+  return false;
+}
+function wtAnswerFor(question) {
+  var tt = wtTokens(question);
+  var best = null, bestScore = 0;
+  for (var k = 0; k < WT_KB.length; k++) {
+    var item = WT_KB[k], sc = 0;
+    for (var m = 0; m < item.patterns.length; m++) {
+      if (wtContainsSeq(tt, wtTokens(item.patterns[m][0]))) sc += item.patterns[m][1];
+    }
+    if (sc > bestScore) { bestScore = sc; best = item; }
+  }
+  if (best && bestScore >= WT_THRESHOLD) return { intent: best.id, answer: best.answer, score: bestScore };
+  return null;
+}
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = { answerFor: wtAnswerFor, KB: WT_KB, FALLBACK: WT_FALLBACK };
+}
+
+if (typeof document !== "undefined") {
+  (function () {
+    var msgs = document.getElementById("wt-msgs");
+    var form = document.getElementById("wt-form");
+    var input = document.getElementById("wt-input");
+    var logList = document.getElementById("wt-log-list");
+    var logSummary = document.getElementById("wt-log-summary");
+    var log = [];
+
+    function scrollMsgs() { msgs.scrollTop = msgs.scrollHeight; }
+    function addMsg(text, who) {
+      var d = document.createElement("div");
+      d.className = "wt-msg " + who;
+      d.textContent = text;
+      msgs.appendChild(d);
+      scrollMsgs();
+      return d;
+    }
+    function renderLog() {
+      logList.innerHTML = "";
+      var answered = 0, unanswered = 0, leads = 0;
+      log.forEach(function (entry) {
+        if (entry.status === "Answered") answered++;
+        else if (entry.status === "Lead captured") leads++;
+        else unanswered++;
+        var li = document.createElement("li");
+        var q = document.createElement("span");
+        q.textContent = entry.q;
+        var b = document.createElement("span");
+        b.className = "wt-badge" + (entry.status === "Unanswered" ? " un" : entry.status === "Lead captured" ? " lead" : "");
+        b.textContent = entry.status;
+        li.appendChild(q);
+        li.appendChild(b);
+        logList.appendChild(li);
+      });
+      if (log.length) {
+        logSummary.textContent = log.length + (log.length === 1 ? " question" : " questions") +
+          " asked this session: " + answered + " answered, " + unanswered +
+          " unanswered, " + leads + " captured as a lead.";
+      }
+    }
+    function showLeadForm(question, entry) {
+      var box = document.createElement("div");
+      box.className = "wt-lead";
+      var p = document.createElement("p");
+      p.textContent = "Leave your details and a person will follow up with an answer.";
+      box.appendChild(p);
+      function field(labelText, type, value) {
+        var lab = document.createElement("label");
+        lab.textContent = labelText;
+        var inp = document.createElement("input");
+        inp.type = type;
+        if (value) inp.value = value;
+        box.appendChild(lab);
+        box.appendChild(inp);
+        return inp;
+      }
+      var nameIn = field("Your name", "text", "");
+      var contactIn = field("Phone or email", "text", "");
+      var qIn = field("Your question", "text", question);
+      var hint = document.createElement("p");
+      hint.className = "wt-hint";
+      hint.style.display = "none";
+      hint.textContent = "Please add your name and a phone number or email so we can reply.";
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "btn";
+      btn.textContent = "Send my question";
+      btn.addEventListener("click", function () {
+        var name = nameIn.value.trim();
+        var contact = contactIn.value.trim();
+        if (!name || !contact) { hint.style.display = "block"; return; }
+        entry.status = "Lead captured";
+        renderLog();
+        box.innerHTML = "";
+        var done = document.createElement("p");
+        done.textContent = "Thanks, " + name + ". Your question was captured. In the live product it would now be on its way to the business with your contact details, and it is marked as a lead in the log below.";
+        box.appendChild(done);
+        scrollMsgs();
+      });
+      box.appendChild(hint);
+      box.appendChild(btn);
+      msgs.appendChild(box);
+      scrollMsgs();
+    }
+    function ask(question) {
+      var q = String(question || "").trim();
+      if (!q) return;
+      addMsg(q, "user");
+      var res = wtAnswerFor(q);
+      if (res) {
+        addMsg(res.answer, "bot");
+        log.push({ q: q, status: "Answered" });
+        renderLog();
+      } else {
+        addMsg(WT_FALLBACK, "bot");
+        var entry = { q: q, status: "Unanswered" };
+        log.push(entry);
+        renderLog();
+        showLeadForm(q, entry);
+      }
+    }
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      var q = input.value;
+      input.value = "";
+      ask(q);
+      input.focus();
+    });
+    var chips = document.querySelectorAll(".wt-chip");
+    for (var c = 0; c < chips.length; c++) {
+      chips[c].addEventListener("click", function () { ask(this.getAttribute("data-q")); });
+    }
+  })();
+}
+</script>
+</body>
+</html>
