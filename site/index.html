@@ -53,6 +53,14 @@
     .scan-url-row { flex-direction: column; border-radius: 24px; }
     .scan-url-row .btn { width: 100%; }
   }
+
+  /* Social proof marquee: slow infinite scroll, pauses on hover */
+  .proof-marquee { flex-wrap:nowrap; justify-content:flex-start; padding:0; overflow:hidden; -webkit-mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent); mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent); }
+  .proof-track { display:flex; width:max-content; animation:proof-scroll 48s linear infinite; }
+  .proof-set { display:flex; gap:1rem; padding-right:1rem; }
+  .proof-marquee:hover .proof-track { animation-play-state:paused; }
+  @keyframes proof-scroll { from { transform:translateX(0); } to { transform:translateX(-50%); } }
+  @media (prefers-reduced-motion: reduce) { .proof-track { animation:none; } }
 </style>
 <script type="application/ld+json">
 {
@@ -181,14 +189,20 @@
     </div>
   </section>
 
-  <!-- Social proof band: frozen static row for now; scrolling resumes when there are 7 to 10 reviews -->
+  <!-- Social proof band: slow scrolling row (released by Caleb at 4 reviews, Nov 4) -->
   <section class="proof-band">
     <p class="proof-band-label">What our customers are saying</p>
-    <div class="proof-row">
+    <div class="proof-row proof-marquee"><div class="proof-track"><div class="proof-set">
       <div class="proof-card"><blockquote>&ldquo;Agent Readiness HQ raised my AI readiness score from 47.5 to 90 out of 100, a 89% improvement, and 90 is the highest score my platform allows!&rdquo;</blockquote><div class="proof-attr"><div class="who">Allison Blackwell</div><div class="biz"><a href="https://itsallisonblackwell.com">Blackwell Coaching</a></div></div></div>
       <div class="proof-card"><blockquote>&ldquo;My AI readiness score went up 38% with Agent Readiness HQ's Done For You build. It was easy and great working with them, and their reporting was excellent!&rdquo;</blockquote><div class="proof-attr"><div class="who">Rachael Lund</div><div class="biz"><a href="https://happywholeway.com">Happy Whole Way</a></div></div></div>
       <div class="proof-card"><blockquote>&ldquo;Very detailed and actionable guidance. The instructions were clear and easy to pass along to my team for implementation!&rdquo;</blockquote><div class="proof-attr"><div class="who">Kaleb Paddock</div><div class="biz"><a href="https://tentalentsfp.com">Ten Talents Financial Planning</a></div></div></div>
       <div class="proof-card"><blockquote>&ldquo;Agent Readiness HQ built us an AI Information Page that puts our business facts in one clear place and increased our free scan score from 59.5 to 93.3. Easy process!&rdquo;</blockquote><div class="proof-attr"><div class="who">Joe Bogner</div><div class="biz"><a href="https://getsmcoffee.com">South Metro Coffee Roasters</a></div></div></div>
+</div><div class="proof-set" aria-hidden="true">
+      <div class="proof-card"><blockquote>&ldquo;Agent Readiness HQ raised my AI readiness score from 47.5 to 90 out of 100, a 89% improvement, and 90 is the highest score my platform allows!&rdquo;</blockquote><div class="proof-attr"><div class="who">Allison Blackwell</div><div class="biz"><a href="https://itsallisonblackwell.com">Blackwell Coaching</a></div></div></div>
+      <div class="proof-card"><blockquote>&ldquo;My AI readiness score went up 38% with Agent Readiness HQ's Done For You build. It was easy and great working with them, and their reporting was excellent!&rdquo;</blockquote><div class="proof-attr"><div class="who">Rachael Lund</div><div class="biz"><a href="https://happywholeway.com">Happy Whole Way</a></div></div></div>
+      <div class="proof-card"><blockquote>&ldquo;Very detailed and actionable guidance. The instructions were clear and easy to pass along to my team for implementation!&rdquo;</blockquote><div class="proof-attr"><div class="who">Kaleb Paddock</div><div class="biz"><a href="https://tentalentsfp.com">Ten Talents Financial Planning</a></div></div></div>
+      <div class="proof-card"><blockquote>&ldquo;Agent Readiness HQ built us an AI Information Page that puts our business facts in one clear place and increased our free scan score from 59.5 to 93.3. Easy process!&rdquo;</blockquote><div class="proof-attr"><div class="who">Joe Bogner</div><div class="biz"><a href="https://getsmcoffee.com">South Metro Coffee Roasters</a></div></div></div>
+</div></div>
     </div>
   </section>
 
