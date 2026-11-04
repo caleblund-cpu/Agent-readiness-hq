@@ -6,8 +6,11 @@ POST /api/audit  with JSON body {"url": "https://example.com"}
 
 Optional lead fields in the same body — {"first_name": ..., "email": ...} —
 make the function email the visitor a copy of their results from
-hello@agentreadinesshq.com (see send_results_email below). That replaces
-the old FormSubmit _autoresponse, which never delivered. The send only
+hello@agentreadinesshq.com (see send_results_email below) and record the
+completed scan as a lead in the same inbox (see send_scan_lead_notice
+below). That replaces the old FormSubmit _autoresponse, which never
+delivered, and the later browser-side FormSubmit lead post, which could
+fail silently after the results email had already been sent. The send only
 happens when the RESULTS_SMTP_PASSWORD env var is configured; without it
 no email goes out (responses to lead-carrying requests report
 "email_sent": false, and all other responses are unchanged). A body field
@@ -2725,6 +2728,42 @@ def _packet_lead_message(email):
     return msg
 
 
+def _scan_lead_message(first_name, email, report):
+    """Internal lead record for a completed free scan.
+
+    Sent from hello@ to hello@ by the scan function itself, in the
+    same request that emails the visitor their results. Until
+    2026-11-03 the only hello@ lead notice came from a separate
+    fire-and-forget FormSubmit post in the visitor's browser after
+    the scan returned; when that post failed or never ran, the lead
+    existed nowhere in the inbox even though the server-side results
+    email had been sent (Joey Paynter, 2026-11-03). The subject keeps
+    the established "New free scan: <site>" form the signup watch
+    already searches for, and the body keeps the same field names
+    the FormSubmit table carried (name, email, website, score,
+    grade), so the watch needs no change.
+    """
+    site = report.get("url") or ""
+    score = _fmt_num(report.get("score"))
+    grade = ("Incomplete scan" if report.get("complete") is False
+             else (report.get("grade") or "?"))
+    msg = EmailMessage()
+    msg["From"] = RESULTS_FROM
+    msg["To"] = RESULTS_FROM
+    msg["Subject"] = f"New free scan: {site}"
+    msg.set_content(
+        "name: " + first_name + "\n"
+        "email: " + email + "\n"
+        "website: " + site + "\n"
+        "score: " + score + "\n"
+        "grade: " + grade + "\n\n"
+        f"message: {first_name} ({email}) ran a free scan on {site}: "
+        f"score {score}/100, grade {grade}.\n"
+        f"When: {datetime.now(timezone.utc).isoformat()}\n"
+        "Source: website free scan (server-side lead notice)")
+    return msg
+
+
 def _smtp_password():
     """The hello@ app password from the environment, whitespace-stripped.
 
@@ -2781,6 +2820,15 @@ def send_results_email(first_name, email, report):
     return _deliver_with_fallback(
         lambda: compose_results_email(first_name, email, report),
         password, "results email")
+
+
+def send_scan_lead_notice(first_name, email, report):
+    """Record a completed free scan as a lead in hello@. Never raises:
+    returns True only when the server accepted the notice. Uses the
+    same SMTP ladder as the results email (send_business_email)."""
+    return send_business_email(
+        lambda: _scan_lead_message(first_name, email, report),
+        "scan lead notice")
 
 
 def send_business_email(msg_factory, label):
@@ -4603,6 +4651,13 @@ class handler(BaseHTTPRequestHandler):
             _scan_lead_write(lead_email, report.get("url") or url,
                              report.get("business_name") or "")
         if first_name and lead_email and not suppress_email:
+            # The lead record is created here, server-side, in the
+            # same request as the results email, so it cannot be lost
+            # to a failed browser post after a successful scan. The
+            # browser no longer posts a duplicate notice to
+            # FormSubmit (see app.v4.js).
+            report["lead_notice_sent"] = send_scan_lead_notice(
+                first_name, lead_email, report)
             report["email_sent"] = send_results_email(
                 first_name, lead_email, report)
         self._send(200, report)

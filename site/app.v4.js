@@ -254,7 +254,6 @@
         }
         setStatus("");
         renderResults(out.body);
-        captureScanLead(firstName, leadEmail, out.body);
         storeScanForIntake(firstName, leadEmail, out.body);
         resultsEl.scrollIntoView({ behavior: "smooth", block: "start" });
       })
@@ -267,39 +266,17 @@
       });
   });
 
-  /* Scan lead capture: after a successful free scan, send the visitor's
-     first name, email, scanned site, and score to the business inbox via
-     FormSubmit (owner notification only). The visitor's own copy of the
-     results is emailed by the audit function itself (see the /api/audit
-     call above): FormSubmit's _autoresponse never delivered, so it was
-     removed here on 2026-10-19 — leaving it in would risk a duplicate
-     copy if that plugin is ever switched on. Fire-and-forget: a capture
-     failure never blocks or alters the on-page results. */
-  function captureScanLead(firstName, email, report) {
-    var score = report.score != null ? String(report.score) : "?";
-    var grade = report.complete === false ? "Incomplete scan" : (report.grade || "?");
-    var site = report.url || "";
-    var params = new URLSearchParams();
-    params.append("name", firstName);
-    params.append("email", email);
-    params.append("website", site);
-    params.append("score", score);
-    params.append("grade", grade);
-    params.append("_subject", "New free scan: " + site);
-    params.append("message", firstName + " (" + email + ") ran a free scan on "
-      + site + ": score " + score + "/100, grade " + grade + ".");
-    params.append("_template", "table");
-    fetch(FORMSUBMIT_URL, { method: "POST", body: params })
-      .catch(function (err) {
-        console.error("[Agent Readiness HQ] scan lead capture failed:", err);
-      });
-  }
+  /* Scan lead capture is server-side now (2026-11-03): the audit
+     function records the completed scan as a lead in hello@ in the
+     same request that emails the visitor their results. The former
+     browser-side FormSubmit post here was fire-and-forget and could
+     fail silently after a successful scan, losing the lead. */
 
   /* Remember the scan on this device so the post-payment
      initial-details page (/intake-149.html) can pre-fill from
      it. Same-device memory only: it never leaves the
      browser except inside the personalized intake link the visitor
-     opens themselves. Fire-and-forget, like the lead capture. */
+     opens themselves. Fire-and-forget. */
   function storeScanForIntake(firstName, email, report) {
     try {
       var data = {
