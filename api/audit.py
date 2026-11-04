@@ -1783,13 +1783,16 @@ def pick_deep_page(base, html):
 
 # --------------------------------------------------------------------- core ---
 def grade(score):
+    # Letter bands ruled by Caleb 2026-11-04: standard letter grades.
     if score >= 90:
         return "A"
-    if score >= 75:
+    if score >= 80:
         return "B"
-    if score >= 60:
+    if score >= 70:
         return "C"
-    return "F"  # anything under 60 is failing — no D grade
+    if score >= 60:
+        return "D"
+    return "F"
 
 
 def run_audit(raw_url):
@@ -2121,6 +2124,7 @@ _GRADE_CHIP_STYLE = {
     "A": ("#e3f4ea", "#146c43"),
     "B": ("#e3f4ea", "#146c43"),
     "C": ("#fdf1d7", "#8a5a00"),
+    "D": ("#fdebd0", "#945a00"),
     "F": ("#ffe0e7", "#c21847"),
 }
 
