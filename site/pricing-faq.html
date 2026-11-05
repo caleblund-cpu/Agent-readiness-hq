@@ -29,6 +29,11 @@
 .faq { margin: 0 auto; }
 .faq-group { font-size: 1.3rem; letter-spacing: -0.02em; margin: 2.2rem 0 1rem; font-weight: 800; }
 .faq-group:first-child { margin-top: 0; }
+.faq-search { margin: 0 0 1.6rem; }
+.faq-search input { width: 100%; box-sizing: border-box; padding: 0.85rem 1.1rem; font: inherit; font-size: 1rem; color: var(--ink); background: #fff; border: 1px solid var(--border); border-radius: 14px; }
+.faq-search input:focus { outline: none; border-color: var(--rose-dark); box-shadow: 0 0 0 3px var(--rose-soft); }
+.faq-no-results { display: none; color: var(--muted); font-size: 1rem; margin: 0.25rem 0 1rem; }
+.faq-no-results.show { display: block; }
 /* ---- design pass: flow devices ---- */
 .tier-diy { --tier: #ff4d6d; --tier-deep: #e63a5c; --tier-bg: #fff5f7; }
 .tier-dfy { --tier: #1d1d1f; --tier-deep: #1d1d1f; --tier-bg: #fdf0f2; }
@@ -263,6 +268,9 @@ a.tile:hover { transform: translateY(-5px); box-shadow: 0 18px 38px rgba(29, 29,
 <section class="section" id="faq">
 <div class="container">
       <h2 style="margin-bottom:2.25rem;">Frequently Asked Questions</h2>
+<div class="faq-search">
+<input id="faq-search-input" type="search" placeholder="Search questions by keyword" aria-label="Search questions by keyword" autocomplete="off">
+</div>
 <div class="faq">
 <h3 class="faq-group">The free scan and your score</h3>
 <details>
@@ -368,6 +376,7 @@ a.tile:hover { transform: translateY(-5px); box-shadow: 0 18px 38px rgba(29, 29,
 <p><strong>Making it complex.</strong> Plain English and clear implementation steps at every stage, so you always know what we found, what we propose, and what happens next.</p>
 </details>
 </div>
+<p class="faq-no-results" id="faq-no-results">No questions match your search. Try a different keyword.</p>
 <p>A question we have not covered? Email <a href="mailto:hello@agentreadinesshq.com">hello@agentreadinesshq.com</a> and we will answer it.</p>
 </div>
 </section>
@@ -440,6 +449,34 @@ a.tile:hover { transform: translateY(-5px); box-shadow: 0 18px 38px rgba(29, 29,
       });
     }, 2500);
   }
+})();
+</script>
+<script>
+(function () {
+  var input = document.getElementById('faq-search-input');
+  if (!input) return;
+  var items = Array.prototype.slice.call(document.querySelectorAll('.faq details'));
+  var groups = Array.prototype.slice.call(document.querySelectorAll('.faq-group'));
+  var note = document.getElementById('faq-no-results');
+  input.addEventListener('input', function () {
+    var q = input.value.trim().toLowerCase();
+    var visible = 0;
+    items.forEach(function (el) {
+      var match = !q || el.textContent.toLowerCase().indexOf(q) !== -1;
+      el.style.display = match ? '' : 'none';
+      if (match) visible++;
+    });
+    groups.forEach(function (g) {
+      var any = false;
+      var el = g.nextElementSibling;
+      while (el && el.tagName !== 'H3') {
+        if (el.tagName === 'DETAILS' && el.style.display !== 'none') { any = true; break; }
+        el = el.nextElementSibling;
+      }
+      g.style.display = any ? '' : 'none';
+    });
+    if (note) note.classList.toggle('show', q !== '' && visible === 0);
+  });
 })();
 </script>
 </body>
