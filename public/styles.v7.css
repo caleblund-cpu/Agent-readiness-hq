@@ -253,8 +253,8 @@ body {
 .card p { margin: 0; color: var(--muted); font-size: 0.99rem; }
 
 /* ---------- Pricing ---------- */
-.pricing-cards { align-items: stretch; }
-.price-card { display: flex; flex-direction: column; text-align: center; border: 2px solid var(--rose); padding: 2.2rem 1.75rem; box-shadow: 0 8px 28px rgba(255, 77, 109, 0.10); background: linear-gradient(180deg, #fff 0%, #fff9fb 100%); }
+.pricing-cards { align-items: stretch; gap: 2.25rem; margin-top: 2.9rem; }
+.price-card { position: relative; display: flex; flex-direction: column; text-align: center; border: 2px solid var(--rose); padding: 2.2rem 1.75rem; box-shadow: 0 8px 28px rgba(255, 77, 109, 0.10); background: linear-gradient(180deg, #fff 0%, #fff9fb 100%); }
 .price-card:hover { box-shadow: 0 16px 40px rgba(255, 77, 109, 0.16); }
 .price-card .pill {
   display: inline-block;
@@ -267,11 +267,17 @@ body {
   background: var(--rose-tint);
   border-radius: 999px;
   padding: 0.3rem 0.9rem;
-  margin: 0 0 1rem;
+  margin: 0;
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+  box-shadow: 0 6px 16px rgba(255, 77, 109, 0.30);
   min-height: 1.8rem;
 }
 .price-card .pill:empty { visibility: hidden; }
-.price-card h3 { font-size: 1.85rem; line-height: 1.25; min-height: 1em; margin: 0 0 0.45rem; }
+.price-card h3 { font-size: 2.05rem; line-height: 1.25; min-height: 1em; margin: 0 0 0.45rem; }
 .price-card .price {
   font-size: 2.6rem;
   font-weight: 800;
