@@ -4,6 +4,15 @@ POST /api/audit  with JSON body {"url": "https://example.com"}
 -> 200 with the same JSON report the CLI (audit/audit.py) produces:
    {tool, url, fetched_at, score, checks[], fixes[], errors[]}
 
+Optional competitor field in the same body — {"competitor_url": ...} —
+makes the function also run the same audit on that one competitor site
+and attach a compact "competitor" block (url, business name, score,
+grade, per-check name/score/weight/status) to the response. Best effort
+only: a bad or unreachable competitor never affects the visitor's own
+results, and the emailed results copy is unchanged (the comparison is
+shown on screen only; the internal lead notice notes the competitor
+and its score when one was scanned).
+
 Optional lead fields in the same body — {"first_name": ..., "email": ...} —
 make the function email the visitor a copy of their results from
 hello@agentreadinesshq.com (see send_results_email below) and record the
@@ -2785,6 +2794,14 @@ def _scan_lead_message(first_name, email, report):
     score = _fmt_num(report.get("score"))
     grade = ("Incomplete scan" if report.get("complete") is False
              else (report.get("grade") or "?"))
+    comp = report.get("competitor") or {}
+    comp_lines = ""
+    if comp.get("score") is not None:
+        comp_lines = ("competitor: " + str(comp.get("url") or "") + "\n"
+                      "competitor_score: " + _fmt_num(comp.get("score")) + "\n")
+    elif comp.get("url"):
+        comp_lines = ("competitor: " + str(comp.get("url"))
+                      + " (could not be scanned)\n")
     msg = EmailMessage()
     msg["From"] = RESULTS_FROM
     msg["To"] = RESULTS_FROM
@@ -2794,7 +2811,8 @@ def _scan_lead_message(first_name, email, report):
         "email: " + email + "\n"
         "website: " + site + "\n"
         "score: " + score + "\n"
-        "grade: " + grade + "\n\n"
+        "grade: " + grade + "\n"
+        + comp_lines + "\n"
         f"message: {first_name} ({email}) ran a free scan on {site}: "
         f"score {score}/100, grade {grade}.\n"
         f"When: {datetime.now(timezone.utc).isoformat()}\n"
@@ -4664,6 +4682,38 @@ class handler(BaseHTTPRequestHandler):
         if report.get("error") and not report.get("checks"):
             self._send(400, report)
             return
+        # Optional competitor scan (2026-11-05): when the scan form's
+        # competitor field rides along, run the same audit on that
+        # site and attach a compact comparison block for the on-page
+        # results. Best effort only, failure-isolated like the mail
+        # sends below: a bad or unreachable competitor never affects
+        # the visitor's own results, and no email is sent about the
+        # competitor (the visitor's emailed copy stays unchanged).
+        comp_url = ""
+        if isinstance(data, dict):
+            comp_url = str(data.get("competitor_url") or "").strip()[:300]
+        if comp_url:
+            comp = None
+            try:
+                comp = run_audit(comp_url)
+            except Exception:
+                comp = None
+            if comp and comp.get("checks") and comp.get("complete") is not False:
+                report["competitor"] = {
+                    "url": comp.get("url") or comp_url,
+                    "business_name": comp.get("business_name") or "",
+                    "score": comp.get("score"),
+                    "grade": comp.get("grade"),
+                    "complete": comp.get("complete", True),
+                    "checks": [
+                        {"name": c.get("name"), "score": c.get("score"),
+                         "weight": c.get("weight"), "status": c.get("status")}
+                        for c in comp.get("checks") or []],
+                }
+            else:
+                report["competitor"] = {
+                    "url": comp_url,
+                    "error": "competitor scan unavailable"}
         # Optional lead capture: when the scan form's first name + email
         # ride along, email the visitor their results copy from hello@.
         # Best effort only — a mail failure never fails the scan.

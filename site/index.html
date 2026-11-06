@@ -159,6 +159,29 @@
   .addon-line a { color: var(--rose-dark); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
   .addon-line a:hover { color: var(--rose); }
 </style>
+
+<style>
+/* Competitor scan (2026-11-05): the optional competitor question under
+   the free scan form, the slim versus line in the results, and the
+   condensed competitor results block at the bottom of the results. */
+.comp-q{margin-top:1.4rem;text-align:center;}
+.comp-q .comp-label{color:#fff;font-size:1.02rem;font-weight:600;margin-bottom:.7rem;}
+.comp-toggle{display:inline-flex;background:#26262a;border:1px solid #3a3a3e;border-radius:999px;overflow:hidden;}
+.comp-toggle button{background:transparent;border:0;color:#a7a7ad;font-size:.95rem;padding:.5rem 1.3rem;cursor:pointer;font-family:inherit;}
+.comp-toggle button.on{background:var(--rose);color:#fff;font-weight:600;}
+.comp-field{max-width:42rem;margin:.9rem auto 0;display:none;}
+.comp-field.show{display:block;}
+.comp-field input{width:100%;border:1px solid #3a3a3e;background:#26262a;color:#fff;border-radius:999px;padding:.95rem 1.25rem;font-size:1rem;font-family:inherit;}
+.comp-field input::placeholder{color:#8e8e93;}
+.vs-strip{display:flex;justify-content:center;align-items:baseline;gap:.7rem;margin-top:1rem;font-size:1.02rem;color:var(--muted);}
+.vs-strip strong{color:var(--ink);font-size:1.2rem;}
+.vs-mid{color:#8e8e93;font-size:.9rem;}
+.vs-note{text-align:center;color:#8e8e93;font-size:.85rem;margin-top:.35rem;}
+.comp-error{text-align:center;color:var(--muted);margin-top:1rem;font-size:.95rem;}
+.competitor-block{margin-top:2.2rem;border-top:2px solid #f0e9e6;padding-top:1.6rem;}
+.competitor-block .result-checks li{padding:.5rem 0;}
+.competitor-head{font-size:1.15rem;margin-bottom:1rem;text-align:center;}
+</style>
 </head>
 <body>
 
@@ -383,7 +406,7 @@
   <!-- CTA / free audit -->
   <section class="section cta" id="cta">
     <div class="container">
-      <p class="section-intro">Enter your website, first name, and email. We run the free 7-check scan right now and email your results to you.</p>
+      <p class="section-intro">Enter your website, first name, and email. We run the free 7-check scan right now.</p>
       <form id="audit-form" class="audit-form" aria-label="Run free scan">
         <div class="scan-lead">
           <label class="visually-hidden" for="scan-first-name">First name</label>
@@ -397,6 +420,15 @@
           <button type="submit" class="btn" id="audit-btn">Run my free scan</button>
         </div>
       </form>
+      <div class="comp-q">
+        <p class="comp-label">Would you like to scan a competitor?</p>
+        <div class="comp-toggle" role="group" aria-label="Scan a competitor">
+          <button type="button" id="comp-no">No</button><button type="button" id="comp-yes" class="on">Yes</button>
+        </div>
+        <div class="comp-field show" id="comp-field">
+          <input type="text" id="competitor-url" name="competitor-url" placeholder="https://competitor.com" autocomplete="url" inputmode="url" autocapitalize="none" autocorrect="off" spellcheck="false" aria-label="Competitor website">
+        </div>
+      </div>
       <p id="audit-status" class="audit-status" aria-live="polite"></p>
       <div id="audit-results" class="audit-results" hidden></div>
     </div>

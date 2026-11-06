@@ -94,6 +94,21 @@
     html += '<div class="score-url">' + esc(report.url) + "</div>";
     html += "</div>";
 
+    /* Competitor comparison (2026-11-05): one slim line under the
+       visitor's own score, scores only, nothing editorial. A failed
+       competitor scan shows one plain note instead; the visitor's
+       own results are never affected either way. */
+    var comp = report.competitor || null;
+    if (comp && comp.score != null) {
+      var compName = comp.business_name || comp.url || "Competitor";
+      html += '<div class="vs-strip"><span class="vs-you">You <strong>' + esc(report.score) + "</strong></span>";
+      html += '<span class="vs-mid">vs</span>';
+      html += '<span class="vs-them">' + esc(compName) + " <strong>" + esc(comp.score) + "</strong></span></div>";
+      html += '<p class="vs-note">The competitor you asked us to scan, ' + esc(comp.url) + ". Their full results are at the bottom of this page.</p>";
+    } else if (comp && comp.error) {
+      html += '<p class="comp-error">We could not scan that competitor site, so no comparison is shown. Your results below are unaffected.</p>';
+    }
+
     /* Conversion box (Caleb ruling 2026-10-22): immediately after the
        score, before the technical findings. Reassurance + the two
        options, buttons only (never whole-card links), each button
@@ -211,12 +226,74 @@
     /* Top fixes are hidden from the free audit - the specific fixes are
        what the $149 report sells. The free result shows the diagnosis
        (score + check breakdown); the prescription is paid. */
+    /* Competitor results (2026-11-05): a condensed block at the
+       very bottom, ring plus check names and scores only, so the
+       comparison never competes with the visitor's own results. */
+    if (comp && comp.score != null) {
+      var cpct = Math.max(0, Math.min(100, Number(comp.score) || 0));
+      var cring = cpct >= 80 ? "#16a34a" : cpct >= 60 ? "#d97706" : "#dc2626";
+      var ctarget = (2 * Math.PI * 54 * (1 - cpct / 100)).toFixed(1);
+      html += '<div class="competitor-block">';
+      html += '<h3 class="competitor-head">Competitor results: ' + esc(comp.business_name || comp.url || "Competitor") + "</h3>";
+      html += '<div class="score-block">';
+      html += '<div class="score-ring-wrap">';
+      html += '<svg class="score-ring" viewBox="0 0 120 120" aria-hidden="true">';
+      html += '<circle cx="60" cy="60" r="54" class="ring-bg"/>';
+      html += '<circle cx="60" cy="60" r="54" class="ring-fg" stroke="' + cring + '"';
+      html += ' style="--ring-c:' + circ + ';--ring-target:' + ctarget + '"';
+      html += ' stroke-dasharray="' + circ + '" stroke-dashoffset="' + circ + '"/>';
+      html += "</svg>";
+      html += '<div class="score-center"><div class="score-number">' + esc(comp.score) + "</div>";
+      html += '<div class="score-max">/ 100</div></div>';
+      html += "</div>";
+      if (comp.complete === false) {
+        html += '<div class="score-grade score-incomplete">Incomplete scan</div>';
+      } else {
+        html += '<div class="score-grade">Grade ' + esc(comp.grade || "-") + "</div>";
+      }
+      html += '<div class="score-url">' + esc(comp.url) + "</div>";
+      html += "</div>";
+      html += '<ul class="result-checks">';
+      (comp.checks || []).forEach(function (c) {
+        html += '<li class="check-' + esc(c.status) + '">';
+        html += '<span class="check-icon">' + (STATUS_ICON[c.status] || "?") + "</span> ";
+        html += "<strong>" + esc(c.name) + "</strong> ";
+        html += '<span class="check-score">' + esc(c.score) + "/" + esc(c.weight) + "</span>";
+        html += "</li>";
+      });
+      html += "</ul>";
+      html += "</div>";
+    }
+
     if ((report.errors || []).length) {
       html += '<p class="result-errors">Note: ' + esc(report.errors.join("; ")) + "</p>";
     }
     html += '<p class="result-correction">See something we missed or got wrong? Email us at <a href="mailto:hello@agentreadinesshq.com?subject=Audit%20correction">hello@agentreadinesshq.com</a></p>';
     resultsEl.innerHTML = html;
     resultsEl.hidden = false;
+  }
+
+  /* Competitor scan (2026-11-05): the optional Yes/No under the
+     scan form. Yes reveals the competitor field; the submit handler
+     reads it and rides it along with the scan request. Elements are
+     optional, so pages without the question stay unaffected. */
+  var compYes = document.getElementById("comp-yes");
+  var compNo = document.getElementById("comp-no");
+  var compField = document.getElementById("comp-field");
+  function setCompetitor(on) {
+    if (!compYes || !compNo || !compField) return;
+    compYes.classList.toggle("on", on);
+    compNo.classList.toggle("on", !on);
+    compField.classList.toggle("show", on);
+  }
+  if (compYes && compNo) {
+    compYes.addEventListener("click", function () { setCompetitor(true); });
+    compNo.addEventListener("click", function () { setCompetitor(false); });
+  }
+  function competitorUrl() {
+    var input = document.getElementById("competitor-url");
+    if (!input || !compField || !compField.classList.contains("show")) return "";
+    return input.value.trim();
   }
 
   auditForm.addEventListener("submit", function (e) {
@@ -243,7 +320,7 @@
       /* first_name + email ride along so the audit function can email
          the visitor their results copy from hello@ (server-side send;
          the FormSubmit _autoresponse never delivered). */
-      body: JSON.stringify({ url: url, first_name: firstName, email: leadEmail })
+      body: JSON.stringify({ url: url, first_name: firstName, email: leadEmail, competitor_url: competitorUrl() })
     })
       .then(function (resp) {
         return resp.json().then(function (body) {
