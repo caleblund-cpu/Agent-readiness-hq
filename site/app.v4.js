@@ -376,43 +376,6 @@
     }
   }
 
-  /* Information packet form (homepage): the packet is also a public
-     Information page; this form emails the PDF packet to the visitor
-     via /api/packet (Oct 24 ruling, Option A). The endpoint sends the
-     PDF from the business inbox and logs the request there as the
-     lead record. No redirect: the visitor stays on the page. */
-  if (emailForm) emailForm.addEventListener("submit", function (e) {
-    e.preventDefault();
-    var email = document.getElementById("email").value.trim();
-    if (!email) return;
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
-      emailNote.textContent = "Please enter a valid email address.";
-      return;
-    }
-    sendPacketRequest(email);
-  });
-
-  function sendPacketRequest(email) {
-    emailNote.textContent = "Sending\u2026";
-    fetch("/api/packet", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: email })
-    })
-      .then(function (resp) {
-        return resp.json().catch(function () { return {}; });
-      })
-      .then(function (body) {
-        if (!body || body.ok !== true) throw new Error("send failed");
-        emailNote.textContent = "Your packet is on its way to " + email
-          + ". Check your inbox, and your spam folder just in case.";
-        emailForm.reset();
-      })
-      .catch(function (err) {
-        console.error("[Agent Readiness HQ] packet request failed:", err);
-        emailNote.textContent = "Something went wrong sending your packet. Please try again, or email us at hello@agentreadinesshq.com.";
-      });
-  }
 
   var newsletterForm = document.getElementById("newsletter-form");
   var newsletterNote = document.getElementById("newsletter-note");

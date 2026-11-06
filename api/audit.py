@@ -2686,95 +2686,6 @@ def _deliver_results(msg, password, transport, label="results email"):
 
 
 
-_PACKET_PDF_B64_URL = "https://agentreadinesshq.com/information-packet.b64"
-_PACKET_PDF_CACHE = {}
-
-
-def _packet_pdf_bytes():
-    """Decode the information packet PDF (base64 copy served from the
-    site root), cached per warm instance. None when unavailable."""
-    if "pdf" in _PACKET_PDF_CACHE:
-        return _PACKET_PDF_CACHE["pdf"]
-    try:
-        resp = requests.get(_PACKET_PDF_B64_URL, timeout=15)
-        resp.raise_for_status()
-        pdf = base64.b64decode(resp.content)
-        if not pdf.startswith(b"%PDF"):
-            raise ValueError("packet payload is not a PDF")
-    except Exception as exc:
-        print(f"packet pdf fetch failed: {type(exc).__name__}: {exc}")
-        return None
-    _PACKET_PDF_CACHE["pdf"] = pdf
-    return pdf
-
-
-def _packet_html(email):
-    """HTML part for the packet email (added 2026-10-28): mirrors
-    the plain-text body in the shared shell, with the standard
-    footer in its hyperlink form. The text part stays as the
-    fallback and keeps the raw unsubscribe URL on its own line,
-    as plain text must."""
-    return """<!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Your Agent Readiness HQ information packet</title></head>
-<body style="margin:0; padding:0; background-color:#f7f2f0; font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; color:#1d1d1f;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f7f2f0;">
-<tr><td align="center" style="padding:28px 12px 36px 12px;">
-<table role="presentation" width="640" cellpadding="0" cellspacing="0" style="width:640px; max-width:640px; background-color:#ffffff; border:1px solid #f0dfe3; border-radius:16px;">
-<tr><td style="padding:36px 44px 40px 44px;">
-<span style="font-size:20px; font-weight:800; letter-spacing:-0.02em; color:#1d1d1f;">Agent Readiness <span style="color:#ff4d6d;">HQ</span></span>
-<div style="border-bottom:2px solid #ff4d6d; margin:20px 0 26px 0; font-size:0; line-height:0;">&nbsp;</div>
-<p style="font-size:15.5px; line-height:1.6; color:#333336; margin:0;">Thanks for your interest in Agent Readiness HQ.</p>
-<p style="font-size:15.5px; line-height:1.6; color:#333336; margin-top:14px;">Your information packet is attached as a PDF: how the free scan works, what each plan includes, and what everything costs.</p>
-<p style="font-size:15.5px; line-height:1.6; color:#333336; margin-top:14px;">When you are ready, run the free scan and see how AI systems read your site:<br><a href="https://agentreadinesshq.com/" style="color:#c21847;">https://agentreadinesshq.com/</a></p>
-<p style="font-size:15.5px; line-height:1.6; color:#333336; margin-top:14px;">You are receiving this because you requested the packet on our website.</p>
-<p style="font-size:15.5px; line-height:1.6; color:#333336; margin-top:24px;">Thanks,<br><br>Agent Readiness HQ<br>hello@agentreadinesshq.com</p>
-""" + _footer_html(email) + """</td></tr>
-</table>
-</td></tr>
-</table>
-</body></html>"""
-
-
-def _packet_message(email, pdf_bytes):
-    msg = EmailMessage()
-    msg["From"] = RESULTS_FROM
-    msg["To"] = email
-    msg["Subject"] = "Your Agent Readiness HQ information packet"
-    _set_unsubscribe_headers(msg, email)
-    msg.set_content(
-        "Thanks for your interest in Agent Readiness HQ.\n\n"
-        "Your information packet is attached as a PDF: how the free scan "
-        "works, what each plan includes, and what everything costs.\n\n"
-        "When you are ready, run the free scan and see how AI systems "
-        "read your site:\nhttps://agentreadinesshq.com/\n\n"
-        "You are receiving this because you requested the packet on our "
-        "website.\n\n"
-        "Thanks,\n\n"
-        "Agent Readiness HQ\n"
-        "hello@agentreadinesshq.com\n\n"
-        + "\n".join(_footer_text_lines(email)))
-    msg.add_alternative(_packet_html(email), subtype="html")
-    msg.add_attachment(pdf_bytes, maintype="application", subtype="pdf",
-                       filename="Agent-Readiness-HQ-Information-Packet.pdf")
-    return msg
-
-
-def _packet_lead_message(email):
-    msg = EmailMessage()
-    msg["From"] = RESULTS_FROM
-    msg["To"] = RESULTS_FROM
-    msg["Subject"] = "Information packet request"
-    msg.set_content(
-        "A visitor requested the information packet; the PDF was emailed "
-        "to them automatically.\n\n"
-        f"Email: {email}\n"
-        f"When: {datetime.now(timezone.utc).isoformat()}\n"
-        "Source: website information form")
-    return msg
-
-
 def _scan_lead_message(first_name, email, report):
     """Internal lead record for a completed free scan.
 
@@ -4390,51 +4301,6 @@ class handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
 
-    def _handle_packet(self):
-        """POST /api/packet {email}: email the information packet PDF.
-
-        Oct 24 ruling (Option A): the packet is a public Information
-        page; the capture form's offer is the packet as a PDF, emailed
-        to the visitor. Sends the PDF from the business inbox and a
-        lead notice to the same inbox (the lead record). Reuses the
-        results-email SMTP transport and credential.
-        """
-        try:
-            length = int(self.headers.get("Content-Length", 0) or 0)
-        except ValueError:
-            length = 0
-        if length > 4096:
-            self._send(413, {"error": "request body too large"})
-            return
-        try:
-            data = json.loads(self.rfile.read(length) or b"{}")
-        except (json.JSONDecodeError, ValueError):
-            self._send(400, {"error": "invalid JSON body"})
-            return
-        if not rate_ok(self._client_ip()):
-            self._send(429, {"error": "rate limit exceeded. Try again later."})
-            return
-        email = (data.get("email") or "").strip() if isinstance(data, dict) else ""
-        if len(email) > 254 or not _EMAIL_RE.match(email):
-            self._send(400, {"error": "a valid email address is required"})
-            return
-        password = _smtp_password()
-        if not password:
-            self._send(503, {"error": "packet email is unavailable right now"})
-            return
-        pdf = _packet_pdf_bytes()
-        if pdf is None:
-            self._send(503, {"error": "packet email is unavailable right now"})
-            return
-        if not _deliver_with_fallback(
-                lambda: _packet_message(email, pdf), password, "packet email"):
-            self._send(502, {"error": "could not send the packet email"})
-            return
-        _deliver_with_fallback(
-            lambda: _packet_lead_message(email), password,
-            "packet lead notice")
-        self._send(200, {"ok": True})
-
     def _handle_subscribe(self):
         """POST /api/subscribe — forwards the signup email to Caleb's inbox
         via FormSubmit (no account, no API key). First-ever submission
@@ -4577,8 +4443,6 @@ class handler(BaseHTTPRequestHandler):
             return
         if path == "/":
             path = "/index.html"
-        if path == "/packet":
-            path = "/packet.html"
         name = path.lstrip("/")
         allowed = {
             "index.html": "text/html; charset=utf-8",
@@ -4598,11 +4462,9 @@ class handler(BaseHTTPRequestHandler):
             "intake-449.html": "text/html; charset=utf-8",
             "intake-thanks.html": "text/html; charset=utf-8",
             "thanks-upgrade.html": "text/html; charset=utf-8",
-            "packet.html": "text/html; charset=utf-8",
             "ai-info.html": "text/html; charset=utf-8",
             "widget-test.html": "text/html; charset=utf-8",
         "information.html": "text/html; charset=utf-8",
-        "information-packet.b64": "text/plain; charset=utf-8",
             "blog.html": "text/html; charset=utf-8",
             "support.html": "text/html; charset=utf-8",
             "pricing-faq.html": "text/html; charset=utf-8",
@@ -4655,9 +4517,6 @@ class handler(BaseHTTPRequestHandler):
             return
         if path == "/api/stripe-webhook":
             self._handle_stripe_webhook()
-            return
-        if path == "/api/packet":
-            self._handle_packet()
             return
         if path != "/api/audit":
             self._send(404, {"error": "not found"})
