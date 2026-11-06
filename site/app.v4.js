@@ -147,7 +147,7 @@
       html += '<div class="offer-card">';
       html += '<div class="offer-price">$449</div>';
       html += '<div class="offer-name">Do it for me</div>';
-      html += '<p class="offer-desc">We make the approved improvements for you. Currently in limited testing.</p>';
+      html += '<p class="offer-desc">We make the approved improvements for you.</p>';
       html += '<span class="btn offer-btn" aria-disabled="true">Coming Soon</span>';
       html += "</div>";
     }
