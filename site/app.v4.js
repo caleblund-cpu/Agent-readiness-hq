@@ -331,13 +331,13 @@
     var comp = report.competitor || null;
     var html = '<div class="unlock-card">';
     html += "<h2>Unlock your full results</h2>";
-    html += "<p>See exactly what is holding your score back, and what to do about it.</p>";
+    html += "<p>See what's holding your score back and how to fix it.</p>";
     html += "<ul>";
     html += "<li>Every fix we recommend, check by check, in plain language</li>";
     if (comp && comp.score != null) {
       html += "<li>Your competitor's full breakdown, and where you could pass them</li>";
     }
-    html += "<li>A 10% off code for the Audit or Done For You, waiting in your email</li>";
+    html += "<li>We'll email you the full results and a 10% off code</li>";
     html += "</ul>";
     html += '<form id="unlock-form">';
     html += '<input type="email" id="unlock-email" placeholder="you@yourbusiness.com" aria-label="Email address" required>';
