@@ -2354,14 +2354,27 @@ def _results_email_html(first_name, site, score, grade, checks, platform=None,
             '<p style="font-size:14px; line-height:1.55; '
             'color:#6e6e73; margin-top:16px;">%s</p>'
             % _esc_html(confirm))
+    discount_box_html = ""
     if include_discount:
-        # Unlock sends only (2026-11-12): mirrors the discount line in
-        # the plain-text part of the same message.
-        conv.append(
-            '<p style="font-size:15.5px; line-height:1.6; color:#333336; '
-            'margin-top:22px;">Your 10% off code is <strong>'
-            + _esc_html(DISCOUNT_CODE) + "</strong>. Enter it at "
-            "checkout and it will apply to either option above.</p>")
+        # Unlock sends only (2026-11-12): the code rides at the bottom
+        # of the email in its own highlighted box (Caleb, 2026-11-12),
+        # after the platform details and before the sign-off. Mirrors
+        # the framed block in the plain-text part of the same message.
+        discount_box_html = (
+            '<table role="presentation" width="100%" cellpadding="0" '
+            'cellspacing="0" style="margin-top:26px; background-color:'
+            '#fff7f8; border:2px solid #ff4d6d; border-radius:12px;">'
+            '<tr><td style="padding:20px 26px; text-align:center;">'
+            '<div style="font-size:12px; font-weight:700; '
+            'letter-spacing:0.09em; color:#c21847;">YOUR 10% OFF '
+            'CODE</div>'
+            '<div style="margin-top:6px; font-size:30px; font-weight:'
+            '800; letter-spacing:0.04em; color:#1d1d1f;">'
+            + _esc_html(DISCOUNT_CODE) + '</div>'
+            '<p style="font-size:14.5px; line-height:1.55; '
+            'color:#333336; margin-top:8px;">Enter it at checkout and '
+            'it will apply to either option above.</p>'
+            "</td></tr></table>")
     conv.append(
         '<p style="font-size:15.5px; line-height:1.6; color:#333336; '
         'margin-top:22px;">Your full results are on the page where '
@@ -2487,6 +2500,7 @@ def _results_email_html(first_name, site, score, grade, checks, platform=None,
 %(checks)s
 %(conversion)s
 %(details)s
+%(discount_box)s
 <p style="font-size:16px; line-height:1.6; color:#333336; margin-top:26px;">Thanks,<br><br><strong>Agent Readiness HQ</strong><br><span style="color:#5c5c60;">hello@agentreadinesshq.com</span></p>
 <p style="font-size:13px; line-height:1.55; color:#8e8e93; text-align:center; margin-top:30px;">You are receiving this because you requested your results at agentreadinesshq.com.</p>
 %(footer)s
@@ -2508,6 +2522,7 @@ def _results_email_html(first_name, site, score, grade, checks, platform=None,
         "checks": "".join(blocks),
         "conversion": conversion_html,
         "details": details_html,
+        "discount_box": discount_box_html,
         "footer": _footer_html(email) if email else "",
     }
 
@@ -2618,15 +2633,6 @@ def compose_results_email(first_name, email, report, include_discount=False):
     confirm = (platform.get("confirm_line") or "").strip()
     if confirm:
         lines += ["", confirm]
-    if include_discount:
-        # Unlock sends only (2026-11-12): the emailed copy carries the
-        # 10% code the unlock card promised. Gated scan emails are
-        # unchanged and never include this line.
-        lines += [
-            "",
-            f"Your 10% off code is {DISCOUNT_CODE}. Enter it at "
-            "checkout and it will apply to either option above.",
-        ]
     lines += [
         "",
         "Your full results are on the page where you ran the scan.",
@@ -2644,6 +2650,20 @@ def compose_results_email(first_name, email, report, include_discount=False):
             detail_lines.append(text)
     if detail_lines:
         lines += ["", "Platform details:"] + detail_lines
+    if include_discount:
+        # Unlock sends only (2026-11-12): the code rides at the bottom
+        # of the email in a framed block (Caleb, 2026-11-12), after the
+        # platform details and before the sign-off, mirroring the
+        # highlighted box in the HTML part. Gated scan emails are
+        # unchanged and never include this block.
+        lines += [
+            "",
+            "----------------------------------------",
+            f"YOUR 10% OFF CODE: {DISCOUNT_CODE}",
+            "Enter it at checkout and it will apply to either "
+            "option above.",
+            "----------------------------------------",
+        ]
     lines += [
         "",
         "Thanks,",
