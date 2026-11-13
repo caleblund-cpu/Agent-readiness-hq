@@ -148,7 +148,9 @@
        ruling 2026-10-22). No timing, fulfillment, authorization,
        or process copy inside the box. 2026-11-04 pause: the $449
        card stays visible with a Coming Soon label and no checkout
-       link while implementation is in limited testing. */
+       link while implementation is in limited testing. 2026-11-12:
+       Done For You relaunched publicly (Caleb decision); the card
+       links to checkout again, like the $149 card. */
     var pf = report.platform || {};
     var elig = pf.eligibility || "unknown";
     var urls = report.checkout_urls || {};
@@ -185,7 +187,7 @@
       html += '<div class="offer-price">$449</div>';
       html += '<div class="offer-name">Do it for me</div>';
       html += '<p class="offer-desc">We make the approved improvements for you.</p>';
-      html += '<span class="btn offer-btn" aria-disabled="true">Coming Soon</span>';
+      html += '<a class="btn offer-btn" href="' + esc(url449) + '">Do it for me</a>';
       html += "</div>";
     }
     html += "</div>";
