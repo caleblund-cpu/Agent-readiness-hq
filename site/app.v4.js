@@ -91,7 +91,9 @@
     opts = opts || {};
     var locked = !!opts.locked;
     var pct = Math.max(0, Math.min(100, Number(report.score) || 0));
-    var ringColor = pct >= 80 ? "#16a34a" : pct >= 60 ? "#d97706" : "#dc2626";
+    /* Ring color follows the grade bands (2026-11-12, Caleb approved):
+       A green, B yellow, C amber, D orange, F red. */
+    var ringColor = pct >= 90 ? "#16a34a" : pct >= 80 ? "#eab308" : pct >= 70 ? "#d97706" : pct >= 60 ? "#ea580c" : "#dc2626";
     var circ = (2 * Math.PI * 54).toFixed(1);
     var target = (2 * Math.PI * 54 * (1 - pct / 100)).toFixed(1);
     var html = "";
@@ -270,7 +272,7 @@
        comparison never competes with the visitor's own results. */
     if (comp && comp.score != null) {
       var cpct = Math.max(0, Math.min(100, Number(comp.score) || 0));
-      var cring = cpct >= 80 ? "#16a34a" : cpct >= 60 ? "#d97706" : "#dc2626";
+      var cring = cpct >= 90 ? "#16a34a" : cpct >= 80 ? "#eab308" : cpct >= 70 ? "#d97706" : cpct >= 60 ? "#ea580c" : "#dc2626";
       var ctarget = (2 * Math.PI * 54 * (1 - cpct / 100)).toFixed(1);
       html += '<div class="competitor-block">';
       html += '<h3 class="competitor-head">Competitor results: ' + esc(comp.business_name || comp.url || "Competitor") + "</h3>";
@@ -322,19 +324,20 @@
   }
 
   /* Unlock card (2026-11-12), copy approved by Caleb from the v3
-     mockup. The competitor bullet appears only when a competitor
-     scan actually ran. */
+     mockup; text revised 2026-11-12 evening per Caleb (v4 mockup):
+     fuller subline and bullets, copy-and-code bullet removed. The
+     competitor bullet appears only when a competitor scan ran. */
   function unlockCardHtml(report) {
     var comp = report.competitor || null;
     var html = '<div class="unlock-card">';
     html += "<h2>Unlock your full results</h2>";
-    html += "<p>See every fix instantly.</p>";
+    html += "<p>See exactly what is holding your score back, and what to do about it.</p>";
     html += "<ul>";
-    html += "<li>Every fix, check by check</li>";
+    html += "<li>Every fix we recommend, check by check, in plain language</li>";
     if (comp && comp.score != null) {
-      html += "<li>Your competitor's full breakdown</li>";
+      html += "<li>Your competitor's full breakdown, and where you could pass them</li>";
     }
-    html += "<li>10% off when you are ready to fix it</li>";
+    html += "<li>A 10% off code for the Audit or Done For You, waiting in your email</li>";
     html += "</ul>";
     html += '<form id="unlock-form">';
     html += '<input type="email" id="unlock-email" placeholder="you@yourbusiness.com" aria-label="Email address" required>';
