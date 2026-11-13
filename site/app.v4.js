@@ -16,6 +16,31 @@
         a fallback.
      ================================================================ */
   var API_URL = "/api/audit";
+  var UNLOCK_URL = "/api/unlock";
+
+  /* Attribution capture (2026-11-12): the UTM parameters on the
+     landing URL are read on first page load and kept in
+     sessionStorage, so they survive the trip down to the scan
+     section (and any in-site navigation in the same tab). The scan
+     request rides them along with the page referrer, and the server
+     stores them on the scan log record next to the completion, for
+     comparison against ad traffic. Absent parameters stay empty. */
+  var ATTRIBUTION = (function () {
+    var keys = ["utm_source", "utm_medium", "utm_campaign"];
+    var out = { referrer: document.referrer || "" };
+    keys.forEach(function (k) { out[k] = ""; });
+    try {
+      var params = new URLSearchParams(window.location.search);
+      keys.forEach(function (k) {
+        var v = params.get(k);
+        if (v) window.sessionStorage.setItem("arhq_" + k, v.slice(0, 120));
+        out[k] = window.sessionStorage.getItem("arhq_" + k) || "";
+      });
+    } catch (err) {
+      /* storage unavailable: attribution simply stays empty. */
+    }
+    return out;
+  })();
 
   /* Email signup posts directly to FormSubmit from the visitor's browser
      (no server proxy - FormSubmit throttles shared server IPs, which broke
@@ -62,7 +87,9 @@
       .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
 
-  function renderResults(report) {
+  function renderResults(report, opts) {
+    opts = opts || {};
+    var locked = !!opts.locked;
     var pct = Math.max(0, Math.min(100, Number(report.score) || 0));
     var ringColor = pct >= 80 ? "#16a34a" : pct >= 60 ? "#d97706" : "#dc2626";
     var circ = (2 * Math.PI * 54).toFixed(1);
@@ -127,6 +154,16 @@
     var urls = report.checkout_urls || {};
     var url149 = urls.audit_149 || CHECKOUT_URL_149;
     var url449 = urls.done_for_you_449 || CHECKOUT_URL_449;
+    /* Ungated scan (2026-11-12): when the scan ran without a name +
+       email, the summary response carries no detail, and everything
+       from here down renders inside the gradual blur zone with the
+       unlock card over it. The unlock POST returns the full report,
+       which re-renders through this same function unlocked. A gated
+       scan (name + email given) never enters the zone. */
+    if (locked) {
+      html += '<div class="fade-zone locked" id="fade-zone">';
+      html += '<div class="fade-content">';
+    }
     html += '<div class="conversion-box">';
     html += '<h3 class="conversion-headline">We\u2019ll help you fix your score.</h3>';
     html += '<p class="conversion-sub">Most of these issues sound more technical than they are. We turn your results into simple, plain-English fixes.</p>';
@@ -269,8 +306,86 @@
       html += '<p class="result-errors">Note: ' + esc(report.errors.join("; ")) + "</p>";
     }
     html += '<p class="result-correction">See something we missed or got wrong? Email us at <a href="mailto:hello@agentreadinesshq.com?subject=Audit%20correction">hello@agentreadinesshq.com</a></p>';
+    if (locked) {
+      html += "</div>";
+      html += '<div class="fade-veil">' + unlockCardHtml(report) + "</div>";
+      html += "</div>";
+    }
+    if (opts.unlockedEmail) {
+      html += '<p class="unlocked-note">Unlocked. Your full results are on this page, and a copy with your 10% code is on its way to ' + esc(opts.unlockedEmail) + ".</p>";
+    }
     resultsEl.innerHTML = html;
     resultsEl.hidden = false;
+    if (locked) wireUnlockForm(opts.token);
+  }
+
+  /* Unlock card (2026-11-12), copy approved by Caleb from the v3
+     mockup. The competitor bullet appears only when a competitor
+     scan actually ran. */
+  function unlockCardHtml(report) {
+    var comp = report.competitor || null;
+    var html = '<div class="unlock-card">';
+    html += "<h2>Unlock your full results</h2>";
+    html += "<p>See every fix instantly.</p>";
+    html += "<ul>";
+    html += "<li>Every fix, check by check</li>";
+    if (comp && comp.score != null) {
+      html += "<li>Your competitor's full breakdown</li>";
+    }
+    html += "<li>10% off when you are ready to fix it</li>";
+    html += "</ul>";
+    html += '<form id="unlock-form">';
+    html += '<input type="email" id="unlock-email" placeholder="you@yourbusiness.com" aria-label="Email address" required>';
+    html += '<button class="btn" type="submit">Show me what to fix</button>';
+    html += "</form>";
+    html += '<p class="unlock-error" id="unlock-error" hidden></p>';
+    html += '<div class="fine">Unlocks instantly on this page. Your copy and code go to your email.</div>';
+    html += "</div>";
+    return html;
+  }
+
+  function wireUnlockForm(token) {
+    var form = document.getElementById("unlock-form");
+    if (!form) return;
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      var emailInput = document.getElementById("unlock-email");
+      var errEl = document.getElementById("unlock-error");
+      var email = emailInput ? emailInput.value.trim() : "";
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+        errEl.textContent = "Please enter a valid email address.";
+        errEl.hidden = false;
+        if (emailInput) emailInput.focus();
+        return;
+      }
+      var btn = form.querySelector("button");
+      btn.disabled = true;
+      btn.textContent = "Unlocking\u2026";
+      fetch(UNLOCK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: token, email: email })
+      })
+        .then(function (resp) {
+          return resp.json().then(function (body) {
+            return { ok: resp.ok, body: body };
+          });
+        })
+        .then(function (out) {
+          if (!out.ok || !out.body || out.body.error) {
+            throw new Error((out.body && out.body.error) || "unlock failed");
+          }
+          renderResults(out.body, { unlockedEmail: email });
+          storeScanForIntake("", email, out.body);
+          resultsEl.scrollIntoView({ behavior: "smooth", block: "start" });
+        })
+        .catch(function () {
+          errEl.textContent = "Something went wrong unlocking your results. Please try again.";
+          errEl.hidden = false;
+          btn.disabled = false;
+          btn.textContent = "Show me what to fix";
+        });
+    });
   }
 
   /* Competitor scan (2026-11-05): the optional Yes/No under the
@@ -304,23 +419,30 @@
     var emailField = document.getElementById("scan-email");
     var firstName = nameField ? nameField.value.trim() : "";
     var leadEmail = emailField ? emailField.value.trim() : "";
-    if (!firstName || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(leadEmail)) {
-      setStatus("Please add your first name and a valid email, and we'll email your results to you.");
-      (!firstName ? nameField : emailField).focus();
-      return;
-    }
+    /* Name + email are optional (2026-11-12): they ride along only
+       when both are given and the email is valid, which keeps the
+       gated behavior (full results at once, results copy emailed
+       from hello@) exactly as before. Otherwise the scan runs
+       ungated and the results arrive locked behind the unlock card. */
+    var hasLead = !!firstName && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(leadEmail);
     auditBtn.disabled = true;
     auditBtn.textContent = "Auditing\u2026";
     resultsEl.hidden = true;
     setStatus("Running the 7-check audit on " + url + " \u2014 usually under 30 seconds.");
 
+    var payload = { url: url, competitor_url: competitorUrl(),
+                    utm_source: ATTRIBUTION.utm_source,
+                    utm_medium: ATTRIBUTION.utm_medium,
+                    utm_campaign: ATTRIBUTION.utm_campaign,
+                    referrer: ATTRIBUTION.referrer };
+    if (hasLead) {
+      payload.first_name = firstName;
+      payload.email = leadEmail;
+    }
     fetch(API_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      /* first_name + email ride along so the audit function can email
-         the visitor their results copy from hello@ (server-side send;
-         the FormSubmit _autoresponse never delivered). */
-      body: JSON.stringify({ url: url, first_name: firstName, email: leadEmail, competitor_url: competitorUrl() })
+      body: JSON.stringify(payload)
     })
       .then(function (resp) {
         return resp.json().then(function (body) {
@@ -332,8 +454,12 @@
           throw new Error((out.body && out.body.error) || "audit failed");
         }
         setStatus("");
-        renderResults(out.body);
-        storeScanForIntake(firstName, leadEmail, out.body);
+        if (out.body.ungated && out.body.token) {
+          renderResults(out.body, { locked: true, token: out.body.token });
+        } else {
+          renderResults(out.body);
+          storeScanForIntake(firstName, leadEmail, out.body);
+        }
         resultsEl.scrollIntoView({ behavior: "smooth", block: "start" });
       })
       .catch(function (err) {
@@ -376,6 +502,43 @@
     }
   }
 
+  /* Information packet form (homepage): the packet is also a public
+     Information page; this form emails the PDF packet to the visitor
+     via /api/packet (Oct 24 ruling, Option A). The endpoint sends the
+     PDF from the business inbox and logs the request there as the
+     lead record. No redirect: the visitor stays on the page. */
+  if (emailForm) emailForm.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var email = document.getElementById("email").value.trim();
+    if (!email) return;
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+      emailNote.textContent = "Please enter a valid email address.";
+      return;
+    }
+    sendPacketRequest(email);
+  });
+
+  function sendPacketRequest(email) {
+    emailNote.textContent = "Sending\u2026";
+    fetch("/api/packet", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email })
+    })
+      .then(function (resp) {
+        return resp.json().catch(function () { return {}; });
+      })
+      .then(function (body) {
+        if (!body || body.ok !== true) throw new Error("send failed");
+        emailNote.textContent = "Your packet is on its way to " + email
+          + ". Check your inbox, and your spam folder just in case.";
+        emailForm.reset();
+      })
+      .catch(function (err) {
+        console.error("[Agent Readiness HQ] packet request failed:", err);
+        emailNote.textContent = "Something went wrong sending your packet. Please try again, or email us at hello@agentreadinesshq.com.";
+      });
+  }
 
   var newsletterForm = document.getElementById("newsletter-form");
   var newsletterNote = document.getElementById("newsletter-note");

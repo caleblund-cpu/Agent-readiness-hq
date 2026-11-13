@@ -26,6 +26,17 @@ no email goes out (responses to lead-carrying requests report
 "suppress_email": true (sent by the post-payment intake-149 details step)
 skips the results email while still returning the full report.
 
+Ungated scans (2026-11-12): a /api/audit body with no valid first name +
+email lead (and no suppress_email flag) runs the same scan but returns
+only a summary (score, grade, url, complete flag, competitor summary)
+plus an unguessable unlock token. The full report is stored server-side
+in the Blob store under that token, and a scan log record is written so
+completions stay measurable without visitor information. POST
+/api/unlock with {"token": ..., "email": ...} returns the stored full
+report and triggers the same sends a gated scan triggers (results email
+to the visitor, now carrying the DISCOUNT_CODE line, plus the hello@
+lead notice marked as an unlock).
+
 Checks and weights are IDENTICAL to audit/scoring.md (7 checks, total 100).
 
 Serverless adaptations vs the CLI:
@@ -56,6 +67,7 @@ import ipaddress
 import json
 import os
 import re
+import secrets
 import smtplib
 import socket
 import time
@@ -71,6 +83,11 @@ VERSION = "6.0-api"
 SCORING_VERSION = "v6"   # scoring rules version; stamped on every
                          # report so scores from different scoring
                          # versions are never mixed
+DISCOUNT_CODE = "SCAN10"   # 10% off code for the ungated scan unlock:
+                           # emailed to the visitor with their results
+                           # copy when they unlock, entered at Stripe
+                           # checkout, applies to the $149 and $449
+                           # payment links (single change point)
 UA = "AgentReadinessAudit/1.0 (machine-readability audit; single fetch)"
 TIMEOUT = 4          # per-fetch timeout (seconds) — tight for serverless
 LLMS_RETRY_TIMEOUT = 12   # llms.txt second attempt after a first-fetch
@@ -2186,7 +2203,7 @@ def _email_button_html(url, label):
 
 
 def _results_email_html(first_name, site, score, grade, checks, platform=None,
-                        email=None, incomplete=False):
+                        email=None, incomplete=False, include_discount=False):
     """HTML version of the results email, mirroring the on-page results:
     score/grade header, then per check the technical name + score pill,
     the finding line, and the plain-English meaning line. (Per-check
@@ -2337,6 +2354,14 @@ def _results_email_html(first_name, site, score, grade, checks, platform=None,
             '<p style="font-size:14px; line-height:1.55; '
             'color:#6e6e73; margin-top:16px;">%s</p>'
             % _esc_html(confirm))
+    if include_discount:
+        # Unlock sends only (2026-11-12): mirrors the discount line in
+        # the plain-text part of the same message.
+        conv.append(
+            '<p style="font-size:15.5px; line-height:1.6; color:#333336; '
+            'margin-top:22px;">Your 10% off code is <strong>'
+            + _esc_html(DISCOUNT_CODE) + "</strong>. Enter it at "
+            "checkout and it will apply to either option above.</p>")
     conv.append(
         '<p style="font-size:15.5px; line-height:1.6; color:#333336; '
         'margin-top:22px;">Your full results are on the page where '
@@ -2487,7 +2512,7 @@ def _results_email_html(first_name, site, score, grade, checks, platform=None,
     }
 
 
-def compose_results_email(first_name, email, report):
+def compose_results_email(first_name, email, report, include_discount=False):
     """Build the visitor's copy of their free scan results.
 
     Multipart (plain text + HTML) since 2026-10-20. Both parts carry
@@ -2593,6 +2618,15 @@ def compose_results_email(first_name, email, report):
     confirm = (platform.get("confirm_line") or "").strip()
     if confirm:
         lines += ["", confirm]
+    if include_discount:
+        # Unlock sends only (2026-11-12): the emailed copy carries the
+        # 10% code the unlock card promised. Gated scan emails are
+        # unchanged and never include this line.
+        lines += [
+            "",
+            f"Your 10% off code is {DISCOUNT_CODE}. Enter it at "
+            "checkout and it will apply to either option above.",
+        ]
     lines += [
         "",
         "Your full results are on the page where you ran the scan.",
@@ -2631,7 +2665,8 @@ def compose_results_email(first_name, email, report):
     _set_unsubscribe_headers(msg, email)
     msg.add_alternative(
         _results_email_html(first_name, site, score, grade, checks,
-                            platform, email=email, incomplete=incomplete),
+                            platform, email=email, incomplete=incomplete,
+                            include_discount=include_discount),
         subtype="html")
     return msg
 
@@ -2686,7 +2721,7 @@ def _deliver_results(msg, password, transport, label="results email"):
 
 
 
-def _scan_lead_message(first_name, email, report):
+def _scan_lead_message(first_name, email, report, via_unlock=False):
     """Internal lead record for a completed free scan.
 
     Sent from hello@ to hello@ by the scan function itself, in the
@@ -2713,18 +2748,21 @@ def _scan_lead_message(first_name, email, report):
     elif comp.get("url"):
         comp_lines = ("competitor: " + str(comp.get("url"))
                       + " (could not be scanned)\n")
+    display_name = first_name or "(not provided)"
+    unlock_line = ("lead_type: unlock (email given after an ungated "
+                   "scan)\n" if via_unlock else "")
     msg = EmailMessage()
     msg["From"] = RESULTS_FROM
     msg["To"] = RESULTS_FROM
     msg["Subject"] = f"New free scan: {site}"
     msg.set_content(
-        "name: " + first_name + "\n"
+        "name: " + display_name + "\n"
         "email: " + email + "\n"
         "website: " + site + "\n"
         "score: " + score + "\n"
         "grade: " + grade + "\n"
-        + comp_lines + "\n"
-        f"message: {first_name} ({email}) ran a free scan on {site}: "
+        + comp_lines + unlock_line + "\n"
+        f"message: {display_name} ({email}) ran a free scan on {site}: "
         f"score {score}/100, grade {grade}.\n"
         f"When: {datetime.now(timezone.utc).isoformat()}\n"
         "Source: website free scan (server-side lead notice)")
@@ -2774,27 +2812,33 @@ def _deliver_with_fallback(msg_factory, password, label):
         return False
 
 
-def send_results_email(first_name, email, report):
+def send_results_email(first_name, email, report, include_discount=False):
     """Send the results copy via Google Workspace SMTP. Never raises:
     returns True only when the server accepted the message. Delivery
     path (587/STARTTLS, one retry on a dropped connection, then the
     465/SSL fallback) lives in _deliver_with_fallback.
+    include_discount is set only by the ungated unlock send, whose
+    emailed copy carries the DISCOUNT_CODE line.
     """
     password = _smtp_password()
     if not password:
         print("results email: RESULTS_SMTP_PASSWORD not visible to this function")
         return False
     return _deliver_with_fallback(
-        lambda: compose_results_email(first_name, email, report),
+        lambda: compose_results_email(first_name, email, report,
+                                      include_discount=include_discount),
         password, "results email")
 
 
-def send_scan_lead_notice(first_name, email, report):
+def send_scan_lead_notice(first_name, email, report, via_unlock=False):
     """Record a completed free scan as a lead in hello@. Never raises:
     returns True only when the server accepted the notice. Uses the
-    same SMTP ladder as the results email (send_business_email)."""
+    same SMTP ladder as the results email (send_business_email).
+    via_unlock marks a lead captured by the ungated scan unlock, so
+    the notice is distinguishable from a gated scan lead."""
     return send_business_email(
-        lambda: _scan_lead_message(first_name, email, report),
+        lambda: _scan_lead_message(first_name, email, report,
+                                   via_unlock=via_unlock),
         "scan lead notice")
 
 
@@ -3012,6 +3056,51 @@ def _scan_lead_write(email, url, business):
     _blob_put_json(_SCAN_LEAD_PREFIX + email + ".json",
                    {"url": url or "", "business": business or "",
                     "ts": datetime.now(timezone.utc).isoformat()})
+
+
+# --- Ungated scan store + scan log (2026-11-12) -------------------------
+# An ungated scan (no name + email on the form) stores its full report
+# under an unguessable token so the detail stays server-side until the
+# visitor unlocks with an email (POST /api/unlock). Same Blob store and
+# helpers as every other record above; any failure is logged by the
+# helpers and the caller falls back to today's behavior (the full
+# report returned in the scan response). The scan log is one small
+# record per ungated completion, keyed by the same token, so scan
+# volume is measurable without any visitor information.
+_UNGATED_SCAN_PREFIX = "ungated-scans/v1/"
+_SCAN_LOG_PREFIX = "scan-log/v1/"
+_UNLOCK_TOKEN_RE = re.compile(r"^[A-Za-z0-9_-]{32,128}$")
+
+
+def _ungated_scan_write(token, report):
+    return _blob_put_json(
+        _UNGATED_SCAN_PREFIX + token + ".json",
+        {"report": report, "unlocked": False,
+         "ts": datetime.now(timezone.utc).isoformat()})
+
+
+def _ungated_scan_read(token):
+    return _blob_get_json(_UNGATED_SCAN_PREFIX + token + ".json")
+
+
+def _ungated_scan_update(token, record):
+    return _blob_put_json(_UNGATED_SCAN_PREFIX + token + ".json", record)
+
+
+def _scan_log_write(token, report, attribution=None):
+    attribution = attribution or {}
+    return _blob_put_json(
+        _SCAN_LOG_PREFIX + token + ".json",
+        {"ts": datetime.now(timezone.utc).isoformat(),
+         "url": report.get("url") or "",
+         "score": report.get("score"),
+         "grade": report.get("grade"),
+         "complete": report.get("complete", True),
+         "source": "ungated",
+         "utm_source": attribution.get("utm_source") or "",
+         "utm_medium": attribution.get("utm_medium") or "",
+         "utm_campaign": attribution.get("utm_campaign") or "",
+         "referrer": attribution.get("referrer") or ""})
 
 
 def _order_write(session_id, name, email, tier, arhq_number=None):
@@ -4223,6 +4312,22 @@ def process_checkout_completed(session):
     return {"processed": True, **record}
 
 
+def _clean_attribution(data):
+    """Sanitize the optional attribution fields on an audit request:
+    the landing page's UTM parameters and referrer, captured by the
+    browser (see app.v4.js). Returns a dict holding all four keys,
+    with empty strings for anything absent, for the scan log record."""
+    out = {"utm_source": "", "utm_medium": "", "utm_campaign": "",
+           "referrer": ""}
+    if not isinstance(data, dict):
+        return out
+    for key in out:
+        value = str(data.get(key) or "")
+        value = "".join(ch for ch in value if ch.isprintable()).strip()
+        out[key] = value[:300]
+    return out
+
+
 def _clean_lead(data):
     """Validate the optional lead fields on an audit request. Returns
     (first_name, email) or (None, None) when absent/invalid."""
@@ -4431,6 +4536,73 @@ class handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _handle_unlock(self):
+        """POST /api/unlock {token, email}: return the full report an
+        ungated scan stored under its token, and run the sends a gated
+        scan runs in its scan request (intake lead record, hello@ lead
+        notice marked as an unlock, results email to the visitor
+        carrying the DISCOUNT_CODE line). The sends run once: a repeat
+        unlock with the same token returns the report again without
+        re-emailing. Any miss answers plainly and sends nothing."""
+        try:
+            length = int(self.headers.get("Content-Length", 0) or 0)
+        except ValueError:
+            length = 0
+        if length > 4096:
+            self._send(413, {"error": "request body too large"})
+            return
+        try:
+            data = json.loads(self.rfile.read(length) or b"{}")
+        except (json.JSONDecodeError, ValueError):
+            self._send(400, {"error": "invalid JSON body"})
+            return
+        if not isinstance(data, dict):
+            self._send(400, {"error": "invalid JSON body"})
+            return
+        if not rate_ok("unlock:" + self._client_ip()):
+            self._send(429, {"error": "rate limit exceeded. Try again later."})
+            return
+        token = str(data.get("token") or "").strip()
+        email = str(data.get("email") or "").strip().lower()[:254]
+        if not _UNLOCK_TOKEN_RE.match(token):
+            self._send(400, {"error": "invalid unlock token"})
+            return
+        if not _EMAIL_RE.match(email):
+            self._send(400, {"error": "invalid email address"})
+            return
+        record = _ungated_scan_read(token)
+        if not record or not isinstance(record.get("report"), dict):
+            self._send(404, {"error": "unlock token not found"})
+            return
+        report = record["report"]
+        if record.get("unlocked"):
+            out = dict(report)
+            out["unlocked"] = True
+            out["email_sent"] = bool(record.get("email_sent"))
+            out["lead_notice_sent"] = bool(record.get("lead_notice_sent"))
+            self._send(200, out)
+            return
+        _scan_lead_write(email, report.get("url") or "",
+                         report.get("business_name") or "")
+        lead_notice_sent = send_scan_lead_notice(
+            "", email, report, via_unlock=True)
+        # The unlock form collects an email only, so the results copy
+        # greets the visitor with the same fallback the mail merge
+        # uses when no name is known.
+        email_sent = send_results_email(
+            "there", email, report, include_discount=True)
+        record["unlocked"] = True
+        record["unlock_email"] = email
+        record["email_sent"] = email_sent
+        record["lead_notice_sent"] = lead_notice_sent
+        record["unlocked_ts"] = datetime.now(timezone.utc).isoformat()
+        _ungated_scan_update(token, record)
+        out = dict(report)
+        out["unlocked"] = True
+        out["email_sent"] = email_sent
+        out["lead_notice_sent"] = lead_notice_sent
+        self._send(200, out)
+
     def do_GET(self):
         # Serve the landing page + static assets (Vercel routes every path
         # through this entrypoint, so the function doubles as the web server).
@@ -4517,6 +4689,9 @@ class handler(BaseHTTPRequestHandler):
             return
         if path == "/api/stripe-webhook":
             self._handle_stripe_webhook()
+            return
+        if path == "/api/unlock":
+            self._handle_unlock()
             return
         if path != "/api/audit":
             self._send(404, {"error": "not found"})
@@ -4607,6 +4782,49 @@ class handler(BaseHTTPRequestHandler):
                 first_name, lead_email, report)
             report["email_sent"] = send_results_email(
                 first_name, lead_email, report)
+            self._send(200, report)
+            return
+        if not suppress_email and not (first_name and lead_email):
+            # Ungated scan (2026-11-12): no name + email rode along,
+            # so the response carries only the summary and an unlock
+            # token. The full report is stored server-side under the
+            # token, and a scan log record keeps the completion
+            # measurable without visitor information. If the store
+            # write fails, fall through and return the full report
+            # exactly as before, so a store outage never leaves a
+            # visitor with results they cannot unlock.
+            token = secrets.token_urlsafe(32)
+            _scan_log_write(token, report, _clean_attribution(data))
+            if _ungated_scan_write(token, report):
+                comp = report.get("competitor") or {}
+                if comp.get("score") is not None:
+                    comp_summary = {
+                        "url": comp.get("url") or "",
+                        "business_name": comp.get("business_name") or "",
+                        "score": comp.get("score"),
+                        "grade": comp.get("grade"),
+                        "complete": comp.get("complete", True),
+                    }
+                elif comp:
+                    comp_summary = {
+                        "url": comp.get("url") or "",
+                        "error": comp.get("error")
+                        or "competitor scan unavailable",
+                    }
+                else:
+                    comp_summary = None
+                self._send(200, {
+                    "ungated": True,
+                    "token": token,
+                    "url": report.get("url"),
+                    "score": report.get("score"),
+                    "grade": report.get("grade"),
+                    "complete": report.get("complete", True),
+                    "fetched_at": report.get("fetched_at"),
+                    "errors": report.get("errors") or [],
+                    "competitor": comp_summary,
+                })
+                return
         self._send(200, report)
 
     def log_message(self, *args):  # keep Vercel logs quiet
