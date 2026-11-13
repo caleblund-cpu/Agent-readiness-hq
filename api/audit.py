@@ -3071,6 +3071,26 @@ def _blob_get_json(pathname):
         print(f"blob-store: read of {pathname} was not JSON; "
               "treating as missing")
         return None
+    if isinstance(obj, dict) and obj.get("pathname") == pathname \
+            and obj.get("downloadUrl"):
+        # API version 12 answers a private read with blob metadata,
+        # not the content (diagnosed 2026-11-12: a stored ungated
+        # scan read back as metadata, so unlocks reported "not
+        # found"). Follow the metadata's download URL for the bytes.
+        try:
+            direct = requests.get(
+                obj["downloadUrl"],
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=3)
+            if direct.status_code == 200:
+                content = direct.json()
+                return content if isinstance(content, dict) else None
+            print(f"blob-store: content read of {pathname} returned "
+                  f"HTTP {direct.status_code}; treating as missing")
+        except Exception as exc:  # never break the caller's flow
+            print(f"blob-store: content read of {pathname} failed "
+                  f"({exc!r}); treating as missing")
+        return None
     return obj if isinstance(obj, dict) else None
 
 
