@@ -3042,6 +3042,28 @@ def _blob_get_json(pathname):
         if resp.status_code != 404:
             print(f"blob-store: read of {pathname} returned "
                   f"HTTP {resp.status_code}; treating as missing")
+        # Fallback (2026-11-12): the API read above can miss a blob
+        # that the matching PUT accepted, so try the store's private
+        # download URL directly. The store id is the segment after
+        # "vercel_blob_rw_" in the read-write token.
+        try:
+            parts = token.split("_")
+            store_id = parts[3] if len(parts) > 4 and \
+                parts[:3] == ["vercel", "blob", "rw"] else ""
+            if store_id:
+                direct = requests.get(
+                    f"https://{store_id}.private.blob.vercel-storage.com/"
+                    + pathname,
+                    headers={"Authorization": f"Bearer {token}"},
+                    timeout=3)
+                if direct.status_code == 200:
+                    obj = direct.json()
+                    return obj if isinstance(obj, dict) else None
+                print(f"blob-store: direct read of {pathname} returned "
+                      f"HTTP {direct.status_code}; treating as missing")
+        except Exception as exc:  # never break the caller's flow
+            print(f"blob-store: direct read of {pathname} failed "
+                  f"({exc!r}); treating as missing")
         return None
     try:
         obj = resp.json()
