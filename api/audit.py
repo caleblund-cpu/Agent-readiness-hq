@@ -83,7 +83,7 @@ VERSION = "6.0-api"
 SCORING_VERSION = "v6"   # scoring rules version; stamped on every
                          # report so scores from different scoring
                          # versions are never mixed
-DISCOUNT_CODE = "SCAN10"   # 10% off code for the ungated scan unlock:
+DISCOUNT_CODE = "SCAN50"   # 50% off first month code for the ungated scan unlock (2026-11-18 pivot):
                            # emailed to the visitor with their results
                            # copy when they unlock, entered at Stripe
                            # checkout, applies to the $149 and $449
@@ -2366,7 +2366,7 @@ def _results_email_html(first_name, site, score, grade, checks, platform=None,
             '#fff7f8; border:2px solid #ff4d6d; border-radius:12px;">'
             '<tr><td style="padding:20px 26px; text-align:center;">'
             '<div style="font-size:12px; font-weight:700; '
-            'letter-spacing:0.09em; color:#c21847;">YOUR 10% OFF '
+            'letter-spacing:0.09em; color:#c21847;">YOUR 50% OFF FIRST MONTH '
             'CODE</div>'
             '<div style="margin-top:6px; font-size:30px; font-weight:'
             '800; letter-spacing:0.04em; color:#1d1d1f;">'
@@ -2659,7 +2659,7 @@ def compose_results_email(first_name, email, report, include_discount=False):
         lines += [
             "",
             "----------------------------------------",
-            f"YOUR 10% OFF CODE: {DISCOUNT_CODE}",
+            f"YOUR 50% OFF FIRST MONTH CODE: {DISCOUNT_CODE}",
             "Enter it at checkout and it will apply to either "
             "option above.",
             "----------------------------------------",
@@ -2909,8 +2909,8 @@ STRIPE_MONITORING_PAYMENT_LINK_LEGACY = "plink_1UUtG6PwXi6zE7gEmmN7Nzpf"
 # surfaces: the results page reads them from the scan JSON
 # (checkout_urls, built from these constants) and the results email
 # uses them directly.
-STRIPE_149_CHECKOUT_URL = "https://buy.stripe.com/5kQ14p9WhbAR4zd66e5AQ00"
-STRIPE_449_CHECKOUT_URL = "https://buy.stripe.com/5kQ14p8Sd9sJe9NeCK5AQ01"
+STRIPE_149_CHECKOUT_URL = "https://buy.stripe.com/fZu3cx6K5fR7e9N66e5AQ04"  # 2026-11-18: Silver (monitoring) checkout; key name kept
+STRIPE_449_CHECKOUT_URL = "https://buy.stripe.com/dRm9AVd8t5ctc1FgKS5AQ05"  # 2026-11-18: Gold checkout; key name kept
 # Permanent Stripe customer-portal login link (Caleb retrieved it
 # from the Stripe Dashboard 2026-10-27): a customer enters their
 # email at this link to manage or cancel their monitoring

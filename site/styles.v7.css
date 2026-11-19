@@ -779,3 +779,13 @@ body {
 .unlock-card .fine { font-size: 0.76rem; color: var(--muted); margin-top: 0.75rem; }
 .unlock-error { color: var(--rose-dark); font-size: 0.9rem; margin-top: 0.75rem; }
 .unlocked-note { background: #eefaf1; border: 1px solid #bbe6c6; color: #14532d; border-radius: 12px; padding: 0.8rem 1.1rem; font-size: 0.94rem; margin: 1rem 0 0; }
+
+/* Subscription tiers (2026-11-18): level pricing rows, tier labels, process spacing */
+.price-card h3 { min-height: 2.5em; }
+.tier-metal { font-size: 0.8rem; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--rose); margin: 0 0 0.35rem; min-height: 1.2em; }
+.price-card .btn { width: 100%; }
+.process-tight { padding-top: 2.6rem; }
+
+/* Pricing page widget add-on tiles: 2 by 2 (2026-11-18) */
+#maintenance .tiles { grid-template-columns: repeat(2, 1fr); }
+@media (max-width: 560px) { #maintenance .tiles { grid-template-columns: 1fr; } }

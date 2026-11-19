@@ -48,9 +48,10 @@
      wording shown to Caleb on 2026-10-10. */
   var FORMSUBMIT_URL = "https://formsubmit.co/ajax/c171c3e0d3fb9d3525cb0945982c5d2b";
   var AUTORESPONSE_TEXT = "Thanks for your interest in Agent Readiness HQ! "
-    + "We'll be in touch within one business day with a fix-it report "
-    + "and details on our $149 report and $449 done-for-you cleanup. "
-    + "Agent Readiness HQ";
+    + "We'll be in touch within one business day with details on "
+    + "AI Visibility Monitoring: Silver ($19.99/month) with your change "
+    + "plan and monthly recommended edits, or Gold ($29.99/month) where "
+    + "we make the improvements for you. Agent Readiness HQ";
 
   var SITE_URL = "https://agentreadinesshq.com/";
 
@@ -60,8 +61,8 @@
      to the live URLs. renderResults prefers the pair returned in the
      scan JSON (checkout_urls, whose single config spot is audit.py);
      these constants are the fallback if a response lacks them. */
-  var CHECKOUT_URL_149 = "https://buy.stripe.com/5kQ14p9WhbAR4zd66e5AQ00";
-  var CHECKOUT_URL_449 = "https://buy.stripe.com/5kQ14p8Sd9sJe9NeCK5AQ01";
+  var CHECKOUT_URL_149 = "https://buy.stripe.com/fZu3cx6K5fR7e9N66e5AQ04"; /* 2026-11-18 pivot: Silver (monitoring) checkout */
+  var CHECKOUT_URL_449 = "https://buy.stripe.com/dRm9AVd8t5ctc1FgKS5AQ05"; /* 2026-11-18 pivot: Gold checkout */
 
   var auditForm = document.getElementById("audit-form");
   var urlInput = document.getElementById("site-url");
@@ -91,9 +92,7 @@
     opts = opts || {};
     var locked = !!opts.locked;
     var pct = Math.max(0, Math.min(100, Number(report.score) || 0));
-    /* Ring color follows the grade bands (2026-11-12, Caleb approved):
-       A green, B yellow, C amber, D orange, F red. */
-    var ringColor = pct >= 90 ? "#16a34a" : pct >= 80 ? "#eab308" : pct >= 70 ? "#d97706" : pct >= 60 ? "#ea580c" : "#dc2626";
+    var ringColor = pct >= 80 ? "#16a34a" : pct >= 60 ? "#d97706" : "#dc2626";
     var circ = (2 * Math.PI * 54).toFixed(1);
     var target = (2 * Math.PI * 54 * (1 - pct / 100)).toFixed(1);
     var html = "";
@@ -173,23 +172,23 @@
     html += '<p class="conversion-sub">Most of these issues sound more technical than they are. We turn your results into simple, plain-English fixes.</p>';
     html += '<div class="offer-cards">';
     html += '<div class="offer-card">';
-    html += '<div class="offer-price">$149</div>';
-    html += '<div class="offer-name">Show me how</div>';
-    html += '<p class="offer-desc">Step-by-step instructions + ready-to-use content: copy, paste, publish.</p>';
-    html += '<a class="btn offer-btn" href="' + esc(url149) + '">Show me how</a>';
+    html += '<div class="offer-price">$19.99/mo</div>';
+    html += '<div class="offer-name">Start monitoring</div>';
+    html += '<p class="offer-desc">Your change plan up front, monthly AI checks, and fresh recommended edits to apply yourself.</p>';
+    html += '<a class="btn offer-btn" href="' + esc(url149) + '">Start monitoring</a>';
     html += "</div>";
     if (elig === "C") {
       html += '<div class="offer-card offer-unavailable">';
-      html += '<div class="offer-price">$449</div>';
-      html += '<div class="offer-name">Do it for me</div>';
+      html += '<div class="offer-price">$29.99/mo</div>';
+      html += '<div class="offer-name">Start monitoring+</div>';
       html += '<p class="offer-desc">Not available on your website platform.</p>';
       html += "</div>";
     } else {
       html += '<div class="offer-card">';
-      html += '<div class="offer-price">$449</div>';
-      html += '<div class="offer-name">Do it for me</div>';
+      html += '<div class="offer-price">$29.99/mo</div>';
+      html += '<div class="offer-name">Start monitoring+</div>';
       html += '<p class="offer-desc">We make the approved improvements for you.</p>';
-      html += '<a class="btn offer-btn" href="' + esc(url449) + '">Do it for me</a>';
+      html += '<a class="btn offer-btn" href="' + esc(url449) + '">Start monitoring+</a>';
       html += "</div>";
     }
     html += "</div>";
@@ -272,7 +271,7 @@
        comparison never competes with the visitor's own results. */
     if (comp && comp.score != null) {
       var cpct = Math.max(0, Math.min(100, Number(comp.score) || 0));
-      var cring = cpct >= 90 ? "#16a34a" : cpct >= 80 ? "#eab308" : cpct >= 70 ? "#d97706" : cpct >= 60 ? "#ea580c" : "#dc2626";
+      var cring = cpct >= 80 ? "#16a34a" : cpct >= 60 ? "#d97706" : "#dc2626";
       var ctarget = (2 * Math.PI * 54 * (1 - cpct / 100)).toFixed(1);
       html += '<div class="competitor-block">';
       html += '<h3 class="competitor-head">Competitor results: ' + esc(comp.business_name || comp.url || "Competitor") + "</h3>";
@@ -324,20 +323,19 @@
   }
 
   /* Unlock card (2026-11-12), copy approved by Caleb from the v3
-     mockup; text revised 2026-11-12 evening per Caleb (v4 mockup):
-     fuller subline and bullets, copy-and-code bullet removed. The
-     competitor bullet appears only when a competitor scan ran. */
+     mockup. The competitor bullet appears only when a competitor
+     scan actually ran. */
   function unlockCardHtml(report) {
     var comp = report.competitor || null;
     var html = '<div class="unlock-card">';
     html += "<h2>Unlock your full results</h2>";
-    html += "<p>See what's holding your score back and how to fix it.</p>";
+    html += "<p>See every fix instantly.</p>";
     html += "<ul>";
-    html += "<li>Every fix we recommend, check by check, in plain language</li>";
+    html += "<li>Every fix, check by check</li>";
     if (comp && comp.score != null) {
-      html += "<li>Your competitor's full breakdown, and where you could pass them</li>";
+      html += "<li>Your competitor's full breakdown</li>";
     }
-    html += "<li>We'll email you the full results and a 10% off code</li>";
+    html += "<li>10% off when you are ready to fix it</li>";
     html += "</ul>";
     html += '<form id="unlock-form">';
     html += '<input type="email" id="unlock-email" placeholder="you@yourbusiness.com" aria-label="Email address" required>';
