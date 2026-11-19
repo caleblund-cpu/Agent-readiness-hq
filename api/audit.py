@@ -2909,8 +2909,8 @@ STRIPE_MONITORING_PAYMENT_LINK_LEGACY = "plink_1UUtG6PwXi6zE7gEmmN7Nzpf"
 # surfaces: the results page reads them from the scan JSON
 # (checkout_urls, built from these constants) and the results email
 # uses them directly.
-STRIPE_149_CHECKOUT_URL = "https://buy.stripe.com/fZu3cx6K5fR7e9N66e5AQ04"  # 2026-11-18: Silver (monitoring) checkout; key name kept
-STRIPE_449_CHECKOUT_URL = "https://buy.stripe.com/dRm9AVd8t5ctc1FgKS5AQ05"  # 2026-11-18: Gold checkout; key name kept
+STRIPE_149_CHECKOUT_URL = "https://buy.stripe.com/fZu3cx6K5fR7e9N66e5AQ04"  # 2026-11-18: Basic (monitoring) checkout; key name kept
+STRIPE_449_CHECKOUT_URL = "https://buy.stripe.com/dRm9AVd8t5ctc1FgKS5AQ05"  # 2026-11-18: Plus checkout; key name kept
 # Permanent Stripe customer-portal login link (Caleb retrieved it
 # from the Stripe Dashboard 2026-10-27): a customer enters their
 # email at this link to manage or cancel their monitoring

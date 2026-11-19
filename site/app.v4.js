@@ -49,8 +49,8 @@
   var FORMSUBMIT_URL = "https://formsubmit.co/ajax/c171c3e0d3fb9d3525cb0945982c5d2b";
   var AUTORESPONSE_TEXT = "Thanks for your interest in Agent Readiness HQ! "
     + "We'll be in touch within one business day with details on "
-    + "AI Visibility Monitoring: Silver ($19.99/month) with your change "
-    + "plan and monthly recommended edits, or Gold ($29.99/month) where "
+    + "AI Visibility Monitoring: Basic ($19.99/mo) with your change "
+    + "plan and monthly recommended edits, or Plus ($29.99/mo) where "
     + "we make the improvements for you. Agent Readiness HQ";
 
   var SITE_URL = "https://agentreadinesshq.com/";
@@ -61,8 +61,8 @@
      to the live URLs. renderResults prefers the pair returned in the
      scan JSON (checkout_urls, whose single config spot is audit.py);
      these constants are the fallback if a response lacks them. */
-  var CHECKOUT_URL_149 = "https://buy.stripe.com/fZu3cx6K5fR7e9N66e5AQ04"; /* 2026-11-18 pivot: Silver (monitoring) checkout */
-  var CHECKOUT_URL_449 = "https://buy.stripe.com/dRm9AVd8t5ctc1FgKS5AQ05"; /* 2026-11-18 pivot: Gold checkout */
+  var CHECKOUT_URL_149 = "https://buy.stripe.com/fZu3cx6K5fR7e9N66e5AQ04"; /* 2026-11-18 pivot: Basic (monitoring) checkout */
+  var CHECKOUT_URL_449 = "https://buy.stripe.com/dRm9AVd8t5ctc1FgKS5AQ05"; /* 2026-11-18 pivot: Plus checkout */
 
   var auditForm = document.getElementById("audit-form");
   var urlInput = document.getElementById("site-url");
