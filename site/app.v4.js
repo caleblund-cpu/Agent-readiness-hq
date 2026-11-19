@@ -173,22 +173,22 @@
     html += '<div class="offer-cards">';
     html += '<div class="offer-card">';
     html += '<div class="offer-price">$19.99/mo</div>';
-    html += '<div class="offer-name">Start monitoring</div>';
+    html += '<div class="offer-name">Basic</div>';
     html += '<p class="offer-desc">Your change plan up front, monthly AI checks, and fresh recommended edits to apply yourself.</p>';
-    html += '<a class="btn offer-btn" href="' + esc(url149) + '">Start monitoring</a>';
+    html += '<a class="btn offer-btn" href="' + esc(url149) + '">Start Basic</a>';
     html += "</div>";
     if (elig === "C") {
       html += '<div class="offer-card offer-unavailable">';
       html += '<div class="offer-price">$29.99/mo</div>';
-      html += '<div class="offer-name">Start monitoring+</div>';
+      html += '<div class="offer-name">Plus</div>';
       html += '<p class="offer-desc">Not available on your website platform.</p>';
       html += "</div>";
     } else {
       html += '<div class="offer-card">';
       html += '<div class="offer-price">$29.99/mo</div>';
-      html += '<div class="offer-name">Start monitoring+</div>';
+      html += '<div class="offer-name">Plus</div>';
       html += '<p class="offer-desc">We make the approved improvements for you.</p>';
-      html += '<a class="btn offer-btn" href="' + esc(url449) + '">Start monitoring+</a>';
+      html += '<a class="btn offer-btn" href="' + esc(url449) + '">Start Plus</a>';
       html += "</div>";
     }
     html += "</div>";
