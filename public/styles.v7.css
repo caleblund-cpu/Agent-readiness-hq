@@ -791,4 +791,4 @@ body {
 @media (max-width: 560px) { #maintenance .tiles { grid-template-columns: 1fr; } }
 
 /* Two paid cards only (2026-11-18): center the pricing grid */
-.pricing-cards { grid-template-columns: repeat(2, 1fr); max-width: 54rem; margin-left: auto; margin-right: auto; }
+@media (min-width: 721px) { .pricing-cards { grid-template-columns: repeat(2, 1fr); max-width: 54rem; margin-left: auto; margin-right: auto; } }
