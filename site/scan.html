@@ -46,8 +46,11 @@
     .scan-url-row { flex-direction: column; border-radius: 24px; }
     .scan-url-row .btn { width: 100%; }
   }
-  .scan-hero h1 { color: #fff; text-align: center; }
-  .scan-hero .section-intro { color: #d8d8de; text-align: center; }
+  .scan-hero { background: #fff; color: var(--ink); }
+  .scan-hero::before { display: none; }
+  .scan-hero h1 { color: var(--ink); text-align: center; }
+  .scan-hero .section-intro { color: var(--muted); text-align: center; }
+  .scan-panel { background: var(--ink); color: #fff; border-radius: 24px; padding: 1.75rem 1.5rem 1.5rem; box-shadow: 0 24px 50px rgba(29,29,31,.18); }
   .scan-note { text-align: center; color: #a7a7b3; font-size: 0.92rem; margin-top: 1rem; }
   .result-correction { margin-top: 1.5rem; font-size: 0.95rem; color: var(--muted); text-align: center; }
   .result-correction a { color: var(--rose); }
@@ -103,6 +106,7 @@
     <div class="container">
       <h1>Can AI <span class="grad-text" style="font-style: italic">find your business?</span></h1>
       <p class="section-intro">Get your AI Readiness Score with a free scan. About a minute, no email required.</p>
+      <div class="scan-panel">
       <form id="audit-form" class="audit-form" aria-label="Run free scan">
         <div class="scan-lead">
           <label class="visually-hidden" for="scan-first-name">First name</label>
@@ -127,6 +131,7 @@
       </div>
       <p id="audit-status" class="audit-status" aria-live="polite"></p>
       <div id="audit-results" class="audit-results" hidden></div>
+      </div>
     </div>
   </section>
 
