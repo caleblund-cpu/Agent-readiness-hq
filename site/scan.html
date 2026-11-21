@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Free AI Readiness Scan | Agent Readiness HQ</title>
+<meta name="description" content="Run the free 7-check AI Readiness Scan: a score out of 100 for how readable your website is to AI systems, plus an optional free competitor scan. About a minute, no email required.">
+<link rel="canonical" href="https://agentreadinesshq.com/scan.html">
+<meta property="og:title" content="Run your free AI Readiness Scan">
+<meta property="og:description" content="One score out of 100. Seven checks. See how readable your website is to AI, free, and compare a competitor free.">
+<meta property="og:url" content="https://agentreadinesshq.com/scan.html">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://agentreadinesshq.com/og-share-v2.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@getagentready">
+<meta name="twitter:image" content="https://agentreadinesshq.com/og-share-v2.jpg">
+<link rel="stylesheet" href="styles.v7.css">
+<style>
+  #audit-form { background: transparent; box-shadow: none; padding: 0; border-radius: 0; flex-direction: column; }
+  #audit-form:focus-within { box-shadow: none; }
+  .scan-lead { display: flex; gap: 0.75rem; width: 100%; margin-bottom: 0.75rem; }
+  .audit-form .scan-lead input[type="text"], .audit-form .scan-lead input[type="email"] { flex: 1; min-width: 0; padding: 0.9rem 1.3rem; border: none; border-radius: 999px; font-size: 1.05rem; font-family: inherit; background: #fff; color: var(--ink); }
+  .scan-lead input::placeholder { color: #a7a7b3; }
+  .scan-lead input:focus { outline: none; box-shadow: 0 0 0 4px rgba(255,77,109,.45); }
+  .scan-url-row { display: flex; gap: 0.75rem; width: 100%; background: #fff; padding: 0.55rem; border-radius: 999px; box-shadow: 0 18px 50px rgba(0,0,0,.35); }
+  .scan-url-row:focus-within { box-shadow: 0 18px 50px rgba(0,0,0,.35), 0 0 0 4px rgba(255,77,109,.45); }
+  @media (max-width: 720px) {
+    .scan-lead { flex-direction: column; }
+    .scan-url-row { flex-direction: column; border-radius: 24px; }
+    .scan-url-row .btn { width: 100%; }
+  }
+  .scan-hero h1 { color: #fff; text-align: center; }
+  .scan-hero .section-intro { color: #d8d8de; text-align: center; }
+  .scan-note { text-align: center; color: #a7a7b3; font-size: 0.92rem; margin-top: 1rem; }
+  .result-correction { margin-top: 1.5rem; font-size: 0.95rem; color: var(--muted); text-align: center; }
+  .result-correction a { color: var(--rose); }
+  .email-note { text-align: center; color: var(--muted); font-size: 0.92rem; margin: 1.25rem auto 0; }
+</style>
+<style>
+/* Competitor scan: same styles as the homepage scan form. */
+.comp-q{margin-top:1.4rem;text-align:center;}
+.comp-q .comp-label{color:#fff;font-size:1.02rem;font-weight:600;margin-bottom:.7rem;}
+.comp-toggle{display:inline-flex;background:#26262a;border:1px solid #3a3a3e;border-radius:999px;overflow:hidden;}
+.comp-toggle button{background:transparent;border:0;color:#a7a7ad;font-size:.95rem;padding:.5rem 1.3rem;cursor:pointer;font-family:inherit;}
+.comp-toggle button.on{background:var(--rose);color:#fff;font-weight:600;}
+.comp-field{max-width:42rem;margin:.9rem auto 0;display:none;}
+.comp-field.show{display:block;}
+.comp-field input{width:100%;border:1px solid #3a3a3e;background:#26262a;color:#fff;border-radius:999px;padding:.95rem 1.25rem;font-size:1rem;font-family:inherit;}
+.comp-field input::placeholder{color:#8e8e93;}
+.vs-strip{display:flex;justify-content:center;align-items:baseline;gap:.7rem;margin-top:1rem;font-size:1.02rem;color:var(--muted);}
+.vs-strip strong{color:var(--ink);font-size:1.2rem;}
+.vs-mid{color:#8e8e93;font-size:.9rem;}
+.vs-note{text-align:center;color:#8e8e93;font-size:.85rem;margin-top:.35rem;}
+.comp-error{text-align:center;color:var(--muted);margin-top:1rem;font-size:.95rem;}
+.competitor-block{margin-top:2.2rem;border-top:2px solid #f0e9e6;padding-top:1.6rem;}
+.competitor-block .result-checks li{padding:.5rem 0;}
+.competitor-head{font-size:1.15rem;margin-bottom:1rem;text-align:center;}
+</style>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  "name": "Free AI Readiness Scan",
+  "url": "https://agentreadinesshq.com/scan.html",
+  "description": "Run the free 7-check AI Readiness Scan: a score out of 100 for how readable your website is to AI systems, plus an optional free competitor scan.",
+  "isPartOf": { "@id": "https://agentreadinesshq.com/#business" }
+}
+</script>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="wordmark" href="/"><svg width="30" height="30" viewBox="0 0 48 48" fill="none" style="vertical-align:-8px;margin-right:9px" aria-hidden="true"><rect x="5" y="5" width="38" height="38" rx="10" stroke="#1d1d1f" stroke-width="5"/><path d="M15.5 25 L22 31.5 L33.5 17.5" stroke="#ff4d6d" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Agent Readiness <span class="hq">HQ</span></a>
+    <nav class="nav-panel" aria-label="Site menu">
+      <a href="mailto:hello@agentreadinesshq.com">Email us</a>
+      <a class="nav-cta" href="/pricing-faq.html">Pricing &amp; FAQs</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <!-- Scan hero: this page has one job, the free scan. -->
+  <section class="section cta scan-hero" id="cta">
+    <div class="container">
+      <h1>Can AI <span class="grad-text" style="font-style: italic">find your business?</span></h1>
+      <p class="section-intro">Get your AI Readiness Score with a free scan. Seven checks on how readable your website is to ChatGPT, Google AI, Claude, and Perplexity. About a minute, no email required.</p>
+      <form id="audit-form" class="audit-form" aria-label="Run free scan">
+        <div class="scan-lead">
+          <label class="visually-hidden" for="scan-first-name">First name</label>
+          <input type="text" id="scan-first-name" name="first-name" placeholder="First name (optional)" autocomplete="given-name">
+          <label class="visually-hidden" for="scan-email">Email address</label>
+          <input type="email" id="scan-email" name="email" placeholder="you@yourbusiness.com (optional)" autocomplete="email">
+        </div>
+        <div class="scan-url-row">
+          <label class="visually-hidden" for="site-url">Website URL</label>
+          <input type="text" id="site-url" name="site-url" placeholder="www.yourbusiness.com" required autocomplete="url" inputmode="url" autocapitalize="none" autocorrect="off" spellcheck="false">
+          <button type="submit" class="btn" id="audit-btn">Run my free scan</button>
+        </div>
+      </form>
+      <div class="comp-q">
+        <p class="comp-label">Would you like to scan a competitor?</p>
+        <div class="comp-toggle" role="group" aria-label="Scan a competitor">
+          <button type="button" id="comp-no">No</button><button type="button" id="comp-yes" class="on">Yes</button>
+        </div>
+        <div class="comp-field show" id="comp-field">
+          <input type="text" id="competitor-url" name="competitor-url" placeholder="www.competitorbiz.com" autocomplete="url" inputmode="url" autocapitalize="none" autocorrect="off" spellcheck="false" aria-label="Competitor website">
+        </div>
+      </div>
+      <p id="audit-status" class="audit-status" aria-live="polite"></p>
+      <div id="audit-results" class="audit-results" hidden></div>
+      <p class="scan-note">Free. No email required to run it. Add your email after the scan only if you want the full results sent to you.</p>
+    </div>
+  </section>
+
+  <!-- What the scan shows -->
+  <section class="section">
+    <div class="container">
+      <p class="section-intro" style="text-align:center">You get a score out of 100 with a letter grade, the seven checks in plain English, and a free competitor score side by side.</p>
+      <div class="proof-card" style="max-width:44rem;margin:2rem auto 0"><blockquote>&ldquo;Agent Readiness HQ built us an AI Information Page that puts our business facts in one clear place and increased our free scan score from 59.5 to 93.3. Easy process!&rdquo;</blockquote><div class="proof-attr"><div class="who">Joe Bogner</div><div class="biz"><a href="https://getsmcoffee.com">South Metro Coffee Roasters</a></div></div></div>
+      <p class="section-intro" style="margin-top:2rem">Want us to keep watch after the scan? AI Visibility Monitoring checks monthly whether AI names you or your competitors, from $19.99 a month, with code SCAN50 for 50% off your first month. <a href="/pricing-faq.html">See pricing and FAQs</a>.</p>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <p><strong>Agent Readiness HQ</strong>, helping businesses show up when customers ask AI, and be ready for the agent economy. A family-run business. <a href="https://agentreadinesshq.com/">agentreadinesshq.com</a> · <a href="/blog.html">Blog</a> · <a href="/pricing-faq.html">Pricing &amp; FAQs</a> · <a href="/terms.html">Terms of Service</a> · <a href="/privacy.html">Privacy Policy</a></p>
+    <p class="fine-print">Disclosures: bot-wall detection is automated and keyword-based; findings may include false positives or negatives and should be independently verified before acting on them. The readiness score is an assessment of technical machine-readability only. Scores, reports, and toolkit materials are provided for informational purposes and do not guarantee increased traffic, customer acquisition, revenue, or any business outcome. Services are offered as-is without warranties of any kind.</p>
+    <p class="footer-social" style="margin-top:10px"><a href="https://x.com/getagentready" target="_blank" rel="noopener" aria-label="Agent Readiness HQ on X" style="display:inline-flex;align-items:center;gap:7px;color:#6e6e73;text-decoration:none"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.9 2.1h3.4l-7.4 8.5 8.7 11.3h-6.8l-5.3-6.8-6.1 6.8H2l7.9-9.1L1.6 2.1H8.6l4.8 6.2 5.5-6.2zm-1.2 17.7h1.9L7.6 4H5.6l12.1 15.8z"/></svg><span>@getagentready</span></a></p>
+<style>.footer-social a:hover{color:#e63a5c}</style>
+  </div>
+</footer>
+
+<script src="app.v4.js"></script>
+</body>
+</html>

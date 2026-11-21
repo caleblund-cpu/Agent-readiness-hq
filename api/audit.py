@@ -4697,6 +4697,7 @@ class handler(BaseHTTPRequestHandler):
             "intake-thanks.html": "text/html; charset=utf-8",
             "thanks-upgrade.html": "text/html; charset=utf-8",
             "ai-info.html": "text/html; charset=utf-8",
+            "scan.html": "text/html; charset=utf-8",
             "widget-test.html": "text/html; charset=utf-8",
         "information.html": "text/html; charset=utf-8",
             "blog.html": "text/html; charset=utf-8",
