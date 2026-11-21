@@ -20,7 +20,7 @@
 <link rel="stylesheet" href="styles.v7.css">
 <style>
   .hero { padding-top: 2.75rem; padding-bottom: 2.75rem; }
-  .hero h1 { margin-bottom: 0.9rem; }
+  .hero h1 { margin-bottom: 0.9rem; line-height: 1.05; }
   .hero .section-intro { margin-bottom: 1.4rem; }
   .section { padding: 2.75rem 0; }
   /* Social proof marquee: slow infinite scroll, pauses on hover (same as homepage) */
@@ -101,7 +101,7 @@
   <section class="section cta scan-hero" id="cta">
     <div class="container">
       <h1>Can AI <span class="grad-text" style="font-style: italic">find your business?</span></h1>
-      <p class="section-intro">Get your AI Readiness Score with a free scan. Seven checks on how readable your website is to ChatGPT, Google AI, Claude, and Perplexity. About a minute, no email required.</p>
+      <p class="section-intro">Get your AI Readiness Score with a free scan. About a minute, no email required.</p>
       <form id="audit-form" class="audit-form" aria-label="Run free scan">
         <div class="scan-lead">
           <label class="visually-hidden" for="scan-first-name">First name</label>
@@ -146,9 +146,60 @@
     </div>
   </section>
 
-  <section class="section" style="padding-top:0">
+  <!-- Pricing (same boxes as the main page) -->
+  <section class="section" id="pricing">
     <div class="container">
-      <p class="section-intro" style="text-align:center">Interested in learning how we can help? <a href="/">Visit our main website</a> or <a href="/pricing-faq.html">see pricing and FAQs</a>.</p>
+      <h2>See how we can help</h2>
+      <p class="section-intro">One monthly price. No big upfront bill.</p>
+      <div class="cards pricing-cards">
+                <article class="card price-card">
+          <p class="pill"></p>
+          <h3>AI Visibility Monitoring</h3>
+          <p class="tier-metal">Basic</p>
+          <p class="price">$19.99/mo</p>
+          <p class="tagline">We track how AI answers talk about your business, and send you the plan and the monthly recommended edits.</p>
+          <ul class="price-list">
+            <li>Everything in Free, plus:</li>
+            <li>Your full recommended change document, up front</li>
+            <li>Monthly checks across ChatGPT, Google AI, Claude, and Perplexity</li>
+            <li>Which competitors AI names instead of you</li>
+            <li>Fresh recommended edits every month, ready for you to apply</li>
+            <li>Monthly Snapshot reviewed by a human before it reaches you</li>
+            <li class="addon-line"><strong>Optional add-on:</strong> Website Q&amp;A Widget, <strong>$50 setup, then $10/mo</strong>. Coming soon. It answers visitor questions from your approved business facts and shows you what visitors are asking.</li>
+          </ul>
+          <p style="font-size:13px; line-height:1.55; color:#6e6e73; margin-top:10px;">Billed monthly. Cancel anytime.</p>
+          <a href="https://buy.stripe.com/fZu3cx6K5fR7e9N66e5AQ04" class="btn">Start Basic</a>
+        </article>
+        <article class="card price-card featured">
+          <p class="pill">Most Popular</p>
+          <h3>AI Visibility Monitoring</h3>
+          <p class="tier-metal">Plus</p>
+          <p class="price">$39.99/mo</p>
+          <p class="tagline">Everything in Basic, and we make the improvements on your site for you.</p>
+          <ul class="price-list">
+            <li>Everything in Basic, plus:</li>
+            <li>Up to 3 improvements made for you each month, worked through your change plan first</li>
+            <li>Every change approved by you before we touch your site</li>
+            <li>Before and after check on every change</li>
+            <li>One standing authorization covers the monthly work, no new form each month</li>
+            <li>Temporary access you create with minimum permissions. We never ask you to email or submit your existing passwords</li>
+            <li class="addon-line"><strong>Optional add-on:</strong> Website Q&amp;A Widget, <strong>$50 setup, then $10/mo</strong>. Coming soon. It answers visitor questions from your approved business facts and shows you what visitors are asking.</li>
+          </ul>
+          <p style="font-size:13px; line-height:1.55; color:#6e6e73; margin-top:10px;">Billed monthly. Cancel anytime.</p>
+          <a href="https://buy.stripe.com/dRm9AVd8t5ctc1FgKS5AQ05" class="btn">Start Plus</a>
+        </article>
+      </div>
+      <p class="email-note">Implementation under Plus depends on your website platform and plan. Your change document and monthly Snapshot come by email from hello@agentreadinesshq.com. If you do not see them, check your spam folder.</p>
+    </div>
+  </section>
+
+  <section class="section packet-band">
+    <div class="container">
+      <div class="email-capture">
+        <h2>Questions?</h2>
+        <p class="section-intro">We're happy to help.</p>
+        <p class="cta-row"><a class="btn" href="mailto:hello@agentreadinesshq.com">Email us</a></p>
+      </div>
     </div>
   </section>
 
