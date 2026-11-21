@@ -50,7 +50,7 @@
   var AUTORESPONSE_TEXT = "Thanks for your interest in Agent Readiness HQ! "
     + "We'll be in touch within one business day with details on "
     + "AI Visibility Monitoring: Basic ($19.99/mo) with your change "
-    + "plan and monthly recommended edits, or Plus ($29.99/mo) where "
+    + "plan and monthly recommended edits, or Plus ($39.99/mo) where "
     + "we make the improvements for you. Agent Readiness HQ";
 
   var SITE_URL = "https://agentreadinesshq.com/";
@@ -179,13 +179,13 @@
     html += "</div>";
     if (elig === "C") {
       html += '<div class="offer-card offer-unavailable">';
-      html += '<div class="offer-price">$29.99/mo</div>';
+      html += '<div class="offer-price">$39.99/mo</div>';
       html += '<div class="offer-name">Plus</div>';
       html += '<p class="offer-desc">Not available on your website platform.</p>';
       html += "</div>";
     } else {
       html += '<div class="offer-card">';
-      html += '<div class="offer-price">$29.99/mo</div>';
+      html += '<div class="offer-price">$39.99/mo</div>';
       html += '<div class="offer-name">Plus</div>';
       html += '<p class="offer-desc">We make the approved improvements for you.</p>';
       html += '<a class="btn offer-btn" href="' + esc(url449) + '">Start Plus</a>';
