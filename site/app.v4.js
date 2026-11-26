@@ -315,7 +315,7 @@
       html += "</div>";
     }
     if (opts.unlockedEmail) {
-      html += '<p class="unlocked-note">Unlocked. Your full results are on this page, and a copy with your 10% code is on its way to ' + esc(opts.unlockedEmail) + ".</p>";
+      html += '<p class="unlocked-note">Unlocked. Your full results are on this page, and a copy with your 50% code is on its way to ' + esc(opts.unlockedEmail) + ".</p>";
     }
     resultsEl.innerHTML = html;
     resultsEl.hidden = false;
@@ -335,7 +335,7 @@
     if (comp && comp.score != null) {
       html += "<li>Your competitor's full breakdown</li>";
     }
-    html += "<li>10% off when you are ready to fix it</li>";
+    html += "<li>50% off your first month when you are ready to fix it</li>";
     html += "</ul>";
     html += '<form id="unlock-form">';
     html += '<input type="email" id="unlock-email" placeholder="you@yourbusiness.com" aria-label="Email address" required>';
