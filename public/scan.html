@@ -55,6 +55,7 @@
   .scan-panel .audit-status:empty { display: none; }
   .scan-panel .audit-status:not(:empty) { margin-top: 0.9rem; }
   .scan-note { text-align: center; color: #a7a7b3; font-size: 0.92rem; margin-top: 1rem; }
+  .scan-privacy-note { font-size: 0.85rem; color: #a7a7b3; margin: 0 0 0.75rem; line-height: 1.45; }
   .result-correction { margin-top: 1.5rem; font-size: 0.95rem; color: var(--muted); text-align: center; }
   .result-correction a { color: var(--rose); }
   .email-note { text-align: center; color: var(--muted); font-size: 0.92rem; margin: 1.25rem auto 0; }
@@ -117,6 +118,7 @@
           <label class="visually-hidden" for="scan-email">Email address</label>
           <input type="email" id="scan-email" name="email" placeholder="you@yourbusiness.com (optional)" autocomplete="email">
         </div>
+        <p class="scan-privacy-note">This free scan audits your public-facing website and does not require any personal information. If you do not share your email, nothing is tied to you. If you do share it, you can opt out of future emails at any time.</p>
         <div class="scan-url-row">
           <label class="visually-hidden" for="site-url">Website URL</label>
           <input type="text" id="site-url" name="site-url" placeholder="www.yourbusiness.com" required autocomplete="url" inputmode="url" autocapitalize="none" autocorrect="off" spellcheck="false">
