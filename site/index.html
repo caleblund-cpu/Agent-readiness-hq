@@ -48,6 +48,7 @@
   .scan-lead input:focus { outline: none; box-shadow: 0 0 0 4px rgba(255,77,109,.45); }
   .scan-url-row { display: flex; gap: 0.75rem; width: 100%; background: #fff; padding: 0.55rem; border-radius: 999px; box-shadow: 0 18px 50px rgba(0,0,0,.35); }
   .scan-url-row:focus-within { box-shadow: 0 18px 50px rgba(0,0,0,.35), 0 0 0 4px rgba(255,77,109,.45); }
+  .scan-privacy-note { font-size: 0.85rem; color: #a7a7b3; margin: 0 0 0.75rem; line-height: 1.45; }
   @media (max-width: 720px) {
     .scan-lead { flex-direction: column; }
     .scan-url-row { flex-direction: column; border-radius: 24px; }
@@ -356,6 +357,7 @@
           <label class="visually-hidden" for="scan-email">Email address</label>
           <input type="email" id="scan-email" name="email" placeholder="you@yourbusiness.com (optional)" autocomplete="email">
         </div>
+        <p class="scan-privacy-note">This free scan audits your public-facing website and does not require any personal information. If you do not share your email, nothing is tied to you. If you do share it, you can opt out of future emails at any time.</p>
         <div class="scan-url-row">
           <label class="visually-hidden" for="site-url">Website URL</label>
           <input type="text" id="site-url" name="site-url" placeholder="www.yourbusiness.com" required autocomplete="url" inputmode="url" autocapitalize="none" autocorrect="off" spellcheck="false">
